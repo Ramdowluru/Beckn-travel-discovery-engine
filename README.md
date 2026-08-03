@@ -8,13 +8,31 @@
 - Member 5
 
 ## Problem Statement
-Develop a Beckn-based Travel Discovery Engine that aggregates travel services from multiple providers.
+Develop a Beckn-based Travel Discovery Engine that aggregates travel services from multiple providers using the Beckn Protocol.
 
 ## Tech Stack
-- Backend: Spring Boot (Java)
-- Frontend: ReactJS
-- Database: MongoDB
-- Version Control: Git & GitHub
+
+### Frontend
+- Next.js
+- TypeScript (optional)
+- Tailwind CSS (if you plan to use it)
+
+### Backend
+- FastAPI
+- Python
+- Pydantic
+- Uvicorn
+
+### Database
+- MongoDB
+
+### APIs & Documentation
+- REST APIs
+- OpenAPI / Swagger
+
+### Version Control
+- Git
+- GitHub
 
 ## Project Status
 🚧 Under Development
