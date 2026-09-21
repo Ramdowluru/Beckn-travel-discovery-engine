@@ -1,26 +1,73 @@
 @import "tailwindcss";
 
+/* ─── Design Tokens ───────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --cream:      #F2EDE4;
+  --cream-dark: #E8E0D4;
+  --ink:        #1A1A18;
+  --ink-mid:    #2C2C2A;
+  --ink-soft:   #5C5C58;
+  --ink-muted:  #9A9A94;
+  --orange:     #C84B2F;
+  --orange-hover: #A83A22;
+  --forest:     #1C2B25;
+  --white:      #FFFFFF;
+  --border:     #D4CEC4;
+  --border-dark:#3A3A36;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ─── Reset ───────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--cream);
+  color: var(--ink);
+  font-family: var(--font-body), 'DM Sans', sans-serif;
+  line-height: 1.5;
 }
+
+/* ─── Typography Scale ────────────────────────────────────────── */
+h1, h2, h3, h4 {
+  font-family: var(--font-display), serif;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+/* ─── Global utilities ────────────────────────────────────────── */
+.tag {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--orange);
+}
+
+.tag-neutral {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* Sharp corners everywhere — no border-radius */
+* {
+  border-radius: 0 !important;
+}
+
+/* ─── Scrollbar ───────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--cream); }
+::-webkit-scrollbar-thumb { background: var(--border); }
