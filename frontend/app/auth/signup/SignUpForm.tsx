@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 export default function SignUpForm() {
   const router = useRouter();
+  const { signIn } = useAuth();
 
   const [name,     setName]     = useState("");
   const [email,    setEmail]    = useState("");
@@ -24,6 +26,17 @@ export default function SignUpForm() {
     setLoading(true);
     await new Promise((r) => setTimeout(r, 800));
     setLoading(false);
+
+    signIn({
+      name,
+      email,
+      initials: name
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((w: string) => w[0].toUpperCase())
+        .join(""),
+    });
 
     router.push("/trips");
   }

@@ -1,24 +1,76 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
+/* ─── Nav link definitions ────────────────────────────────────── */
 const navLinks = [
-  { href: "/", label: "Explore" },
-  { href: "/trips", label: "Trips" },
+  { href: "/",         label: "Explore" },
+  { href: "/trips",    label: "Trips"   },
   { href: "/partners", label: "Our Partners" },
   { href: "/how-it-works", label: "How it works" },
-  { href: "/about", label: "About" },
+  { href: "/about",    label: "About"   },
 ];
 
+/* ─── Which nav entry should be active for a given pathname ───── */
+function getActiveHref(pathname: string): string {
+  /* Explore — landing + all results + auth flows */
+  if (
+    pathname === "/" ||
+    pathname.startsWith("/results") ||
+    pathname.startsWith("/auth")
+  ) return "/";
+
+  /* Trips — profile, itinerary, booking */
+  if (
+    pathname.startsWith("/trips") ||
+    pathname.startsWith("/itinerary") ||
+    pathname.startsWith("/booking")
+  ) return "/trips";
+
+  /* Partners */
+  if (pathname.startsWith("/partners")) return "/partners";
+
+  /* How it works */
+  if (pathname.startsWith("/how-it-works")) return "/how-it-works";
+
+  /* About */
+  if (pathname.startsWith("/about")) return "/about";
+
+  return "";
+}
+
+/* ─── Derive initials from a full name ───────────────────────── */
+function initials(name: string): string {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join("");
+}
+
+/* ─── Component ───────────────────────────────────────────────── */
 export default function Navbar() {
-  const pathname = usePathname();
+  const pathname   = usePathname();
+  const router     = useRouter();
+  const { user, signOut } = useAuth();
+  const activeHref = getActiveHref(pathname);
+
+  function handleSignOut() {
+    signOut();
+    router.push("/");
+  }
 
   return (
     <nav
       style={{
         backgroundColor: "var(--forest)",
         borderBottom: "1px solid var(--border-dark)",
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
       }}
     >
       <div
@@ -32,7 +84,7 @@ export default function Navbar() {
           gap: "3rem",
         }}
       >
-        {/* Logo */}
+        {/* ── Logo ──────────────────────────────────────────── */}
         <Link href="/" style={{ textDecoration: "none", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <div
@@ -86,7 +138,7 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Nav links */}
+        {/* ── Nav links ─────────────────────────────────────── */}
         <div
           style={{
             display: "flex",
@@ -96,7 +148,7 @@ export default function Navbar() {
           }}
         >
           {navLinks.map((link) => {
-            const isActive = pathname === link.href;
+            const isActive = activeHref === link.href;
             return (
               <Link
                 key={link.href}
@@ -112,6 +164,7 @@ export default function Navbar() {
                     ? "1px solid var(--orange)"
                     : "1px solid transparent",
                   transition: "color 0.15s, border-color 0.15s",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {link.label}
@@ -120,31 +173,118 @@ export default function Navbar() {
           })}
         </div>
 
-        {/* Right side */}
-        <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", flexShrink: 0 }}>
+        {/* ── Right side ────────────────────────────────────── */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "1.5rem",
+            flexShrink: 0,
+          }}
+        >
           <span
             className="tag-neutral"
             style={{ color: "rgba(242,237,228,0.35)", fontSize: "0.6rem" }}
           >
             [SYS-OPS]
           </span>
-          <Link
-            href="/auth/signin"
-            style={{
-              fontFamily: "var(--font-body)",
-              fontWeight: 500,
-              fontSize: "0.8rem",
-              color: "var(--ink)",
-              backgroundColor: "var(--cream)",
-              padding: "0.5rem 1.25rem",
-              textDecoration: "none",
-              letterSpacing: "0.02em",
-              border: "1px solid var(--cream)",
-              transition: "background-color 0.15s",
-            }}
-          >
-            Sign in
-          </Link>
+
+          {user ? (
+            /* ── Authenticated ─────────────────────────────── */
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              {/* Avatar */}
+              <Link
+                href="/trips"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.6rem",
+                  textDecoration: "none",
+                }}
+              >
+                <div
+                  style={{
+                    width: "30px",
+                    height: "30px",
+                    backgroundColor: "var(--orange)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontWeight: 700,
+                      fontSize: "0.65rem",
+                      color: "var(--white)",
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    {initials(user.name)}
+                  </span>
+                </div>
+                <span
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontWeight: 500,
+                    fontSize: "0.8rem",
+                    color: "var(--cream)",
+                    letterSpacing: "0.01em",
+                  }}
+                >
+                  {user.name.split(" ")[0]}
+                </span>
+              </Link>
+
+              {/* Sign out */}
+              <button
+                onClick={handleSignOut}
+                style={{
+                  fontFamily: "var(--font-body)",
+                  fontWeight: 400,
+                  fontSize: "0.75rem",
+                  color: "rgba(242,237,228,0.45)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 0,
+                  letterSpacing: "0.02em",
+                  transition: "color 0.15s",
+                }}
+                onMouseEnter={(e) =>
+                  ((e.currentTarget as HTMLElement).style.color =
+                    "rgba(242,237,228,0.9)")
+                }
+                onMouseLeave={(e) =>
+                  ((e.currentTarget as HTMLElement).style.color =
+                    "rgba(242,237,228,0.45)")
+                }
+              >
+                Sign out
+              </button>
+            </div>
+          ) : (
+            /* ── Unauthenticated ───────────────────────────── */
+            <Link
+              href="/auth/signin"
+              style={{
+                fontFamily: "var(--font-body)",
+                fontWeight: 500,
+                fontSize: "0.8rem",
+                color: "var(--ink)",
+                backgroundColor: "var(--cream)",
+                padding: "0.5rem 1.25rem",
+                textDecoration: "none",
+                letterSpacing: "0.02em",
+                border: "1px solid var(--cream)",
+                transition: "background-color 0.15s",
+              }}
+            >
+              Sign in
+            </Link>
+          )}
         </div>
       </div>
     </nav>

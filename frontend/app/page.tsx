@@ -23,7 +23,7 @@ const popularOptions = [
     arrival: "17:30",
     stops: "1 stop",
     price: "₹1,200",
-    id: "railway-12727-vtz-hyd",
+    id: "railway-12727",
   },
   {
     provider: "Intercity",
@@ -33,7 +33,7 @@ const popularOptions = [
     arrival: "21:15",
     stops: "Direct",
     price: "₹950",
-    id: "intercity-vtz-hyd",
+    id: "intercity-bus",
   },
 ];
 
@@ -93,8 +93,8 @@ export default function LandingPage() {
               marginBottom: "2.5rem",
             }}
           >
-            Compare flights, trains, buses, hotels and local experiences across
-            Visakhapatnam and Hyderabad — then book directly with the provider.
+          Compare flights, trains, buses, hotels and local experiences
+            across India — then book directly with the provider.
           </p>
 
           {/* Search bar */}
@@ -295,7 +295,7 @@ export default function LandingPage() {
                     {option.price}
                   </span>
                   <Link
-                    href={`/results?tab=travel&option=${option.id}`}
+                    href={`/results/transport/${option.id}`}
                     style={{
                       fontFamily: "var(--font-body)",
                       fontWeight: 500,

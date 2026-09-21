@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 export default function SignInForm() {
   const router = useRouter();
+  const { signIn } = useAuth();
 
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
@@ -24,7 +26,23 @@ export default function SignInForm() {
     await new Promise((r) => setTimeout(r, 800));
     setLoading(false);
 
-    /* Demo: any credentials succeed */
+    /* Demo: derive a display name from the email prefix */
+    const namePart = email.split("@")[0];
+    const displayName = namePart
+      .replace(/[._-]/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+
+    signIn({
+      name: displayName,
+      email,
+      initials: displayName
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((w: string) => w[0].toUpperCase())
+        .join(""),
+    });
+
     router.push("/trips");
   }
 
