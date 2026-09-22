@@ -1,46 +1,8 @@
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-
-/* ─── Mock itinerary data ─────────────────────────────────────── */
-const itineraryItems = [
-  {
-    id: "start",
-    type: "START",
-    title: "Visakhapatnam (VTZ)",
-    detail: "Departure point for your trip.",
-    price: null,
-  },
-  {
-    id: "flight-skyconnect",
-    type: "FLIGHT",
-    title: "SkyConnect · VTZ → HYD",
-    detail: "08:20 → 10:00 · 1h 40m",
-    price: "₹4,500",
-  },
-  {
-    id: "stay-minerva",
-    type: "STAY",
-    title: "Hotel Minerva Grand",
-    detail: "Check-in 15 Sep → Check-out 17 Sep",
-    price: "₹5,600",
-  },
-  {
-    id: "exp-charminar",
-    type: "EXPERIENCE",
-    title: "Charminar Heritage Walk",
-    detail: "16 Sep, 16:00 · 3 hours",
-    price: "₹500",
-  },
-];
-
-const priceBreakdown = [
-  { label: "Flight · SkyConnect", amount: "₹4,500" },
-  { label: "Hotel Minerva Grand · 2 nights", amount: "₹5,600" },
-  { label: "Charminar Heritage Walk", amount: "₹500" },
-];
-
-const total = "₹10,600";
+import { experienceOptions, stayOptions, transportOptions } from "@/lib/mockData";
+import { buildSearchHref, getSearchParam, type PageSearchParams } from "@/lib/searchParams";
 
 /* ─── Dot colour per segment type ────────────────────────────── */
 const dotColor: Record<string, string> = {
@@ -50,7 +12,93 @@ const dotColor: Record<string, string> = {
   EXPERIENCE: "var(--orange)",
 };
 
-export default function ItineraryPage() {
+function formatDate(iso: string): string {
+  if (!iso) return "";
+  const date = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(date.getTime())
+    ? iso
+    : date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+function formatAmount(amount: number): string {
+  return `₹${amount.toLocaleString("en-IN")}`;
+}
+
+export default async function ItineraryPage({
+  searchParams,
+}: {
+  searchParams: Promise<PageSearchParams>;
+}) {
+  const params = await searchParams;
+  const fromCity = getSearchParam(params, "from") || "Visakhapatnam";
+  const toCity = getSearchParam(params, "to") || "Hyderabad";
+  const date = getSearchParam(params, "date");
+  const transport = transportOptions.find(
+    (option) => option.id === getSearchParam(params, "transport"),
+  );
+  const stay = stayOptions.find(
+    (option) => option.id === getSearchParam(params, "stay"),
+  );
+  const experience = experienceOptions.find(
+    (option) => option.id === getSearchParam(params, "experience"),
+  );
+
+  const itineraryItems = [
+    {
+      id: "start",
+      type: "START",
+      title: `${fromCity} → ${toCity}`,
+      detail: date ? `Departure on ${formatDate(date)}.` : "Departure point for your trip.",
+      price: null,
+    },
+    ...(transport
+      ? [{
+          id: transport.id,
+          type: transport.type,
+          title: `${transport.provider} · ${transport.departureCity} → ${transport.arrivalCity}`,
+          detail: `${transport.departure} → ${transport.arrival} · ${transport.duration}`,
+          price: transport.price,
+        }]
+      : []),
+    ...(stay
+      ? [{
+          id: stay.id,
+          type: "STAY",
+          title: stay.name,
+          detail: `${stay.nights} nights · Check-in ${stay.checkIn} → Check-out ${stay.checkOut}`,
+          price: stay.totalPrice,
+        }]
+      : []),
+    ...(experience
+      ? [{
+          id: experience.id,
+          type: "EXPERIENCE",
+          title: experience.name,
+          detail: `${experience.duration} · Meet at ${experience.meetingPoint}`,
+          price: experience.price,
+        }]
+      : []),
+  ];
+
+  const priceBreakdown = [
+    ...(transport ? [{ label: `${transport.type} · ${transport.provider}`, amount: transport.price, value: transport.priceNum }] : []),
+    ...(stay ? [{ label: `${stay.name} · ${stay.nights} nights`, amount: stay.totalPrice, value: Number(stay.totalPrice.replace(/[^\d]/g, "")) }] : []),
+    ...(experience ? [{ label: experience.name, amount: experience.price, value: experience.priceNum }] : []),
+  ];
+  const totalValue = priceBreakdown.reduce((sum, item) => sum + item.value, 0);
+  const editParams = new URLSearchParams({
+    tab: "travel",
+    from: fromCity,
+    to: toCity,
+    ...(date ? { date } : {}),
+    ...(getSearchParam(params, "travellers") ? { travellers: getSearchParam(params, "travellers") } : {}),
+  });
+  const checkoutHref = buildSearchHref("/booking/confirm", "travel", params, {
+    ...(transport ? { transport: transport.id } : {}),
+    ...(stay ? { stay: stay.id } : {}),
+    ...(experience ? { experience: experience.id } : {}),
+  });
+
   return (
     <>
       <Navbar />
@@ -89,7 +137,7 @@ export default function ItineraryPage() {
               lineHeight: 1.6,
             }}
           >
-            Everything you&apos;ve picked for your Hyderabad trip, in one place.
+            Everything you&apos;ve picked for your {toCity} trip, in one place.
             Review the details, then check out.
           </p>
 
@@ -245,7 +293,11 @@ export default function ItineraryPage() {
                     marginBottom: "1.25rem",
                   }}
                 >
-                  {priceBreakdown.map((item) => (
+                  {priceBreakdown.length === 0 ? (
+                    <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.825rem", color: "var(--ink-soft)", lineHeight: 1.5 }}>
+                      Select travel, a stay, or an experience to build your itinerary.
+                    </p>
+                  ) : priceBreakdown.map((item) => (
                     <div
                       key={item.label}
                       style={{
@@ -312,13 +364,13 @@ export default function ItineraryPage() {
                       letterSpacing: "-0.02em",
                     }}
                   >
-                    {total}
+                    {formatAmount(totalValue)}
                   </span>
                 </div>
 
                 {/* Primary CTA */}
                 <Link
-                  href="/booking/confirm"
+                  href={checkoutHref}
                   style={{
                     display: "block",
                     width: "100%",
@@ -341,7 +393,7 @@ export default function ItineraryPage() {
 
                 {/* Secondary CTA */}
                 <Link
-                  href="/results?tab=travel"
+                  href={`/results?${editParams.toString()}`}
                   style={{
                     display: "block",
                     width: "100%",

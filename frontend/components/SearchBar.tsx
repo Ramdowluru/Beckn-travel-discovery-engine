@@ -104,6 +104,7 @@ function Calendar({ value, onChange, onClose }: CalendarProps) {
 
   return (
     <div
+      className="search-bar"
       style={{
         position: "absolute",
         top: "calc(100% + 2px)",

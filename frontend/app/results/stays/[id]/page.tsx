@@ -1,17 +1,37 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { stayOptions } from "@/lib/mockData";
+import { buildSearchHref, type PageSearchParams } from "@/lib/searchParams";
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<PageSearchParams>;
 }
 
-export default async function StayDetailPage({ params }: Props) {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
+  const stay = stayOptions.find((item) => item.id === id);
+  return {
+    title: stay ? `${stay.name} stay` : "Stay details",
+    description: stay?.description,
+  };
+}
+
+export default async function StayDetailPage({ params, searchParams }: Props) {
+  const { id } = await params;
+  const currentSearchParams = await searchParams;
   const stay = stayOptions.find((s) => s.id === id);
   if (!stay) notFound();
+  const galleryImages = (stay.images.length > 0 ? stay.images : [stay.image]).slice(0, 3);
+  const galleryColumns = galleryImages.length === 1
+    ? "1fr"
+    : galleryImages.length === 2
+      ? "1fr 1fr"
+      : "2fr 1fr 1fr";
 
   return (
     <>
@@ -20,7 +40,7 @@ export default async function StayDetailPage({ params }: Props) {
         {/* ── Breadcrumb ──────────────────────────────────────── */}
         <div style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--white)" }}>
           <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", height: "44px", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Link href="/results?tab=stays" style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-soft)", textDecoration: "none" }}>
+            <Link href={buildSearchHref("/results", "stays", currentSearchParams)} style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-soft)", textDecoration: "none" }}>
               Stays results
             </Link>
             <span style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}>→</span>
@@ -33,11 +53,10 @@ export default async function StayDetailPage({ params }: Props) {
         <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "3rem 2rem 5rem" }}>
 
           {/* ── Hero image ──────────────────────────────────────── */}
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "2px", marginBottom: "2.5rem", height: "320px" }}>
-            {stay.images.slice(0, 3).map((img, i) => (
-              <div key={i} style={{ overflow: "hidden", backgroundColor: "var(--cream-dark)" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img} alt={stay.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          <div style={{ display: "grid", gridTemplateColumns: galleryColumns, gap: "2px", marginBottom: "2.5rem", height: "320px" }}>
+            {galleryImages.map((img, i) => (
+              <div key={i} style={{ overflow: "hidden", backgroundColor: "var(--cream-dark)", position: "relative" }}>
+                <Image src={img} alt={stay.name} fill sizes="(max-width: 760px) 100vw, 33vw" style={{ objectFit: "cover" }} />
               </div>
             ))}
           </div>
@@ -110,13 +129,13 @@ export default async function StayDetailPage({ params }: Props) {
                 </p>
 
                 <Link
-                  href="/itinerary"
+                  href={buildSearchHref("/itinerary", "stays", currentSearchParams, { stay: stay.id })}
                   style={{ display: "block", width: "100%", backgroundColor: "var(--ink)", color: "var(--white)", fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.875rem", letterSpacing: "0.06em", textTransform: "uppercase", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", marginBottom: "0.75rem" }}
                 >
                   Select this stay
                 </Link>
                 <Link
-                  href="/results?tab=stays"
+                  href={buildSearchHref("/results", "stays", currentSearchParams)}
                   style={{ display: "block", width: "100%", backgroundColor: "transparent", color: "var(--ink)", fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.875rem", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", border: "1px solid var(--border)" }}
                 >
                   Back to results

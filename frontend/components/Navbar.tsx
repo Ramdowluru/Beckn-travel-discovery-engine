@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 
 /* ─── Nav link definitions ────────────────────────────────────── */
@@ -57,6 +58,7 @@ export default function Navbar() {
   const router     = useRouter();
   const { user, signOut } = useAuth();
   const activeHref = getActiveHref(pathname);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   function handleSignOut() {
     signOut();
@@ -83,6 +85,7 @@ export default function Navbar() {
           height: "56px",
           gap: "3rem",
         }}
+        className="navbar-inner"
       >
         {/* ── Logo ──────────────────────────────────────────── */}
         <Link href="/" style={{ textDecoration: "none", flexShrink: 0 }}>
@@ -146,6 +149,7 @@ export default function Navbar() {
             gap: "2rem",
             flex: 1,
           }}
+          className="desktop-nav-links"
         >
           {navLinks.map((link) => {
             const isActive = activeHref === link.href;
@@ -181,13 +185,28 @@ export default function Navbar() {
             gap: "1.5rem",
             flexShrink: 0,
           }}
+          className="navbar-actions"
         >
-          <span
-            className="tag-neutral"
+          <Link
+            href="/how-it-works"
+            className="tag-neutral navbar-system-tag"
             style={{ color: "rgba(242,237,228,0.35)", fontSize: "0.6rem" }}
+            title="View how TDE works"
           >
             [SYS-OPS]
-          </span>
+          </Link>
+
+          <button
+            type="button"
+            className="mobile-menu-button"
+            aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
 
           {user ? (
             /* ── Authenticated ─────────────────────────────── */
@@ -195,6 +214,7 @@ export default function Navbar() {
               {/* Avatar */}
               <Link
                 href="/trips"
+                onClick={() => setMenuOpen(false)}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -269,6 +289,7 @@ export default function Navbar() {
             /* ── Unauthenticated ───────────────────────────── */
             <Link
               href="/auth/signin"
+              onClick={() => setMenuOpen(false)}
               style={{
                 fontFamily: "var(--font-body)",
                 fontWeight: 500,
@@ -286,6 +307,24 @@ export default function Navbar() {
             </Link>
           )}
         </div>
+
+        {menuOpen && (
+          <div className="mobile-nav-drawer">
+            {navLinks.map((link) => {
+              const isActive = activeHref === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  style={{ color: isActive ? "var(--orange)" : "var(--cream)" }}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
     </nav>
   );

@@ -2,6 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useMemo } from "react";
 import {
   transportOptions,
@@ -221,7 +222,7 @@ export default function ResultsClient() {
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.75rem" }}>
                         <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.2rem", color: "var(--ink)", letterSpacing: "-0.01em" }}>{opt.price}</span>
-                        <Link href={`/results/transport/${opt.id}`}
+                        <Link href={`/results/transport/${opt.id}?${searchParams.toString()}`}
                           style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.775rem", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--white)", backgroundColor: "var(--ink)", padding: "0.55rem 1.25rem", textDecoration: "none", whiteSpace: "nowrap" }}>
                           Choose
                         </Link>
@@ -258,9 +259,8 @@ export default function ResultsClient() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1px", backgroundColor: "var(--border)", border: "1px solid var(--border)" }}>
                   {filteredStays.map((stay) => (
                     <div key={stay.id} style={{ backgroundColor: "var(--white)" }}>
-                      <div style={{ width: "100%", aspectRatio: "4/3", overflow: "hidden", backgroundColor: "var(--cream-dark)" }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={stay.image} alt={stay.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      <div style={{ width: "100%", aspectRatio: "4/3", overflow: "hidden", backgroundColor: "var(--cream-dark)", position: "relative" }}>
+                        <Image src={stay.image} alt={stay.name} fill sizes="(max-width: 760px) 100vw, 33vw" style={{ objectFit: "cover" }} />
                       </div>
                       <div style={{ padding: "1rem 1.1rem 1.25rem" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.3rem" }}>
@@ -282,7 +282,7 @@ export default function ResultsClient() {
                             </p>
                             <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.7rem", color: "var(--ink-muted)" }}>{stay.totalPrice} total · {stay.nights} nights</p>
                           </div>
-                          <Link href={`/results/stays/${stay.id}`}
+                          <Link href={`/results/stays/${stay.id}?${searchParams.toString()}`}
                             style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.75rem", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--white)", backgroundColor: "var(--ink)", padding: "0.5rem 1rem", textDecoration: "none", whiteSpace: "nowrap" }}>
                             View stay
                           </Link>
@@ -325,9 +325,8 @@ export default function ResultsClient() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1px", backgroundColor: "var(--border)", border: "1px solid var(--border)" }}>
                   {filteredExp.map((exp) => (
                     <div key={exp.id} style={{ backgroundColor: "var(--white)", display: "grid", gridTemplateColumns: "200px 1fr" }}>
-                      <div style={{ overflow: "hidden", backgroundColor: "var(--cream-dark)" }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={exp.image} alt={exp.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      <div style={{ overflow: "hidden", backgroundColor: "var(--cream-dark)", position: "relative" }}>
+                        <Image src={exp.image} alt={exp.name} fill sizes="(max-width: 760px) 100vw, 200px" style={{ objectFit: "cover" }} />
                       </div>
                       <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                         <div>
@@ -340,7 +339,7 @@ export default function ResultsClient() {
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.1rem", color: "var(--ink)", letterSpacing: "-0.01em" }}>{exp.price}</span>
-                          <Link href={`/results/experiences/${exp.id}`}
+                          <Link href={`/results/experiences/${exp.id}?${searchParams.toString()}`}
                             style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.75rem", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--white)", backgroundColor: "var(--ink)", padding: "0.5rem 1rem", textDecoration: "none", whiteSpace: "nowrap" }}>
                             View
                           </Link>

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Playfair_Display, DM_Sans, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
 import "./globals.css";
@@ -26,9 +26,17 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TDE — Travel Discovery Engine",
+  title: {
+    default: "TDE — Travel Discovery Engine",
+    template: "%s | TDE",
+  },
   description:
     "One search. Every way to go. Compare flights, trains, buses, hotels and local experiences — book directly with the provider.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

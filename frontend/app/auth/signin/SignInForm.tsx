@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { isValidEmail } from "@/lib/auth";
 
 export default function SignInForm() {
   const router = useRouter();
@@ -12,6 +13,8 @@ export default function SignInForm() {
   const [password, setPassword] = useState("");
   const [error,    setError]    = useState("");
   const [loading,  setLoading]  = useState(false);
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
+  const [recoveryMessage, setRecoveryMessage] = useState("");
   const [showPass, setShowPass] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -19,9 +22,11 @@ export default function SignInForm() {
     setError("");
 
     if (!email.trim()) { setError("Email is required."); return; }
+    if (!isValidEmail(email)) { setError("Enter a valid email address."); return; }
     if (!password)     { setError("Password is required."); return; }
 
     setLoading(true);
+    setRecoveryMessage("");
     /* Simulate auth delay — replace with real API call when backend is ready */
     await new Promise((r) => setTimeout(r, 800));
     setLoading(false);
@@ -32,18 +37,35 @@ export default function SignInForm() {
       .replace(/[._-]/g, " ")
       .replace(/\b\w/g, (c) => c.toUpperCase());
 
-    signIn({
-      name: displayName,
-      email,
-      initials: displayName
-        .split(" ")
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((w: string) => w[0].toUpperCase())
-        .join(""),
-    });
+    try {
+      signIn({
+        name: displayName,
+        email: email.trim().toLowerCase(),
+        initials: displayName
+          .split(" ")
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((w: string) => w[0].toUpperCase())
+          .join(""),
+      });
+    } catch {
+      setError("We couldn’t complete sign in. Please try again.");
+      return;
+    }
 
     router.push("/trips");
+  }
+
+  async function handleForgotPassword() {
+    setError("");
+    setRecoveryMessage("");
+    if (!email.trim()) { setError("Enter your email address to reset your password."); return; }
+    if (!isValidEmail(email)) { setError("Enter a valid email address."); return; }
+
+    setRecoveryLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    setRecoveryLoading(false);
+    setRecoveryMessage(`A password reset link has been prepared for ${email.trim()}.`);
   }
 
   const labelStyle: React.CSSProperties = {
@@ -96,7 +118,8 @@ export default function SignInForm() {
           <label htmlFor="password" style={{ ...labelStyle, marginBottom: 0 }}>Password</label>
           <button
             type="button"
-            onClick={() => {}}
+            onClick={handleForgotPassword}
+            disabled={recoveryLoading}
             style={{
               fontFamily: "var(--font-body)",
               fontWeight: 300,
@@ -108,7 +131,7 @@ export default function SignInForm() {
               padding: 0,
             }}
           >
-            Forgot password?
+            {recoveryLoading ? "Preparing reset..." : "Forgot password?"}
           </button>
         </div>
         <div style={{ position: "relative" }}>
@@ -166,6 +189,12 @@ export default function SignInForm() {
           >
             {error}
           </p>
+        </div>
+      )}
+
+      {recoveryMessage && (
+        <div style={{ border: "1px solid var(--border)", backgroundColor: "var(--white)", padding: "0.65rem 1rem", marginBottom: "1.25rem" }}>
+          <p style={{ fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.825rem", color: "var(--ink-soft)" }}>{recoveryMessage}</p>
         </div>
       )}
 

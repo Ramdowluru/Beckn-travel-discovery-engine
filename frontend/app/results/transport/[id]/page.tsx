@@ -1,15 +1,28 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { transportOptions } from "@/lib/mockData";
+import { buildSearchHref, type PageSearchParams } from "@/lib/searchParams";
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<PageSearchParams>;
 }
 
-export default async function TransportDetailPage({ params }: Props) {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
+  const option = transportOptions.find((item) => item.id === id);
+  return {
+    title: option ? `${option.provider} transport` : "Transport details",
+    description: option?.description,
+  };
+}
+
+export default async function TransportDetailPage({ params, searchParams }: Props) {
+  const { id } = await params;
+  const currentSearchParams = await searchParams;
   const opt = transportOptions.find((t) => t.id === id);
   if (!opt) notFound();
 
@@ -20,7 +33,7 @@ export default async function TransportDetailPage({ params }: Props) {
         {/* ── Breadcrumb bar ──────────────────────────────────── */}
         <div style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--white)" }}>
           <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", height: "44px", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Link href="/results?tab=travel" style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-soft)", textDecoration: "none" }}>
+            <Link href={buildSearchHref("/results", "travel", currentSearchParams)} style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-soft)", textDecoration: "none" }}>
               Travel results
             </Link>
             <span style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}>→</span>
@@ -106,13 +119,13 @@ export default async function TransportDetailPage({ params }: Props) {
               </p>
 
               <Link
-                href="/itinerary"
+                href={buildSearchHref("/itinerary", "travel", currentSearchParams, { transport: opt.id })}
                 style={{ display: "block", width: "100%", backgroundColor: "var(--ink)", color: "var(--white)", fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.875rem", letterSpacing: "0.06em", textTransform: "uppercase", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", marginBottom: "0.75rem" }}
               >
                 Select this option
               </Link>
               <Link
-                href="/results?tab=travel"
+                href={buildSearchHref("/results", "travel", currentSearchParams)}
                 style={{ display: "block", width: "100%", backgroundColor: "transparent", color: "var(--ink)", fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.875rem", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", border: "1px solid var(--border)" }}
               >
                 Back to results

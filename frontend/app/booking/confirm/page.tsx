@@ -1,53 +1,9 @@
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-
-/* ─── Confirmed itinerary data ────────────────────────────────── */
-const confirmedItems = [
-  {
-    id: "departure",
-    type: "DEPARTURE",
-    title: "Visakhapatnam (VTZ)",
-    detail: "Trip started.",
-    price: null,
-  },
-  {
-    id: "flight-skyconnect",
-    type: "FLIGHT",
-    title: "SkyConnect · VTZ → HYD",
-    detail: "08:20 → 10:00 · 1h 40m",
-    price: "₹4,500",
-  },
-  {
-    id: "stay-minerva",
-    type: "STAY",
-    title: "Hotel Minerva Grand",
-    detail: "Check-in 15 Sep → Check-out 17 Sep",
-    price: "₹5,600",
-  },
-  {
-    id: "exp-charminar",
-    type: "EXPERIENCE",
-    title: "Charminar Heritage Walk",
-    detail: "16 Sep, 16:00 · 3 hours",
-    price: "₹500",
-  },
-  {
-    id: "return",
-    type: "RETURN",
-    title: "Hotel checkout",
-    detail: "17 Sep, 11:00 AM.",
-    price: null,
-  },
-];
-
-const tripSummary = [
-  { label: "Flight · SkyConnect", amount: "₹4,500" },
-  { label: "Hotel Minerva Grand · 2 nights", amount: "₹5,600" },
-  { label: "Charminar Heritage Walk", amount: "₹500" },
-];
-
-const totalPaid = "₹10,600";
+import ConfirmationActions from "./ConfirmationActions";
+import { experienceOptions, stayOptions, transportOptions } from "@/lib/mockData";
+import { getSearchParam, type PageSearchParams } from "@/lib/searchParams";
 
 /* ─── Dot style per segment ───────────────────────────────────── */
 const dotStyle: Record<string, { bg: string; size: number; outline?: boolean }> = {
@@ -58,7 +14,53 @@ const dotStyle: Record<string, { bg: string; size: number; outline?: boolean }> 
   RETURN:    { bg: "transparent", size: 14, outline: true },
 };
 
-export default function ConfirmedTripPage() {
+function formatDate(iso: string): string {
+  if (!iso) return "";
+  const date = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(date.getTime())
+    ? iso
+    : date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+function formatAmount(amount: number): string {
+  return `₹${amount.toLocaleString("en-IN")}`;
+}
+
+function createReference(values: string[]): string {
+  const input = values.join("|");
+  let hash = 0;
+  for (const character of input) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+  return `TDE-${(values[1] || "TRIP").replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase() || "TRI"}-${(values[2] || "TRIP").replace(/-/g, "").slice(-6).toUpperCase()}-${hash.toString(36).toUpperCase().padStart(5, "0")}`;
+}
+
+export default async function ConfirmedTripPage({
+  searchParams,
+}: {
+  searchParams: Promise<PageSearchParams>;
+}) {
+  const params = await searchParams;
+  const fromCity = getSearchParam(params, "from") || "Visakhapatnam";
+  const toCity = getSearchParam(params, "to") || "Hyderabad";
+  const date = getSearchParam(params, "date");
+  const transport = transportOptions.find((option) => option.id === getSearchParam(params, "transport"));
+  const stay = stayOptions.find((option) => option.id === getSearchParam(params, "stay"));
+  const experience = experienceOptions.find((option) => option.id === getSearchParam(params, "experience"));
+  const confirmedItems = [
+    { id: "departure", type: "DEPARTURE", title: fromCity, detail: date ? `Trip starts on ${formatDate(date)}.` : "Trip started.", price: null },
+    ...(transport ? [{ id: transport.id, type: transport.type, title: `${transport.provider} · ${transport.departureCity} → ${transport.arrivalCity}`, detail: `${transport.departure} → ${transport.arrival} · ${transport.duration}`, price: transport.price }] : []),
+    ...(stay ? [{ id: stay.id, type: "STAY", title: stay.name, detail: `${stay.nights} nights · Check-in ${stay.checkIn} → Check-out ${stay.checkOut}`, price: stay.totalPrice }] : []),
+    ...(experience ? [{ id: experience.id, type: "EXPERIENCE", title: experience.name, detail: `${experience.duration} · Meet at ${experience.meetingPoint}`, price: experience.price }] : []),
+    { id: "return", type: "RETURN", title: `${toCity} trip`, detail: "Your confirmed travel plan.", price: null },
+  ];
+  const tripSummary = [
+    ...(transport ? [{ label: `${transport.type} · ${transport.provider}`, amount: transport.price, value: transport.priceNum }] : []),
+    ...(stay ? [{ label: `${stay.name} · ${stay.nights} nights`, amount: stay.totalPrice, value: Number(stay.totalPrice.replace(/[^\d]/g, "")) }] : []),
+    ...(experience ? [{ label: experience.name, amount: experience.price, value: experience.priceNum }] : []),
+  ];
+  const totalPaid = tripSummary.reduce((sum, item) => sum + item.value, 0);
+  const reference = createReference([fromCity, toCity, date, transport?.id || "", stay?.id || "", experience?.id || ""]);
+  const shareText = `${fromCity} to ${toCity}${date ? ` on ${formatDate(date)}` : ""}. Booking reference: ${reference}. Total: ${formatAmount(totalPaid)}.`;
+
   return (
     <>
       <Navbar />
@@ -87,7 +89,7 @@ export default function ConfirmedTripPage() {
               marginBottom: "0.5rem",
             }}
           >
-            15 Sep – 17 Sep, Hyderabad
+            {date ? `${formatDate(date)}, ` : ""}{toCity}
           </h1>
           <p
             style={{
@@ -254,7 +256,11 @@ export default function ConfirmedTripPage() {
                     marginBottom: "1.25rem",
                   }}
                 >
-                  {tripSummary.map((item) => (
+                  {tripSummary.length === 0 ? (
+                    <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.825rem", color: "var(--ink-soft)", lineHeight: 1.5 }}>
+                      No selections were included in this booking.
+                    </p>
+                  ) : tripSummary.map((item) => (
                     <div
                       key={item.label}
                       style={{
@@ -321,52 +327,11 @@ export default function ConfirmedTripPage() {
                       letterSpacing: "-0.02em",
                     }}
                   >
-                    {totalPaid}
+                    {formatAmount(totalPaid)}
                   </span>
                 </div>
 
-                {/* Download tickets */}
-                <button
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    backgroundColor: "var(--ink)",
-                    color: "var(--white)",
-                    fontFamily: "var(--font-body)",
-                    fontWeight: 500,
-                    fontSize: "0.875rem",
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                    border: "none",
-                    padding: "0.9rem 0",
-                    marginBottom: "0.75rem",
-                    cursor: "pointer",
-                    transition: "background-color 0.15s",
-                  }}
-                >
-                  Download tickets
-                </button>
-
-                {/* Share trip */}
-                <button
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    backgroundColor: "transparent",
-                    color: "var(--ink)",
-                    fontFamily: "var(--font-body)",
-                    fontWeight: 400,
-                    fontSize: "0.875rem",
-                    letterSpacing: "0.04em",
-                    border: "1px solid var(--border)",
-                    padding: "0.9rem 0",
-                    marginBottom: "1.25rem",
-                    cursor: "pointer",
-                    transition: "background-color 0.15s",
-                  }}
-                >
-                  Share trip
-                </button>
+                <ConfirmationActions reference={reference} shareText={shareText} />
 
                 {/* Modify booking link */}
                 <p
@@ -415,7 +380,7 @@ export default function ConfirmedTripPage() {
                     letterSpacing: "0.06em",
                   }}
                 >
-                  TDE-HYD-15SEP-0091A
+                  {reference}
                 </p>
               </div>
             </aside>

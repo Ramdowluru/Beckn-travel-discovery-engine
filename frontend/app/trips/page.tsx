@@ -1,15 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-
-/* ─── Mock user ───────────────────────────────────────────────── */
-const user = {
-  initials: "AR",
-  name: "Arjun Reddy",
-  email: "arjun@email.com",
-  memberSince: "2024",
-  tripsCompleted: 4,
-};
+import { useAuth } from "@/context/AuthContext";
 
 /* ─── Mock trips ──────────────────────────────────────────────── */
 type TripStatus = "SAVED" | "COMPLETED" | "UPCOMING";
@@ -70,7 +65,7 @@ const trips: {
 
 /* ─── Sidebar nav ─────────────────────────────────────────────── */
 const sidebarNav = [
-  { label: "My trips", href: "/trips", active: true },
+  { label: "My trips", href: "/trips" },
   { label: "Saved settings", href: "/trips/settings" },
   { label: "Preferences", href: "/trips/preferences" },
   { label: "Travel history", href: "/trips/history" },
@@ -85,6 +80,16 @@ const statusStyle: Record<TripStatus, { color: string; bg: string; border: strin
 };
 
 export default function TripsPage() {
+  const pathname = usePathname();
+  const { user } = useAuth();
+  const profile = {
+    initials: user?.initials || "GU",
+    name: user?.name || "Guest traveler",
+    email: user?.email || "Sign in to save your trips",
+    memberSince: user ? String(new Date().getFullYear()) : "—",
+    tripsCompleted: trips.filter((trip) => trip.status === "COMPLETED").length,
+  };
+
   return (
     <>
       <Navbar />
@@ -132,7 +137,7 @@ export default function TripsPage() {
                     letterSpacing: "0.04em",
                   }}
                 >
-                  {user.initials}
+                  {profile.initials}
                 </span>
               </div>
 
@@ -146,7 +151,7 @@ export default function TripsPage() {
                   marginBottom: "0.15rem",
                 }}
               >
-                {user.name}
+                {profile.name}
               </p>
               <p
                 style={{
@@ -157,7 +162,7 @@ export default function TripsPage() {
                   marginBottom: "0.875rem",
                 }}
               >
-                {user.email}
+                {profile.email}
               </p>
 
               {/* Divider */}
@@ -179,7 +184,7 @@ export default function TripsPage() {
                   lineHeight: 1.6,
                 }}
               >
-                Member since {user.memberSince} · {user.tripsCompleted} trips
+                Member since {profile.memberSince} · {profile.tripsCompleted} trips
                 completed
               </p>
             </div>
@@ -193,7 +198,9 @@ export default function TripsPage() {
                 overflow: "hidden",
               }}
             >
-              {sidebarNav.map((item, i) => (
+                {sidebarNav.map((item, i) => {
+                  const isActive = pathname === item.href;
+                  return (
                 <Link
                   key={item.label}
                   href={item.href}
@@ -201,10 +208,10 @@ export default function TripsPage() {
                     display: "block",
                     padding: "0.875rem 1.5rem",
                     fontFamily: "var(--font-body)",
-                    fontWeight: item.active ? 500 : 300,
+                    fontWeight: isActive ? 500 : 300,
                     fontSize: "0.85rem",
-                    color: item.active ? "var(--white)" : "var(--ink-soft)",
-                    backgroundColor: item.active ? "var(--ink)" : "transparent",
+                    color: isActive ? "var(--white)" : "var(--ink-soft)",
+                    backgroundColor: isActive ? "var(--ink)" : "transparent",
                     textDecoration: "none",
                     borderTop: i > 0 ? "1px solid var(--border)" : "none",
                     transition: "background-color 0.15s",
@@ -212,7 +219,8 @@ export default function TripsPage() {
                 >
                   {item.label}
                 </Link>
-              ))}
+                  );
+                })}
             </div>
           </aside>
 

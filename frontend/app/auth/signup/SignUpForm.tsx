@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { createVerificationCode, isValidEmail } from "@/lib/auth";
 
 export default function SignUpForm() {
   const router = useRouter();
@@ -13,32 +14,53 @@ export default function SignUpForm() {
   const [password, setPassword] = useState("");
   const [error,    setError]    = useState("");
   const [loading,  setLoading]  = useState(false);
+  const [verificationPending, setVerificationPending] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationInput, setVerificationInput] = useState("");
   const [showPass, setShowPass] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
 
+    if (verificationPending) {
+      if (verificationInput.trim() !== verificationCode) {
+        setError("That verification code is not correct.");
+        return;
+      }
+
+      try {
+        signIn({
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          initials: name
+            .trim()
+            .split(" ")
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((w: string) => w[0].toUpperCase())
+            .join(""),
+        });
+      } catch {
+        setError("We couldn’t finish creating your account. Please try again.");
+        return;
+      }
+
+      router.push("/trips");
+      return;
+    }
+
     if (!name.trim())  { setError("Name is required."); return; }
     if (!email.trim()) { setError("Email is required."); return; }
+    if (!isValidEmail(email)) { setError("Enter a valid email address."); return; }
     if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
 
     setLoading(true);
     await new Promise((r) => setTimeout(r, 800));
     setLoading(false);
 
-    signIn({
-      name,
-      email,
-      initials: name
-        .split(" ")
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((w: string) => w[0].toUpperCase())
-        .join(""),
-    });
-
-    router.push("/trips");
+    setVerificationCode(createVerificationCode());
+    setVerificationPending(true);
   }
 
   const labelStyle: React.CSSProperties = {
@@ -68,8 +90,33 @@ export default function SignUpForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate>
+      {verificationPending && (
+        <div style={{ border: "1px solid var(--border)", backgroundColor: "var(--white)", padding: "0.85rem 1rem", marginBottom: "1.25rem" }}>
+          <p style={{ fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.825rem", color: "var(--ink-soft)", lineHeight: 1.5 }}>
+            Verify {email.trim()} to finish creating your account.
+          </p>
+          <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: "var(--orange)", marginTop: "0.5rem" }}>
+            Demo verification code: {verificationCode}
+          </p>
+        </div>
+      )}
+      {verificationPending && (
+        <div style={{ marginBottom: "1.25rem" }}>
+          <label htmlFor="verification-code" style={labelStyle}>Verification code</label>
+          <input
+            id="verification-code"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="6-digit code"
+            value={verificationInput}
+            onChange={(e) => setVerificationInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            style={inputStyle}
+          />
+        </div>
+      )}
       {/* Name */}
-      <div style={{ marginBottom: "1.25rem" }}>
+      {!verificationPending && <div style={{ marginBottom: "1.25rem" }}>
         <label htmlFor="name" style={labelStyle}>Full name</label>
         <input
           id="name"
@@ -82,10 +129,10 @@ export default function SignUpForm() {
           onFocus={(e) => (e.currentTarget.style.borderColor = "var(--ink)")}
           onBlur={(e)  => (e.currentTarget.style.borderColor = "var(--border)")}
         />
-      </div>
+      </div>}
 
       {/* Email */}
-      <div style={{ marginBottom: "1.25rem" }}>
+      {!verificationPending && <div style={{ marginBottom: "1.25rem" }}>
         <label htmlFor="email" style={labelStyle}>Email</label>
         <input
           id="email"
@@ -98,10 +145,10 @@ export default function SignUpForm() {
           onFocus={(e) => (e.currentTarget.style.borderColor = "var(--ink)")}
           onBlur={(e)  => (e.currentTarget.style.borderColor = "var(--border)")}
         />
-      </div>
+      </div>}
 
       {/* Password */}
-      <div style={{ marginBottom: "1.75rem" }}>
+      {!verificationPending && <div style={{ marginBottom: "1.75rem" }}>
         <label htmlFor="password" style={labelStyle}>Password</label>
         <div style={{ position: "relative" }}>
           <input
@@ -136,7 +183,7 @@ export default function SignUpForm() {
             {showPass ? "HIDE" : "SHOW"}
           </button>
         </div>
-      </div>
+      </div>}
 
       {/* Error */}
       {error && (
@@ -173,11 +220,11 @@ export default function SignUpForm() {
           transition: "background-color 0.15s",
         }}
       >
-        {loading ? "Creating account..." : "Create account"}
+        {loading ? "Sending verification..." : verificationPending ? "Verify email" : "Create account"}
       </button>
 
       {/* Terms note */}
-      <p
+      {!verificationPending && <p
         style={{
           fontFamily: "var(--font-body)",
           fontWeight: 300,
@@ -189,7 +236,7 @@ export default function SignUpForm() {
         }}
       >
         By creating an account you agree to our Terms of Service and Privacy Policy.
-      </p>
+      </p>}
     </form>
   );
 }
