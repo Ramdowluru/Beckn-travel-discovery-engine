@@ -1,0 +1,5 @@
+import ContentPage from "@/components/ContentPage";
+
+export default function PrivacyPage() {
+  return <ContentPage eyebrow="Legal" title="Privacy policy" description="This page explains the limited data handling in the current TDE frontend demo." sections={[{ heading: "Local account state", body: "The demo stores the signed-in display name and email in your browser's local storage so the interface can remember the session." }, { heading: "No booking backend", body: "The current frontend does not transmit payment, booking or identity data to a production service." }, { heading: "Your control", body: "You can clear the saved demo session by signing out or removing the site's local storage." }]} actions={[{ label: "Terms of service", href: "/terms" }, { label: "Back home", href: "/", primary: true }]} />;
+}
