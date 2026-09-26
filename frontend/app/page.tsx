@@ -2,49 +2,16 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SearchBar from "@/components/SearchBar";
+import type { TransportOption } from "@/lib/mockData";
+import { serverApiFetch } from "@/lib/serverApi";
 
-/* ─── Popular this week mock data ─────────────────────────────── */
-const popularOptions = [
-  {
-    provider: "SkyConnect",
-    type: "Flight",
-    duration: "1h 40m",
-    departure: "08:20",
-    arrival: "10:00",
-    stops: "Non-stop",
-    price: "₹4,500",
-    id: "skyconnect-vtz-hyd",
-  },
-  {
-    provider: "Railway 12727",
-    type: "Train",
-    duration: "11h 30m",
-    departure: "06:00",
-    arrival: "17:30",
-    stops: "1 stop",
-    price: "₹1,200",
-    id: "railway-12727",
-  },
-  {
-    provider: "Intercity",
-    type: "Bus",
-    duration: "12h 15m",
-    departure: "09:00",
-    arrival: "21:15",
-    stops: "Direct",
-    price: "₹950",
-    id: "intercity-bus",
-  },
-];
+interface HomeResponse {
+  popularOptions: Array<Pick<TransportOption, "provider" | "duration" | "departure" | "arrival" | "stops" | "price" | "id"> & { type: string }>;
+  stats: Array<{ value: string; label: string }>;
+}
 
-const stats = [
-  { value: "18", label: "Transport options" },
-  { value: "42", label: "Hotels & stays" },
-  { value: "18", label: "Local experiences" },
-  { value: "4.6★", label: "Average rating" },
-];
-
-export default function LandingPage() {
+export default async function LandingPage() {
+  const { popularOptions, stats } = await serverApiFetch<HomeResponse>("/api/home");
   return (
     <>
       <Navbar />
@@ -110,6 +77,7 @@ export default function LandingPage() {
           }}
         >
           <div
+            className="home-stats-grid"
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(4, 1fr)",
@@ -192,6 +160,7 @@ export default function LandingPage() {
 
           {/* Cards row */}
           <div
+            className="home-popular-grid"
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(3, 1fr)",

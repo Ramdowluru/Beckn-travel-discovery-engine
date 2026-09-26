@@ -4,8 +4,9 @@ import Link from "next/link";
 import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { stayOptions } from "@/lib/mockData";
-import { buildSearchHref, type PageSearchParams } from "@/lib/searchParams";
+import type { StayOption } from "@/lib/mockData";
+import { serverApiFetch } from "@/lib/serverApi";
+import { buildSearchHref, buildSelectionHref, type PageSearchParams } from "@/lib/searchParams";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -14,7 +15,8 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const stay = stayOptions.find((item) => item.id === id);
+  let stay: StayOption | undefined;
+  try { stay = await serverApiFetch<StayOption>(`/api/stays/${id}`); } catch { stay = undefined; }
   return {
     title: stay ? `${stay.name} stay` : "Stay details",
     description: stay?.description,
@@ -24,8 +26,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function StayDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
   const currentSearchParams = await searchParams;
-  const stay = stayOptions.find((s) => s.id === id);
-  if (!stay) notFound();
+  let stay: StayOption;
+  try { stay = await serverApiFetch<StayOption>(`/api/stays/${id}`); } catch { notFound(); }
   const galleryImages = (stay.images.length > 0 ? stay.images : [stay.image]).slice(0, 3);
   const galleryColumns = galleryImages.length === 1
     ? "1fr"
@@ -53,7 +55,7 @@ export default async function StayDetailPage({ params, searchParams }: Props) {
         <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "3rem 2rem 5rem" }}>
 
           {/* ── Hero image ──────────────────────────────────────── */}
-          <div style={{ display: "grid", gridTemplateColumns: galleryColumns, gap: "2px", marginBottom: "2.5rem", height: "320px" }}>
+          <div className="detail-gallery" style={{ display: "grid", gridTemplateColumns: galleryColumns, gap: "2px", marginBottom: "2.5rem", height: "320px" }}>
             {galleryImages.map((img, i) => (
               <div key={i} style={{ overflow: "hidden", backgroundColor: "var(--cream-dark)", position: "relative" }}>
                 <Image src={img} alt={stay.name} fill sizes="(max-width: 760px) 100vw, 33vw" style={{ objectFit: "cover" }} />
@@ -62,7 +64,7 @@ export default async function StayDetailPage({ params, searchParams }: Props) {
           </div>
 
           {/* ── Two-column body ─────────────────────────────────── */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
+          <div className="detail-layout" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
 
             {/* Left */}
             <div>
@@ -129,7 +131,7 @@ export default async function StayDetailPage({ params, searchParams }: Props) {
                 </p>
 
                 <Link
-                  href={buildSearchHref("/itinerary", "stays", currentSearchParams, { stay: stay.id })}
+                  href={buildSelectionHref("/itinerary", "stays", currentSearchParams, "stays", stay.id)}
                   style={{ display: "block", width: "100%", backgroundColor: "var(--ink)", color: "var(--white)", fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.875rem", letterSpacing: "0.06em", textTransform: "uppercase", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", marginBottom: "0.75rem" }}
                 >
                   Select this stay

@@ -3,17 +3,6 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect, Suspense } from "react";
 
-/* ─── Constants ──────────────────────────────────────────────── */
-const CITIES = [
-  "Visakhapatnam", "Hyderabad", "Chennai", "Bengaluru",
-  "Mumbai", "Delhi", "Kolkata", "Goa", "Pune", "Jaipur",
-];
-const MONTHS = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December",
-];
-const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-
 /* ─── Helpers ────────────────────────────────────────────────── */
 function todayIso(): string {
   return new Date().toISOString().split("T")[0];
@@ -51,9 +40,11 @@ interface CalendarProps {
   value: string;
   onChange: (iso: string) => void;
   onClose: () => void;
+  months: string[];
+  days: string[];
 }
 
-function Calendar({ value, onChange, onClose }: CalendarProps) {
+function Calendar({ value, onChange, onClose, months, days }: CalendarProps) {
   const today = new Date();
   const selected = isoToDate(value);
 
@@ -104,7 +95,7 @@ function Calendar({ value, onChange, onClose }: CalendarProps) {
 
   return (
     <div
-      className="search-bar"
+      className="search-calendar search-panel"
       style={{
         position: "absolute",
         top: "calc(100% + 2px)",
@@ -157,7 +148,7 @@ function Calendar({ value, onChange, onClose }: CalendarProps) {
             letterSpacing: "-0.01em",
           }}
         >
-          {MONTHS[viewMonth]} {viewYear}
+          {months[viewMonth] ?? ""} {viewYear}
         </span>
 
         <button
@@ -190,7 +181,7 @@ function Calendar({ value, onChange, onClose }: CalendarProps) {
           gap: "2px",
         }}
       >
-        {DAYS.map((d) => (
+        {days.map((d) => (
           <div
             key={d}
             style={{
@@ -320,6 +311,7 @@ function SearchBarInner() {
   const [to,         setTo]         = useState(searchParams.get("to")         ?? "Hyderabad");
   const [date,       setDate]       = useState(searchParams.get("date")       ?? todayIso());
   const [travellers, setTravellers] = useState(Number(searchParams.get("travellers") ?? 1));
+  const [searchOptions, setSearchOptions] = useState<{ cities: string[]; months: string[]; days: string[] }>({ cities: [], months: [], days: [] });
 
   const [fromOpen, setFromOpen] = useState(false);
   const [toOpen,   setToOpen]   = useState(false);
@@ -329,6 +321,13 @@ function SearchBarInner() {
   const fromRef = useRef<HTMLDivElement>(null);
   const toRef   = useRef<HTMLDivElement>(null);
   const calRef  = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch("/api/search/options")
+      .then((response) => response.json())
+      .then(setSearchOptions)
+      .catch(() => setSearchOptions({ cities: [], months: [], days: [] }));
+  }, []);
 
   /* Close all panels on outside click */
   useEffect(() => {
@@ -405,6 +404,7 @@ function SearchBarInner() {
 
   return (
     <div
+      className="search-bar"
       style={{
         display: "grid",
         gridTemplateColumns: "1fr 1fr 1fr 1fr auto",
@@ -463,8 +463,8 @@ function SearchBarInner() {
         </button>
 
         {fromOpen && (
-          <div style={dropdownStyle}>
-            {CITIES.filter(c => c !== to).map(city => (
+          <div className="search-dropdown" style={dropdownStyle}>
+            {searchOptions.cities.filter(c => c !== to).map(city => (
               <CityButton
                 key={city}
                 city={city}
@@ -498,8 +498,8 @@ function SearchBarInner() {
         </p>
 
         {toOpen && (
-          <div style={dropdownStyle}>
-            {CITIES.filter(c => c !== from).map(city => (
+          <div className="search-dropdown" style={dropdownStyle}>
+            {searchOptions.cities.filter(c => c !== from).map(city => (
               <CityButton
                 key={city}
                 city={city}
@@ -539,6 +539,8 @@ function SearchBarInner() {
             value={date}
             onChange={setDate}
             onClose={() => setCalOpen(false)}
+            months={searchOptions.months}
+            days={searchOptions.days}
           />
         )}
       </div>

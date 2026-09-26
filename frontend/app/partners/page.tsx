@@ -134,6 +134,7 @@ export default function PartnersPage() {
           }}
         >
           <div
+            className="partners-stats-grid"
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(4, 1fr)",
@@ -216,6 +217,7 @@ export default function PartnersPage() {
           </div>
 
           <div
+            className="partners-category-grid"
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(3, 1fr)",
@@ -291,6 +293,7 @@ export default function PartnersPage() {
           }}
         >
           <div
+            className="partners-trust-grid"
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(4, 1fr)",

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { createVerificationCode, isValidEmail } from "@/lib/auth";
+import { isValidEmail } from "@/lib/auth";
+import { signUpRequest, verifySignUpRequest } from "@/lib/api";
 
 export default function SignUpForm() {
   const router = useRouter();
@@ -30,17 +31,8 @@ export default function SignUpForm() {
       }
 
       try {
-        signIn({
-          name: name.trim(),
-          email: email.trim().toLowerCase(),
-          initials: name
-            .trim()
-            .split(" ")
-            .filter(Boolean)
-            .slice(0, 2)
-            .map((w: string) => w[0].toUpperCase())
-            .join(""),
-        });
+        const response = await verifySignUpRequest(name, email, verificationInput);
+        signIn(response.user);
       } catch {
         setError("We couldn’t finish creating your account. Please try again.");
         return;
@@ -56,11 +48,15 @@ export default function SignUpForm() {
     if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
 
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setLoading(false);
-
-    setVerificationCode(createVerificationCode());
-    setVerificationPending(true);
+    try {
+      const response = await signUpRequest(name, email, password);
+      setVerificationCode(response.verificationCode);
+      setVerificationPending(true);
+    } catch {
+      setError("We couldn’t prepare your verification. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   const labelStyle: React.CSSProperties = {

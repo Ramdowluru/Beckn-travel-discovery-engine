@@ -2,8 +2,9 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ConfirmationActions from "./ConfirmationActions";
-import { experienceOptions, stayOptions, transportOptions } from "@/lib/mockData";
-import { getSearchParam, type PageSearchParams } from "@/lib/searchParams";
+import type { ExperienceOption, StayOption, TransportOption } from "@/lib/mockData";
+import { serverApiFetch } from "@/lib/serverApi";
+import { getSearchParam, getSelectionIds, type PageSearchParams } from "@/lib/searchParams";
 
 /* ─── Dot style per segment ───────────────────────────────────── */
 const dotStyle: Record<string, { bg: string; size: number; outline?: boolean }> = {
@@ -42,23 +43,39 @@ export default async function ConfirmedTripPage({
   const fromCity = getSearchParam(params, "from") || "Visakhapatnam";
   const toCity = getSearchParam(params, "to") || "Hyderabad";
   const date = getSearchParam(params, "date");
-  const transport = transportOptions.find((option) => option.id === getSearchParam(params, "transport"));
-  const stay = stayOptions.find((option) => option.id === getSearchParam(params, "stay"));
-  const experience = experienceOptions.find((option) => option.id === getSearchParam(params, "experience"));
+  const transportIds = getSelectionIds(params, "transports", "transport");
+  const stayIds = getSelectionIds(params, "stays", "stay");
+  const experienceIds = getSelectionIds(params, "experiences", "experience");
+  const [transports, stays, experiences] = await Promise.all([
+    Promise.all(transportIds.map((id) => serverApiFetch<TransportOption>(`/api/transport/${id}`).catch(() => undefined))),
+    Promise.all(stayIds.map((id) => serverApiFetch<StayOption>(`/api/stays/${id}`).catch(() => undefined))),
+    Promise.all(experienceIds.map((id) => serverApiFetch<ExperienceOption>(`/api/experiences/${id}`).catch(() => undefined))),
+  ]).then(([transportResults, stayResults, experienceResults]) => [
+    transportResults.filter((item): item is TransportOption => Boolean(item)),
+    stayResults.filter((item): item is StayOption => Boolean(item)),
+    experienceResults.filter((item): item is ExperienceOption => Boolean(item)),
+  ] as const);
   const confirmedItems = [
     { id: "departure", type: "DEPARTURE", title: fromCity, detail: date ? `Trip starts on ${formatDate(date)}.` : "Trip started.", price: null },
-    ...(transport ? [{ id: transport.id, type: transport.type, title: `${transport.provider} · ${transport.departureCity} → ${transport.arrivalCity}`, detail: `${transport.departure} → ${transport.arrival} · ${transport.duration}`, price: transport.price }] : []),
-    ...(stay ? [{ id: stay.id, type: "STAY", title: stay.name, detail: `${stay.nights} nights · Check-in ${stay.checkIn} → Check-out ${stay.checkOut}`, price: stay.totalPrice }] : []),
-    ...(experience ? [{ id: experience.id, type: "EXPERIENCE", title: experience.name, detail: `${experience.duration} · Meet at ${experience.meetingPoint}`, price: experience.price }] : []),
+    ...transports.map((transport) => ({ id: transport.id, type: transport.type, title: `${transport.provider} · ${transport.departureCity} → ${transport.arrivalCity}`, detail: `${transport.departure} → ${transport.arrival} · ${transport.duration}`, price: transport.price })),
+    ...stays.map((stay) => ({ id: stay.id, type: "STAY", title: stay.name, detail: `${stay.nights} nights · Check-in ${stay.checkIn} → Check-out ${stay.checkOut}`, price: stay.totalPrice })),
+    ...experiences.map((experience) => ({ id: experience.id, type: "EXPERIENCE", title: experience.name, detail: `${experience.duration} · Meet at ${experience.meetingPoint}`, price: experience.price })),
     { id: "return", type: "RETURN", title: `${toCity} trip`, detail: "Your confirmed travel plan.", price: null },
   ];
   const tripSummary = [
-    ...(transport ? [{ label: `${transport.type} · ${transport.provider}`, amount: transport.price, value: transport.priceNum }] : []),
-    ...(stay ? [{ label: `${stay.name} · ${stay.nights} nights`, amount: stay.totalPrice, value: Number(stay.totalPrice.replace(/[^\d]/g, "")) }] : []),
-    ...(experience ? [{ label: experience.name, amount: experience.price, value: experience.priceNum }] : []),
+    ...transports.map((transport) => ({ label: `${transport.type} · ${transport.provider}`, amount: transport.price, value: transport.priceNum })),
+    ...stays.map((stay) => ({ label: `${stay.name} · ${stay.nights} nights`, amount: stay.totalPrice, value: Number(stay.totalPrice.replace(/[^\d]/g, "")) })),
+    ...experiences.map((experience) => ({ label: experience.name, amount: experience.price, value: experience.priceNum })),
   ];
   const totalPaid = tripSummary.reduce((sum, item) => sum + item.value, 0);
-  const reference = createReference([fromCity, toCity, date, transport?.id || "", stay?.id || "", experience?.id || ""]);
+  const reference = createReference([
+    fromCity,
+    toCity,
+    date,
+    ...transports.map((item) => item.id),
+    ...stays.map((item) => item.id),
+    ...experiences.map((item) => item.id),
+  ]);
   const shareText = `${fromCity} to ${toCity}${date ? ` on ${formatDate(date)}` : ""}. Booking reference: ${reference}. Total: ${formatAmount(totalPaid)}.`;
 
   return (
@@ -107,6 +124,7 @@ export default async function ConfirmedTripPage({
 
           {/* ── Two-column layout ───────────────────────────────── */}
           <div
+            className="itinerary-layout"
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 320px",
@@ -182,6 +200,7 @@ export default async function ConfirmedTripPage({
                         {/* Detail box — only for non-final nodes with detail */}
                         {item.detail && (
                           <div
+                            className="timeline-detail"
                             style={{
                               backgroundColor: isLast ? "transparent" : "var(--white)",
                               border: isLast ? "none" : "1px solid var(--border)",
@@ -262,6 +281,7 @@ export default async function ConfirmedTripPage({
                     </p>
                   ) : tripSummary.map((item) => (
                     <div
+                      className="price-row"
                       key={item.label}
                       style={{
                         display: "flex",

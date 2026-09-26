@@ -2,66 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/context/AuthContext";
-
-/* ─── Mock trips ──────────────────────────────────────────────── */
-type TripStatus = "SAVED" | "COMPLETED" | "UPCOMING";
-
-const trips: {
-  id: string;
-  title: string;
-  status: TripStatus;
-  route: string;
-  dates: string;
-  included: string;
-  total: string;
-  primaryCta: string;
-  primaryHref: string;
-  secondaryCta: string;
-  secondaryHref: string;
-}[] = [
-  {
-    id: "hyd-weekend",
-    title: "Hyderabad Weekend",
-    status: "SAVED",
-    route: "Visakhapatnam → Hyderabad",
-    dates: "15 – 17 Sep",
-    included: "Flight, hotel and 1 experience",
-    total: "₹10,600",
-    primaryCta: "Manage booking",
-    primaryHref: "/itinerary",
-    secondaryCta: "View trip",
-    secondaryHref: "/booking/confirm",
-  },
-  {
-    id: "goa-beach",
-    title: "Goa Beach Trip",
-    status: "COMPLETED",
-    route: "Visakhapatnam → Goa",
-    dates: "22 – 25 Oct",
-    included: "Flight, hotel and 1 experience",
-    total: "₹18,400",
-    primaryCta: "View receipt",
-    primaryHref: "/trips/goa-beach/receipt",
-    secondaryCta: "View trip",
-    secondaryHref: "/trips/goa-beach",
-  },
-  {
-    id: "mumbai-business",
-    title: "Mumbai Business",
-    status: "UPCOMING",
-    route: "Visakhapatnam → Mumbai",
-    dates: "5 – 6 Nov",
-    included: "Flight and hotel",
-    total: "₹12,200",
-    primaryCta: "Manage booking",
-    primaryHref: "/trips/mumbai-business/manage",
-    secondaryCta: "View trip",
-    secondaryHref: "/trips/mumbai-business",
-  },
-];
+import { fetchTrips, type TripRecord } from "@/lib/api";
 
 /* ─── Sidebar nav ─────────────────────────────────────────────── */
 const sidebarNav = [
@@ -73,7 +18,7 @@ const sidebarNav = [
 ];
 
 /* ─── Status badge colours ────────────────────────────────────── */
-const statusStyle: Record<TripStatus, { color: string; bg: string; border: string }> = {
+const statusStyle: Record<TripRecord["status"], { color: string; bg: string; border: string }> = {
   SAVED:      { color: "var(--ink)",    bg: "var(--cream-dark)", border: "var(--border)" },
   COMPLETED:  { color: "var(--white)",  bg: "var(--ink)",        border: "var(--ink)" },
   UPCOMING:   { color: "var(--orange)", bg: "transparent",       border: "var(--orange)" },
@@ -82,6 +27,8 @@ const statusStyle: Record<TripStatus, { color: string; bg: string; border: strin
 export default function TripsPage() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const [trips, setTrips] = useState<TripRecord[]>([]);
+  useEffect(() => { fetchTrips().then(setTrips).catch(() => setTrips([])); }, []);
   const profile = {
     initials: user?.initials || "GU",
     name: user?.name || "Guest traveler",
@@ -109,6 +56,7 @@ export default function TripsPage() {
           <aside>
             {/* Avatar block */}
             <div
+              className="trips-layout"
               style={{
                 border: "1px solid var(--border)",
                 backgroundColor: "var(--white)",
@@ -295,6 +243,7 @@ export default function TripsPage() {
                       }}
                     >
                       <div
+                        className="trip-title-row"
                         style={{
                           display: "flex",
                           alignItems: "center",
@@ -349,6 +298,7 @@ export default function TripsPage() {
 
                     {/* Meta row */}
                     <div
+                      className="trip-meta-grid"
                       style={{
                         display: "grid",
                         gridTemplateColumns: "repeat(3, 1fr)",

@@ -74,7 +74,89 @@ h1, h2, h3, h4 {
   display: none;
 }
 
-@media (max-width: 760px) {
+.results-tabs-inner {
+  scrollbar-width: none;
+}
+
+.results-tabs-inner::-webkit-scrollbar {
+  display: none;
+}
+
+.timeline-detail,
+.price-row,
+.trip-title-row {
+  min-width: 0;
+}
+
+@media (max-width: 1023px) {
+  .detail-layout,
+  .itinerary-layout,
+  .results-layout,
+  .trips-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .results-layout > aside {
+    order: -1;
+  }
+
+  .results-stays-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .results-experiences-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .results-experience-card {
+    grid-template-columns: 160px minmax(0, 1fr) !important;
+  }
+
+  .footer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 2rem !important;
+  }
+
+  .home-stats-grid,
+  .partners-stats-grid,
+  .about-kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .home-popular-grid,
+  .partners-category-grid,
+  .partners-trust-grid,
+  .how-lifecycle-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .search-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    width: 100% !important;
+    max-width: 860px !important;
+  }
+
+  .search-bar > div {
+    min-width: 0;
+  }
+
+  .search-bar > div:nth-child(2n) {
+    border-right: none !important;
+  }
+
+  .search-bar > button {
+    width: 100%;
+  }
+
+  .search-dropdown,
+  .search-calendar {
+    width: min(280px, calc(100vw - 2rem)) !important;
+    min-width: 0 !important;
+    max-width: calc(100vw - 2rem);
+  }
+}
+
+@media (max-width: 900px) {
   .navbar-inner {
     padding: 0 1rem !important;
     gap: 1rem !important;
@@ -95,8 +177,8 @@ h1, h2, h3, h4 {
 
   .mobile-menu-button {
     display: flex;
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
     flex-direction: column;
     justify-content: center;
     gap: 4px;
@@ -138,20 +220,19 @@ h1, h2, h3, h4 {
   .mobile-nav-drawer a:last-child {
     border-bottom: none;
   }
+}
 
+@media (max-width: 600px) {
   .search-bar {
     grid-template-columns: 1fr !important;
-    width: 100% !important;
-    max-width: 100% !important;
   }
 
   .search-bar > div {
-    min-width: 0;
     border-right: none !important;
     border-bottom: 1px solid var(--border);
   }
 
-  .search-bar > div:last-child {
+  .search-bar > div:last-of-type {
     border-bottom: none;
   }
 
@@ -159,27 +240,141 @@ h1, h2, h3, h4 {
     width: 100%;
   }
 
-  [style*="grid-template-columns: 1fr 320px"],
-  [style*="grid-template-columns: 1fr 280px"],
-  [style*="grid-template-columns: 240px 1fr"],
-  [style*="grid-template-columns: 120px 180px 1fr"],
-  [style*="grid-template-columns: 200px 1fr"],
-  [style*="grid-template-columns: 1fr 2fr"],
-  [style*="grid-template-columns: 3fr 2fr"],
-  [style*="grid-template-columns: repeat(5, 1fr)"],
-  [style*="grid-template-columns: repeat(4, 1fr)"],
-  [style*="grid-template-columns: repeat(3, 1fr)"],
-  [style*="grid-template-columns: repeat(2, 1fr)"],
-  [style*="grid-template-columns: 1fr auto auto auto"] {
+  .results-context-inner {
+    height: auto !important;
+    min-height: 44px;
+    padding-top: 0.7rem !important;
+    padding-bottom: 0.7rem !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+
+  .results-context-inner > div:first-child {
+    flex-wrap: wrap;
+    gap: 0.45rem 0.75rem !important;
+  }
+
+  .results-context-inner > div:first-child > span:nth-of-type(2),
+  .results-context-inner > div:first-child > span:nth-of-type(4) {
+    display: none !important;
+  }
+
+  .results-tabs-inner {
+    overflow-x: auto;
+  }
+
+  .results-tab {
+    flex: 0 0 auto;
+    padding: 0.85rem 1rem 0.75rem !important;
+  }
+
+  .results-stays-grid {
     grid-template-columns: 1fr !important;
   }
 
-  [style*="grid-template-columns: 1fr auto"] {
+  .results-experience-card {
     grid-template-columns: 1fr !important;
   }
 
-  [style*="grid-template-columns: 1fr auto"] > *:last-child {
-    justify-self: start;
+  .results-experience-card > div:first-child {
+    min-height: 180px;
+  }
+
+  .transport-result {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .transport-result-side {
+    align-items: flex-start !important;
+  }
+
+  .detail-gallery {
+    height: auto !important;
+    aspect-ratio: 4 / 3;
+  }
+
+  .detail-gallery > div {
+    min-height: 0;
+  }
+
+  .timeline-detail,
+  .price-row,
+  .trip-title-row {
+    align-items: flex-start !important;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.75rem;
+  }
+
+  .timeline-detail > span:first-child,
+  .price-row > span:first-child {
+    min-width: 0;
+    max-width: none !important;
+    flex: 1 1 12rem;
+  }
+
+  .timeline-detail > span:last-child,
+  .price-row > span:last-child {
+    white-space: normal !important;
+  }
+
+  .trip-title-row > * {
+    margin-left: 0 !important;
+  }
+
+  .trip-meta-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .about-team-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .footer-grid {
+    grid-template-columns: 1fr !important;
+    gap: 2rem !important;
+  }
+
+  .home-stats-grid,
+  .partners-stats-grid,
+  .about-kpi-grid,
+  .home-popular-grid,
+  .partners-category-grid,
+  .partners-trust-grid,
+  .how-lifecycle-grid,
+  .trip-summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .about-problem-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .about-tech-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .about-tech-row > div {
+    border-right: none !important;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .about-tech-row > div:last-child {
+    border-bottom: none;
+  }
+
+  .how-step {
+    grid-template-columns: 48px minmax(0, 1fr) !important;
+  }
+
+  .how-step > div:last-child {
+    padding: 1.25rem 1rem !important;
+  }
+
+  .footer-bottom {
+    gap: 0.75rem !important;
+    align-items: flex-start !important;
+    flex-direction: column;
   }
 
   main > div,
@@ -187,15 +382,5 @@ h1, h2, h3, h4 {
   footer > div {
     padding-left: 1rem !important;
     padding-right: 1rem !important;
-  }
-
-  footer > div > div:first-child {
-    gap: 2rem !important;
-  }
-
-  footer > div > div:last-child {
-    gap: 0.75rem !important;
-    align-items: flex-start !important;
-    flex-direction: column;
   }
 }

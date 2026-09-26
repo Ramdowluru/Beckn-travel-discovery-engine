@@ -26,7 +26,7 @@ export default function TripPage({ title, status, route, dates, included, total,
           </div>
           <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.95rem", color: "var(--ink-soft)", lineHeight: 1.7, marginBottom: "2.5rem", maxWidth: "620px" }}>{description}</p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1px", backgroundColor: "var(--border)", border: "1px solid var(--border)", marginBottom: "2rem" }}>
+          <div className="trip-summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1px", backgroundColor: "var(--border)", border: "1px solid var(--border)", marginBottom: "2rem" }}>
             {[{ label: "Route", value: route }, { label: "Dates", value: dates }, { label: "Included", value: included }, { label: "Total", value: total }].map((item) => (
               <div key={item.label} style={{ backgroundColor: "var(--white)", padding: "1.25rem 1.5rem" }}>
                 <p className="tag-neutral" style={{ marginBottom: "0.35rem" }}>{item.label}</p>

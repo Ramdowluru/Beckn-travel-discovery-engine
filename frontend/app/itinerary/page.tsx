@@ -1,8 +1,9 @@
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { experienceOptions, stayOptions, transportOptions } from "@/lib/mockData";
-import { buildSearchHref, getSearchParam, type PageSearchParams } from "@/lib/searchParams";
+import type { ExperienceOption, StayOption, TransportOption } from "@/lib/mockData";
+import { serverApiFetch } from "@/lib/serverApi";
+import { buildSearchHref, getSearchParam, getSelectionIds, type PageSearchParams } from "@/lib/searchParams";
 
 /* ─── Dot colour per segment type ────────────────────────────── */
 const dotColor: Record<string, string> = {
@@ -33,15 +34,18 @@ export default async function ItineraryPage({
   const fromCity = getSearchParam(params, "from") || "Visakhapatnam";
   const toCity = getSearchParam(params, "to") || "Hyderabad";
   const date = getSearchParam(params, "date");
-  const transport = transportOptions.find(
-    (option) => option.id === getSearchParam(params, "transport"),
-  );
-  const stay = stayOptions.find(
-    (option) => option.id === getSearchParam(params, "stay"),
-  );
-  const experience = experienceOptions.find(
-    (option) => option.id === getSearchParam(params, "experience"),
-  );
+  const transportIds = getSelectionIds(params, "transports", "transport");
+  const stayIds = getSelectionIds(params, "stays", "stay");
+  const experienceIds = getSelectionIds(params, "experiences", "experience");
+  const [transports, stays, experiences] = await Promise.all([
+    Promise.all(transportIds.map((id) => serverApiFetch<TransportOption>(`/api/transport/${id}`).catch(() => undefined))),
+    Promise.all(stayIds.map((id) => serverApiFetch<StayOption>(`/api/stays/${id}`).catch(() => undefined))),
+    Promise.all(experienceIds.map((id) => serverApiFetch<ExperienceOption>(`/api/experiences/${id}`).catch(() => undefined))),
+  ]).then(([transportResults, stayResults, experienceResults]) => [
+    transportResults.filter((item): item is TransportOption => Boolean(item)),
+    stayResults.filter((item): item is StayOption => Boolean(item)),
+    experienceResults.filter((item): item is ExperienceOption => Boolean(item)),
+  ] as const);
 
   const itineraryItems = [
     {
@@ -51,53 +55,37 @@ export default async function ItineraryPage({
       detail: date ? `Departure on ${formatDate(date)}.` : "Departure point for your trip.",
       price: null,
     },
-    ...(transport
-      ? [{
-          id: transport.id,
-          type: transport.type,
-          title: `${transport.provider} · ${transport.departureCity} → ${transport.arrivalCity}`,
-          detail: `${transport.departure} → ${transport.arrival} · ${transport.duration}`,
-          price: transport.price,
-        }]
-      : []),
-    ...(stay
-      ? [{
-          id: stay.id,
-          type: "STAY",
-          title: stay.name,
-          detail: `${stay.nights} nights · Check-in ${stay.checkIn} → Check-out ${stay.checkOut}`,
-          price: stay.totalPrice,
-        }]
-      : []),
-    ...(experience
-      ? [{
-          id: experience.id,
-          type: "EXPERIENCE",
-          title: experience.name,
-          detail: `${experience.duration} · Meet at ${experience.meetingPoint}`,
-          price: experience.price,
-        }]
-      : []),
+    ...transports.map((transport) => ({
+      id: transport.id,
+      type: transport.type,
+      title: `${transport.provider} · ${transport.departureCity} → ${transport.arrivalCity}`,
+      detail: `${transport.departure} → ${transport.arrival} · ${transport.duration}`,
+      price: transport.price,
+    })),
+    ...stays.map((stay) => ({
+      id: stay.id,
+      type: "STAY",
+      title: stay.name,
+      detail: `${stay.nights} nights · Check-in ${stay.checkIn} → Check-out ${stay.checkOut}`,
+      price: stay.totalPrice,
+    })),
+    ...experiences.map((experience) => ({
+      id: experience.id,
+      type: "EXPERIENCE",
+      title: experience.name,
+      detail: `${experience.duration} · Meet at ${experience.meetingPoint}`,
+      price: experience.price,
+    })),
   ];
 
   const priceBreakdown = [
-    ...(transport ? [{ label: `${transport.type} · ${transport.provider}`, amount: transport.price, value: transport.priceNum }] : []),
-    ...(stay ? [{ label: `${stay.name} · ${stay.nights} nights`, amount: stay.totalPrice, value: Number(stay.totalPrice.replace(/[^\d]/g, "")) }] : []),
-    ...(experience ? [{ label: experience.name, amount: experience.price, value: experience.priceNum }] : []),
+    ...transports.map((transport) => ({ label: `${transport.type} · ${transport.provider}`, amount: transport.price, value: transport.priceNum })),
+    ...stays.map((stay) => ({ label: `${stay.name} · ${stay.nights} nights`, amount: stay.totalPrice, value: Number(stay.totalPrice.replace(/[^\d]/g, "")) })),
+    ...experiences.map((experience) => ({ label: experience.name, amount: experience.price, value: experience.priceNum })),
   ];
   const totalValue = priceBreakdown.reduce((sum, item) => sum + item.value, 0);
-  const editParams = new URLSearchParams({
-    tab: "travel",
-    from: fromCity,
-    to: toCity,
-    ...(date ? { date } : {}),
-    ...(getSearchParam(params, "travellers") ? { travellers: getSearchParam(params, "travellers") } : {}),
-  });
-  const checkoutHref = buildSearchHref("/booking/confirm", "travel", params, {
-    ...(transport ? { transport: transport.id } : {}),
-    ...(stay ? { stay: stay.id } : {}),
-    ...(experience ? { experience: experience.id } : {}),
-  });
+  const editHref = buildSearchHref("/results", "travel", params);
+  const checkoutHref = buildSearchHref("/booking/confirm", "travel", params);
 
   return (
     <>
@@ -143,6 +131,7 @@ export default async function ItineraryPage({
 
           {/* ── Two-column layout ──────────────────────────────── */}
           <div
+            className="itinerary-layout"
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 320px",
@@ -221,6 +210,7 @@ export default async function ItineraryPage({
 
                       {/* Detail box */}
                       <div
+                        className="timeline-detail"
                         style={{
                           backgroundColor: "var(--white)",
                           border: "1px solid var(--border)",
@@ -299,6 +289,7 @@ export default async function ItineraryPage({
                     </p>
                   ) : priceBreakdown.map((item) => (
                     <div
+                      className="price-row"
                       key={item.label}
                       style={{
                         display: "flex",
@@ -393,7 +384,7 @@ export default async function ItineraryPage({
 
                 {/* Secondary CTA */}
                 <Link
-                  href={`/results?${editParams.toString()}`}
+                  href={editHref}
                   style={{
                     display: "block",
                     width: "100%",

@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { transportOptions } from "@/lib/mockData";
-import { buildSearchHref, type PageSearchParams } from "@/lib/searchParams";
+import type { TransportOption } from "@/lib/mockData";
+import { serverApiFetch } from "@/lib/serverApi";
+import { buildSearchHref, buildSelectionHref, type PageSearchParams } from "@/lib/searchParams";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -13,7 +14,8 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const option = transportOptions.find((item) => item.id === id);
+  let option: TransportOption | undefined;
+  try { option = await serverApiFetch<TransportOption>(`/api/transport/${id}`); } catch { option = undefined; }
   return {
     title: option ? `${option.provider} transport` : "Transport details",
     description: option?.description,
@@ -23,8 +25,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function TransportDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
   const currentSearchParams = await searchParams;
-  const opt = transportOptions.find((t) => t.id === id);
-  if (!opt) notFound();
+  let opt: TransportOption;
+  try { opt = await serverApiFetch<TransportOption>(`/api/transport/${id}`); } catch { notFound(); }
 
   return (
     <>
@@ -43,7 +45,7 @@ export default async function TransportDetailPage({ params, searchParams }: Prop
           </div>
         </div>
 
-        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "3rem 2rem 5rem", display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
+        <div className="detail-layout" style={{ maxWidth: "1200px", margin: "0 auto", padding: "3rem 2rem 5rem", display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
 
           {/* ── Left ──────────────────────────────────────────── */}
           <div>
@@ -119,7 +121,7 @@ export default async function TransportDetailPage({ params, searchParams }: Prop
               </p>
 
               <Link
-                href={buildSearchHref("/itinerary", "travel", currentSearchParams, { transport: opt.id })}
+                href={buildSelectionHref("/itinerary", "travel", currentSearchParams, "transports", opt.id)}
                 style={{ display: "block", width: "100%", backgroundColor: "var(--ink)", color: "var(--white)", fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.875rem", letterSpacing: "0.06em", textTransform: "uppercase", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", marginBottom: "0.75rem" }}
               >
                 Select this option

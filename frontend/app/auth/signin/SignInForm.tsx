@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { isValidEmail } from "@/lib/auth";
+import { resetPasswordRequest, signInRequest } from "@/lib/api";
 
 export default function SignInForm() {
   const router = useRouter();
@@ -27,32 +28,16 @@ export default function SignInForm() {
 
     setLoading(true);
     setRecoveryMessage("");
-    /* Simulate auth delay — replace with real API call when backend is ready */
-    await new Promise((r) => setTimeout(r, 800));
-    setLoading(false);
-
-    /* Demo: derive a display name from the email prefix */
-    const namePart = email.split("@")[0];
-    const displayName = namePart
-      .replace(/[._-]/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
-
     try {
-      signIn({
-        name: displayName,
-        email: email.trim().toLowerCase(),
-        initials: displayName
-          .split(" ")
-          .filter(Boolean)
-          .slice(0, 2)
-          .map((w: string) => w[0].toUpperCase())
-          .join(""),
-      });
+      const response = await signInRequest(email, password);
+      signIn(response.user);
     } catch {
       setError("We couldn’t complete sign in. Please try again.");
+      setLoading(false);
       return;
     }
 
+    setLoading(false);
     router.push("/trips");
   }
 
@@ -63,9 +48,14 @@ export default function SignInForm() {
     if (!isValidEmail(email)) { setError("Enter a valid email address."); return; }
 
     setRecoveryLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    setRecoveryLoading(false);
-    setRecoveryMessage(`A password reset link has been prepared for ${email.trim()}.`);
+    try {
+      const response = await resetPasswordRequest(email);
+      setRecoveryMessage(response.message);
+    } catch {
+      setError("We couldn’t prepare a password reset. Please try again.");
+    } finally {
+      setRecoveryLoading(false);
+    }
   }
 
   const labelStyle: React.CSSProperties = {

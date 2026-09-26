@@ -67,6 +67,7 @@ export default function AboutPage() {
         {/* ── Problem / Solution ───────────────────────────────── */}
         <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem 5rem" }}>
           <div
+            className="about-problem-grid"
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
@@ -135,6 +136,7 @@ export default function AboutPage() {
             Project targets
           </h2>
           <div
+            className="about-kpi-grid"
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(5, 1fr)",
@@ -197,6 +199,7 @@ export default function AboutPage() {
             Technology stack
           </h2>
           <div
+            className="about-tech-grid"
             style={{
               border: "1px solid var(--border)",
               backgroundColor: "var(--white)",
@@ -204,6 +207,7 @@ export default function AboutPage() {
           >
             {/* Header row */}
             <div
+              className="about-tech-row"
               style={{
                 display: "grid",
                 gridTemplateColumns: "120px 180px 1fr",
@@ -229,6 +233,7 @@ export default function AboutPage() {
             </div>
             {stack.map((row, i) => (
               <div
+                className="about-tech-row"
                 key={row.layer}
                 style={{
                   display: "grid",
@@ -265,6 +270,7 @@ export default function AboutPage() {
             Team structure
           </h2>
           <div
+            className="about-team-grid"
             style={{
               display: "flex",
               flexDirection: "column",

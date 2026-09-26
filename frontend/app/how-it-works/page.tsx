@@ -112,6 +112,7 @@ export default function HowItWorksPage() {
           >
             {steps.map((step) => (
               <div
+                className="how-step"
                 key={step.index}
                 style={{
                   backgroundColor: "var(--white)",
@@ -200,6 +201,7 @@ export default function HowItWorksPage() {
           </h2>
 
           <div
+            className="how-lifecycle-grid"
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(4, 1fr)",

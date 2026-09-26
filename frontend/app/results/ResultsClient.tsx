@@ -3,12 +3,9 @@
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useMemo } from "react";
-import {
-  transportOptions,
-  stayOptions,
-  experienceOptions,
-} from "@/lib/mockData";
+import { useState, useMemo, useEffect } from "react";
+import { fetchSearch, type SearchResponse } from "@/lib/api";
+import type { ExperienceOption, StayOption, TransportOption } from "@/lib/mockData";
 
 /* ─── Constants ───────────────────────────────────────────────── */
 const tabs = [
@@ -23,10 +20,13 @@ const DEPARTURE_HOURS: Record<string, [number, number]> = {
   Evening:   [17, 24],
 };
 const TYPE_MAP: Record<string, string> = { Flight: "FLIGHT", Train: "TRAIN", Bus: "BUS" };
-const TRANSPORT_MAX = Math.max(...transportOptions.map((o) => o.priceNum));
-const STAY_MAX      = Math.max(...stayOptions.map((s) => parseInt(s.pricePerNight.replace(/[^\d]/g, ""))));
+const TRANSPORT_MAX = 5200;
+const STAY_MAX      = 3200;
 const EXP_CATEGORIES = ["Food", "Culture", "Adventure", "History", "Nature", "Local"];
 const AMENITY_OPTIONS = ["WiFi", "AC", "Free cancellation", "Parking", "Restaurant"];
+const EMPTY_TRANSPORT: TransportOption[] = [];
+const EMPTY_STAYS: StayOption[] = [];
+const EMPTY_EXPERIENCES: ExperienceOption[] = [];
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 function formatDate(iso: string): string {
@@ -72,6 +72,16 @@ export default function ResultsClient() {
   const dateRaw    = searchParams.get("date")       ?? "";
   const travellers = searchParams.get("travellers") ?? "1";
   const dateDisplay = formatDate(dateRaw);
+  const searchQuery = searchParams.toString();
+  const [catalog, setCatalog] = useState<SearchResponse | null>(null);
+
+  useEffect(() => {
+    fetchSearch(new URLSearchParams(searchQuery)).then(setCatalog).catch(() => setCatalog(null));
+  }, [searchQuery]);
+
+  const transportOptions = catalog?.transport ?? EMPTY_TRANSPORT;
+  const stayOptions = catalog?.stays ?? EMPTY_STAYS;
+  const experienceOptions = catalog?.experiences ?? EMPTY_EXPERIENCES;
 
   /* ── Transport filters ─────────────────────────────────────── */
   const [selTimes,   setSelTimes]   = useState<string[]>([]);
@@ -96,7 +106,7 @@ export default function ResultsClient() {
       if (!selTimes.some((t) => { const [lo, hi] = DEPARTURE_HOURS[t]; return h >= lo && h < hi; })) return false;
     }
     return true;
-  }), [selTypes, selTimes, maxTPrice]);
+  }), [selTypes, selTimes, maxTPrice, transportOptions]);
 
   const filteredStays = useMemo(() => {
     let list = stayOptions.filter((s) => {
@@ -108,11 +118,11 @@ export default function ResultsClient() {
     if (staySort === "asc") list = [...list].sort((a, b) => parsePriceStr(a.pricePerNight) - parsePriceStr(b.pricePerNight));
     if (staySort === "desc") list = [...list].sort((a, b) => parsePriceStr(b.pricePerNight) - parsePriceStr(a.pricePerNight));
     return list;
-  }, [minRating, staySort, selAmen, maxSPrice]);
+  }, [minRating, staySort, selAmen, maxSPrice, stayOptions]);
 
   const filteredExp = useMemo(() =>
     experienceOptions.filter((e) => e.category === activeCat),
-  [activeCat]);
+  [activeCat, experienceOptions]);
 
   /* ── Toggle helpers ────────────────────────────────────────── */
   const toggle = <T,>(arr: T[], item: T) =>
@@ -133,7 +143,7 @@ export default function ResultsClient() {
     <>
       {/* ── Context bar ───────────────────────────────────────── */}
       <div style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--white)" }}>
-        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", height: "44px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="results-context-inner" style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", height: "44px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
             <span style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.85rem", color: "var(--ink)" }}>
               {fromCity} → {toCity}
@@ -156,11 +166,11 @@ export default function ResultsClient() {
 
       {/* ── Tab bar ───────────────────────────────────────────── */}
       <div style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--white)" }}>
-        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", display: "flex" }}>
+        <div className="results-tabs-inner" style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", display: "flex" }}>
           {tabs.map((tab) => {
             const isActive = activeTab === tab.key;
             return (
-              <button key={tab.key} onClick={() => switchTab(tab.key)}
+              <button className="results-tab" key={tab.key} onClick={() => switchTab(tab.key)}
                 style={{ background: "none", border: "none", borderBottom: isActive ? "2px solid var(--orange)" : "2px solid transparent", padding: "1rem 2rem 0.875rem", cursor: "pointer", textAlign: "left", transition: "border-color 0.15s", marginBottom: "-1px" }}>
                 <p style={{ fontFamily: "var(--font-body)", fontWeight: isActive ? 600 : 400, fontSize: "0.875rem", color: isActive ? "var(--orange)" : "var(--ink-soft)", marginBottom: "0.15rem" }}>
                   {tab.label}
@@ -175,7 +185,7 @@ export default function ResultsClient() {
       </div>
 
       {/* ── Body ──────────────────────────────────────────────── */}
-      <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "2rem 2rem 4rem", display: "grid", gridTemplateColumns: activeTab === "experiences" ? "1fr" : "1fr 280px", gap: "2rem", alignItems: "start" }}>
+      <div className="results-layout" style={{ maxWidth: "1200px", margin: "0 auto", padding: "2rem 2rem 4rem", display: "grid", gridTemplateColumns: activeTab === "experiences" ? "1fr" : "1fr 280px", gap: "2rem", alignItems: "start" }}>
 
         {/* ── Left: results ─────────────────────────────────── */}
         <div>
@@ -197,7 +207,7 @@ export default function ResultsClient() {
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "1px", backgroundColor: "var(--border)" }}>
                   {filteredTransport.map((opt) => (
-                    <div key={opt.id} style={{ backgroundColor: "var(--white)", padding: "1.25rem 1.5rem", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: "1.5rem" }}>
+                    <div className="transport-result" key={opt.id} style={{ backgroundColor: "var(--white)", padding: "1.25rem 1.5rem", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: "1.5rem" }}>
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.75rem" }}>
                           <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "0.9rem", color: "var(--ink)" }}>{opt.provider}</span>
@@ -220,7 +230,7 @@ export default function ResultsClient() {
                           </div>
                         </div>
                       </div>
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.75rem" }}>
+                      <div className="transport-result-side" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.75rem" }}>
                         <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.2rem", color: "var(--ink)", letterSpacing: "-0.01em" }}>{opt.price}</span>
                         <Link href={`/results/transport/${opt.id}?${searchParams.toString()}`}
                           style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.775rem", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--white)", backgroundColor: "var(--ink)", padding: "0.55rem 1.25rem", textDecoration: "none", whiteSpace: "nowrap" }}>
@@ -256,7 +266,7 @@ export default function ResultsClient() {
               {filteredStays.length === 0 ? (
                 <EmptyState message="No stays match your filters. Try adjusting the options on the right." />
               ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1px", backgroundColor: "var(--border)", border: "1px solid var(--border)" }}>
+                <div className="results-stays-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1px", backgroundColor: "var(--border)", border: "1px solid var(--border)" }}>
                   {filteredStays.map((stay) => (
                     <div key={stay.id} style={{ backgroundColor: "var(--white)" }}>
                       <div style={{ width: "100%", aspectRatio: "4/3", overflow: "hidden", backgroundColor: "var(--cream-dark)", position: "relative" }}>
@@ -322,9 +332,9 @@ export default function ResultsClient() {
               {filteredExp.length === 0 ? (
                 <EmptyState message="No experiences in this category yet." />
               ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1px", backgroundColor: "var(--border)", border: "1px solid var(--border)" }}>
+                <div className="results-experiences-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1px", backgroundColor: "var(--border)", border: "1px solid var(--border)" }}>
                   {filteredExp.map((exp) => (
-                    <div key={exp.id} style={{ backgroundColor: "var(--white)", display: "grid", gridTemplateColumns: "200px 1fr" }}>
+                    <div className="results-experience-card" key={exp.id} style={{ backgroundColor: "var(--white)", display: "grid", gridTemplateColumns: "200px 1fr" }}>
                       <div style={{ overflow: "hidden", backgroundColor: "var(--cream-dark)", position: "relative" }}>
                         <Image src={exp.image} alt={exp.name} fill sizes="(max-width: 760px) 100vw, 200px" style={{ objectFit: "cover" }} />
                       </div>

@@ -28,6 +28,7 @@ export default function Footer() {
       }}
     >
       <div
+        className="footer-inner"
         style={{
           maxWidth: "1200px",
           margin: "0 auto",
@@ -36,6 +37,7 @@ export default function Footer() {
       >
         {/* Top row */}
         <div
+          className="footer-grid"
           style={{
             display: "grid",
             gridTemplateColumns: "1fr auto auto auto",
@@ -112,6 +114,7 @@ export default function Footer() {
 
         {/* Bottom row */}
         <div
+          className="footer-bottom"
           style={{
             borderTop: "1px solid var(--border-dark)",
             paddingTop: "1.25rem",
