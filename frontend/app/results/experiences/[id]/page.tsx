@@ -1,33 +1,28 @@
-import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import type { ExperienceOption } from "@/lib/mockData";
-import { serverApiFetch } from "@/lib/serverApi";
-import { buildSearchHref, buildSelectionHref, type PageSearchParams } from "@/lib/searchParams";
+import type { ExperienceOption } from "@/lib/types";
 
 interface Props {
   params: Promise<{ id: string }>;
-  searchParams: Promise<PageSearchParams>;
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export default async function ExperienceDetailPage({ params }: Props) {
   const { id } = await params;
-  let experience: ExperienceOption | undefined;
-  try { experience = await serverApiFetch<ExperienceOption>(`/api/experiences/${id}`); } catch { experience = undefined; }
-  return {
-    title: experience ? `${experience.name} experience` : "Experience details",
-    description: experience?.description,
-  };
-}
 
-export default async function ExperienceDetailPage({ params, searchParams }: Props) {
-  const { id } = await params;
-  const currentSearchParams = await searchParams;
-  let exp: ExperienceOption;
-  try { exp = await serverApiFetch<ExperienceOption>(`/api/experiences/${id}`); } catch { notFound(); }
+  let exp: ExperienceOption | null = null;
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_BASE ?? ""}/api/experiences/${id}`,
+      { cache: "no-store" },
+    );
+    if (res.ok) exp = (await res.json()) as ExperienceOption;
+  } catch {
+    /* network error — fall through to notFound */
+  }
+
+  if (!exp) notFound();
 
   return (
     <>
@@ -36,7 +31,7 @@ export default async function ExperienceDetailPage({ params, searchParams }: Pro
         {/* ── Breadcrumb ──────────────────────────────────────── */}
         <div style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--white)" }}>
           <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", height: "44px", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Link href={buildSearchHref("/results", "experiences", currentSearchParams)} style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-soft)", textDecoration: "none" }}>
+            <Link href="/results?tab=experiences" style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-soft)", textDecoration: "none" }}>
               Experiences
             </Link>
             <span style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}>→</span>
@@ -48,17 +43,20 @@ export default async function ExperienceDetailPage({ params, searchParams }: Pro
 
         <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "3rem 2rem 5rem" }}>
 
-          {/* ── Hero image ──────────────────────────────────────── */}
-          <div className="detail-gallery" style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: "2px", marginBottom: "2.5rem", height: "340px" }}>
-            {exp.images.slice(0, 2).map((img, i) => (
-              <div key={i} style={{ overflow: "hidden", backgroundColor: "var(--cream-dark)", position: "relative" }}>
-                <Image src={img} alt={exp.name} fill sizes="(max-width: 760px) 100vw, 40vw" style={{ objectFit: "cover" }} />
-              </div>
-            ))}
-          </div>
+          {/* ── Hero images ─────────────────────────────────────── */}
+          {exp.images.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: "2px", marginBottom: "2.5rem", height: "340px" }}>
+              {exp.images.slice(0, 2).map((img, i) => (
+                <div key={i} style={{ overflow: "hidden", backgroundColor: "var(--cream-dark)" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={img} alt={exp!.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* ── Two-column body ─────────────────────────────────── */}
-          <div className="detail-layout" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
 
             {/* Left */}
             <div>
@@ -121,13 +119,13 @@ export default async function ExperienceDetailPage({ params, searchParams }: Pro
                 </p>
 
                 <Link
-                  href={buildSelectionHref("/itinerary", "experiences", currentSearchParams, "experiences", exp.id)}
+                  href="/itinerary"
                   style={{ display: "block", width: "100%", backgroundColor: "var(--ink)", color: "var(--white)", fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.875rem", letterSpacing: "0.06em", textTransform: "uppercase", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", marginBottom: "0.75rem" }}
                 >
                   Add to journey
                 </Link>
                 <Link
-                  href={buildSearchHref("/results", "experiences", currentSearchParams)}
+                  href="/results?tab=experiences"
                   style={{ display: "block", width: "100%", backgroundColor: "transparent", color: "var(--ink)", fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.875rem", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", border: "1px solid var(--border)" }}
                 >
                   Back to results

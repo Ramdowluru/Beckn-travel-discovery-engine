@@ -1,41 +1,34 @@
-"use client";
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { useAuth } from "@/context/AuthContext";
-import { fetchTrips, type TripRecord } from "@/lib/api";
+import { serverApiFetch } from "@/lib/serverApi";
+import type { TripRecord } from "@/lib/api";
 
 /* ─── Sidebar nav ─────────────────────────────────────────────── */
 const sidebarNav = [
-  { label: "My trips", href: "/trips" },
-  { label: "Saved settings", href: "/trips/settings" },
-  { label: "Preferences", href: "/trips/preferences" },
-  { label: "Travel history", href: "/trips/history" },
-  { label: "Help & support", href: "/help" },
+  { label: "My trips",       href: "/trips",              active: true  },
+  { label: "Saved settings", href: "/trips/settings",     active: false },
+  { label: "Preferences",    href: "/trips/preferences",  active: false },
+  { label: "Travel history", href: "/trips/history",      active: false },
+  { label: "Help & support", href: "/help",               active: false },
 ];
 
 /* ─── Status badge colours ────────────────────────────────────── */
-const statusStyle: Record<TripRecord["status"], { color: string; bg: string; border: string }> = {
-  SAVED:      { color: "var(--ink)",    bg: "var(--cream-dark)", border: "var(--border)" },
-  COMPLETED:  { color: "var(--white)",  bg: "var(--ink)",        border: "var(--ink)" },
-  UPCOMING:   { color: "var(--orange)", bg: "transparent",       border: "var(--orange)" },
+type TripStatus = "SAVED" | "COMPLETED" | "UPCOMING";
+
+const statusStyle: Record<TripStatus, { color: string; bg: string; border: string }> = {
+  SAVED:     { color: "var(--ink)",    bg: "var(--cream-dark)", border: "var(--border)" },
+  COMPLETED: { color: "var(--white)",  bg: "var(--ink)",        border: "var(--ink)"    },
+  UPCOMING:  { color: "var(--orange)", bg: "transparent",       border: "var(--orange)" },
 };
 
-export default function TripsPage() {
-  const pathname = usePathname();
-  const { user } = useAuth();
-  const [trips, setTrips] = useState<TripRecord[]>([]);
-  useEffect(() => { fetchTrips().then(setTrips).catch(() => setTrips([])); }, []);
-  const profile = {
-    initials: user?.initials || "GU",
-    name: user?.name || "Guest traveler",
-    email: user?.email || "Sign in to save your trips",
-    memberSince: user ? String(new Date().getFullYear()) : "—",
-    tripsCompleted: trips.filter((trip) => trip.status === "COMPLETED").length,
-  };
+export default async function TripsPage() {
+  let trips: TripRecord[] = [];
+  try {
+    trips = await serverApiFetch<TripRecord[]>("/api/trips");
+  } catch {
+    /* backend not available — render with empty state */
+  }
 
   return (
     <>
@@ -54,101 +47,15 @@ export default function TripsPage() {
         >
           {/* ── Left: sidebar ─────────────────────────────────── */}
           <aside>
-            {/* Avatar block */}
-            <div
-              className="trips-layout"
-              style={{
-                border: "1px solid var(--border)",
-                backgroundColor: "var(--white)",
-                padding: "1.5rem",
-                marginBottom: "1px",
-              }}
-            >
-              {/* Initials circle */}
-              <div
-                style={{
-                  width: "48px",
-                  height: "48px",
-                  backgroundColor: "var(--ink)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginBottom: "0.875rem",
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 700,
-                    fontSize: "0.9rem",
-                    color: "var(--white)",
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  {profile.initials}
-                </span>
-              </div>
-
-              {/* Name + email */}
-              <p
-                style={{
-                  fontFamily: "var(--font-body)",
-                  fontWeight: 600,
-                  fontSize: "0.9rem",
-                  color: "var(--ink)",
-                  marginBottom: "0.15rem",
-                }}
-              >
-                {profile.name}
-              </p>
-              <p
-                style={{
-                  fontFamily: "var(--font-body)",
-                  fontWeight: 300,
-                  fontSize: "0.775rem",
-                  color: "var(--ink-muted)",
-                  marginBottom: "0.875rem",
-                }}
-              >
-                {profile.email}
-              </p>
-
-              {/* Divider */}
-              <div
-                style={{
-                  height: "1px",
-                  backgroundColor: "var(--border)",
-                  marginBottom: "0.875rem",
-                }}
-              />
-
-              {/* Meta */}
-              <p
-                style={{
-                  fontFamily: "var(--font-body)",
-                  fontWeight: 300,
-                  fontSize: "0.72rem",
-                  color: "var(--ink-muted)",
-                  lineHeight: 1.6,
-                }}
-              >
-                Member since {profile.memberSince} · {profile.tripsCompleted} trips
-                completed
-              </p>
-            </div>
-
             {/* Nav links */}
             <div
               style={{
                 border: "1px solid var(--border)",
-                borderTop: "none",
                 backgroundColor: "var(--white)",
                 overflow: "hidden",
               }}
             >
-                {sidebarNav.map((item, i) => {
-                  const isActive = pathname === item.href;
-                  return (
+              {sidebarNav.map((item, i) => (
                 <Link
                   key={item.label}
                   href={item.href}
@@ -156,19 +63,17 @@ export default function TripsPage() {
                     display: "block",
                     padding: "0.875rem 1.5rem",
                     fontFamily: "var(--font-body)",
-                    fontWeight: isActive ? 500 : 300,
+                    fontWeight: item.active ? 500 : 300,
                     fontSize: "0.85rem",
-                    color: isActive ? "var(--white)" : "var(--ink-soft)",
-                    backgroundColor: isActive ? "var(--ink)" : "transparent",
+                    color: item.active ? "var(--white)" : "var(--ink-soft)",
+                    backgroundColor: item.active ? "var(--ink)" : "transparent",
                     textDecoration: "none",
                     borderTop: i > 0 ? "1px solid var(--border)" : "none",
-                    transition: "background-color 0.15s",
                   }}
                 >
                   {item.label}
                 </Link>
-                  );
-                })}
+              ))}
             </div>
           </aside>
 
@@ -195,7 +100,7 @@ export default function TripsPage() {
                 My trips
               </h1>
               <Link
-                href="/"
+                href="/home"
                 style={{
                   fontFamily: "var(--font-body)",
                   fontWeight: 500,
@@ -206,205 +111,188 @@ export default function TripsPage() {
                   padding: "0.6rem 1.25rem",
                   textDecoration: "none",
                   whiteSpace: "nowrap",
-                  transition: "background-color 0.15s",
                 }}
               >
                 Plan a new trip
               </Link>
             </div>
 
+            {/* Empty state */}
+            {trips.length === 0 && (
+              <div
+                style={{
+                  border: "1px solid var(--border)",
+                  backgroundColor: "var(--white)",
+                  padding: "3rem 2rem",
+                  textAlign: "center",
+                }}
+              >
+                <p
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontWeight: 300,
+                    fontSize: "0.9rem",
+                    color: "var(--ink-muted)",
+                    marginBottom: "1.25rem",
+                  }}
+                >
+                  No trips yet. Start planning your first journey.
+                </p>
+                <Link
+                  href="/home"
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontWeight: 500,
+                    fontSize: "0.825rem",
+                    letterSpacing: "0.04em",
+                    color: "var(--white)",
+                    backgroundColor: "var(--ink)",
+                    padding: "0.7rem 1.5rem",
+                    textDecoration: "none",
+                  }}
+                >
+                  Search now
+                </Link>
+              </div>
+            )}
+
             {/* Trip cards */}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "1px",
-                backgroundColor: "var(--border)",
-                border: "1px solid var(--border)",
-              }}
-            >
-              {trips.map((trip) => {
-                const badge = statusStyle[trip.status];
-                return (
-                  <div
-                    key={trip.id}
-                    style={{
-                      backgroundColor: "var(--white)",
-                      padding: "1.5rem 1.75rem",
-                    }}
-                  >
-                    {/* Title row */}
+            {trips.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1px",
+                  backgroundColor: "var(--border)",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                {trips.map((trip) => {
+                  const badge = statusStyle[trip.status as TripStatus] ?? statusStyle.SAVED;
+                  return (
                     <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        marginBottom: "1rem",
-                      }}
+                      key={trip.id}
+                      style={{ backgroundColor: "var(--white)", padding: "1.5rem 1.75rem" }}
                     >
+                      {/* Title row */}
                       <div
-                        className="trip-title-row"
                         style={{
                           display: "flex",
-                          alignItems: "center",
-                          gap: "0.75rem",
-                          flexWrap: "wrap",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          marginBottom: "1rem",
                         }}
                       >
-                        <h2
-                          style={{
-                            fontFamily: "var(--font-display)",
-                            fontWeight: 600,
-                            fontSize: "1.1rem",
-                            color: "var(--ink)",
-                            letterSpacing: "-0.015em",
-                          }}
-                        >
-                          {trip.title}
-                        </h2>
-                        {/* Status badge */}
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                          <h2
+                            style={{
+                              fontFamily: "var(--font-display)",
+                              fontWeight: 600,
+                              fontSize: "1.1rem",
+                              color: "var(--ink)",
+                              letterSpacing: "-0.015em",
+                            }}
+                          >
+                            {trip.title}
+                          </h2>
+                          <span
+                            style={{
+                              fontFamily: "var(--font-mono)",
+                              fontSize: "0.58rem",
+                              fontWeight: 500,
+                              letterSpacing: "0.1em",
+                              textTransform: "uppercase",
+                              color: badge.color,
+                              backgroundColor: badge.bg,
+                              border: `1px solid ${badge.border}`,
+                              padding: "0.2rem 0.6rem",
+                            }}
+                          >
+                            {trip.status}
+                          </span>
+                        </div>
                         <span
                           style={{
-                            fontFamily: "var(--font-mono)",
-                            fontSize: "0.58rem",
-                            fontWeight: 500,
-                            letterSpacing: "0.1em",
-                            textTransform: "uppercase",
-                            color: badge.color,
-                            backgroundColor: badge.bg,
-                            border: `1px solid ${badge.border}`,
-                            padding: "0.2rem 0.6rem",
+                            fontFamily: "var(--font-display)",
+                            fontWeight: 700,
+                            fontSize: "1.1rem",
+                            color: "var(--ink)",
+                            letterSpacing: "-0.01em",
+                            flexShrink: 0,
+                            marginLeft: "1rem",
                           }}
                         >
-                          {trip.status}
+                          {trip.total}
                         </span>
                       </div>
 
-                      {/* Total */}
-                      <span
+                      {/* Meta row */}
+                      <div
                         style={{
-                          fontFamily: "var(--font-display)",
-                          fontWeight: 700,
-                          fontSize: "1.1rem",
-                          color: "var(--ink)",
-                          letterSpacing: "-0.01em",
-                          flexShrink: 0,
-                          marginLeft: "1rem",
+                          display: "grid",
+                          gridTemplateColumns: "repeat(3, 1fr)",
+                          gap: "1rem",
+                          marginBottom: "1.25rem",
+                          paddingBottom: "1.25rem",
+                          borderBottom: "1px solid var(--border)",
                         }}
                       >
-                        {trip.total}
-                      </span>
-                    </div>
+                        {[
+                          { label: "Route",    value: trip.route    },
+                          { label: "Dates",    value: trip.dates    },
+                          { label: "Included", value: trip.included },
+                        ].map((meta) => (
+                          <div key={meta.label}>
+                            <p className="tag-neutral" style={{ marginBottom: "0.2rem", fontSize: "0.58rem" }}>
+                              {meta.label}
+                            </p>
+                            <p style={{ fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.825rem", color: "var(--ink)" }}>
+                              {meta.value}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
 
-                    {/* Meta row */}
-                    <div
-                      className="trip-meta-grid"
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(3, 1fr)",
-                        gap: "1rem",
-                        marginBottom: "1.25rem",
-                        paddingBottom: "1.25rem",
-                        borderBottom: "1px solid var(--border)",
-                      }}
-                    >
-                      <div>
-                        <p
-                          className="tag-neutral"
-                          style={{ marginBottom: "0.2rem", fontSize: "0.58rem" }}
-                        >
-                          Route
-                        </p>
-                        <p
+                      {/* CTA row */}
+                      <div style={{ display: "flex", gap: "0.75rem" }}>
+                        <Link
+                          href={trip.primaryHref}
                           style={{
                             fontFamily: "var(--font-body)",
                             fontWeight: 400,
-                            fontSize: "0.825rem",
+                            fontSize: "0.8rem",
+                            letterSpacing: "0.02em",
                             color: "var(--ink)",
+                            backgroundColor: "transparent",
+                            border: "1px solid var(--border)",
+                            padding: "0.55rem 1.1rem",
+                            textDecoration: "none",
                           }}
                         >
-                          {trip.route}
-                        </p>
-                      </div>
-                      <div>
-                        <p
-                          className="tag-neutral"
-                          style={{ marginBottom: "0.2rem", fontSize: "0.58rem" }}
-                        >
-                          Dates
-                        </p>
-                        <p
+                          {trip.primaryCta}
+                        </Link>
+                        <Link
+                          href={trip.secondaryHref}
                           style={{
                             fontFamily: "var(--font-body)",
-                            fontWeight: 400,
-                            fontSize: "0.825rem",
-                            color: "var(--ink)",
+                            fontWeight: 500,
+                            fontSize: "0.8rem",
+                            letterSpacing: "0.02em",
+                            color: "var(--white)",
+                            backgroundColor: "var(--ink)",
+                            border: "1px solid var(--ink)",
+                            padding: "0.55rem 1.1rem",
+                            textDecoration: "none",
                           }}
                         >
-                          {trip.dates}
-                        </p>
-                      </div>
-                      <div>
-                        <p
-                          className="tag-neutral"
-                          style={{ marginBottom: "0.2rem", fontSize: "0.58rem" }}
-                        >
-                          Included
-                        </p>
-                        <p
-                          style={{
-                            fontFamily: "var(--font-body)",
-                            fontWeight: 400,
-                            fontSize: "0.825rem",
-                            color: "var(--ink)",
-                          }}
-                        >
-                          {trip.included}
-                        </p>
+                          {trip.secondaryCta}
+                        </Link>
                       </div>
                     </div>
-
-                    {/* CTA row */}
-                    <div style={{ display: "flex", gap: "0.75rem" }}>
-                      <Link
-                        href={trip.primaryHref}
-                        style={{
-                          fontFamily: "var(--font-body)",
-                          fontWeight: 400,
-                          fontSize: "0.8rem",
-                          letterSpacing: "0.02em",
-                          color: "var(--ink)",
-                          backgroundColor: "transparent",
-                          border: "1px solid var(--border)",
-                          padding: "0.55rem 1.1rem",
-                          textDecoration: "none",
-                          transition: "border-color 0.15s",
-                        }}
-                      >
-                        {trip.primaryCta}
-                      </Link>
-                      <Link
-                        href={trip.secondaryHref}
-                        style={{
-                          fontFamily: "var(--font-body)",
-                          fontWeight: 500,
-                          fontSize: "0.8rem",
-                          letterSpacing: "0.02em",
-                          color: "var(--white)",
-                          backgroundColor: "var(--ink)",
-                          border: "1px solid var(--ink)",
-                          padding: "0.55rem 1.1rem",
-                          textDecoration: "none",
-                          transition: "background-color 0.15s",
-                        }}
-                      >
-                        {trip.secondaryCta}
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </main>

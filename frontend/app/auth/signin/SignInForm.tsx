@@ -1,22 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { isValidEmail } from "@/lib/auth";
-import { resetPasswordRequest, signInRequest } from "@/lib/api";
+import { ApiError, signInRequest } from "@/lib/api";
 
 export default function SignInForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { signIn } = useAuth();
 
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
   const [error,    setError]    = useState("");
   const [loading,  setLoading]  = useState(false);
-  const [recoveryLoading, setRecoveryLoading] = useState(false);
-  const [recoveryMessage, setRecoveryMessage] = useState("");
   const [showPass, setShowPass] = useState(false);
+  const signupSuccess = searchParams.get("signup") === "success";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,38 +24,29 @@ export default function SignInForm() {
 
     if (!email.trim()) { setError("Email is required."); return; }
     if (!isValidEmail(email)) { setError("Enter a valid email address."); return; }
-    if (!password)     { setError("Password is required."); return; }
+    if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
+    if (password.length > 128) { setError("Password must be 128 characters or fewer."); return; }
 
     setLoading(true);
-    setRecoveryMessage("");
     try {
       const response = await signInRequest(email, password);
       signIn(response.user);
-    } catch {
-      setError("We couldn’t complete sign in. Please try again.");
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        setError("Email or password is incorrect.");
+      } else if (error instanceof ApiError && error.status === 503) {
+        setError("Authentication service is unavailable. Please try again.");
+      } else if (error instanceof ApiError && error.status === 422) {
+        setError(error.message);
+      } else {
+        setError("We couldn’t complete sign in. Please try again.");
+      }
       setLoading(false);
       return;
     }
 
     setLoading(false);
-    router.push("/trips");
-  }
-
-  async function handleForgotPassword() {
-    setError("");
-    setRecoveryMessage("");
-    if (!email.trim()) { setError("Enter your email address to reset your password."); return; }
-    if (!isValidEmail(email)) { setError("Enter a valid email address."); return; }
-
-    setRecoveryLoading(true);
-    try {
-      const response = await resetPasswordRequest(email);
-      setRecoveryMessage(response.message);
-    } catch {
-      setError("We couldn’t prepare a password reset. Please try again.");
-    } finally {
-      setRecoveryLoading(false);
-    }
+    router.push("/home");
   }
 
   const labelStyle: React.CSSProperties = {
@@ -85,8 +76,16 @@ export default function SignInForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate>
+      {signupSuccess && (
+        <div role="status" style={{ border: "1px solid var(--border)", backgroundColor: "var(--white)",
+          padding: "0.65rem 1rem", marginBottom: "1.25rem" }}>
+          <p style={{ fontFamily: "var(--font-body)", fontSize: "0.825rem", color: "var(--ink-soft)" }}>
+            Account created. You can sign in now.
+          </p>
+        </div>
+      )}
 
-      {/* ── Email ─────────────────────────────────────────────── */}
+      {/* ── Email ─────────────────────────────────────────────── */ }
       <div style={{ marginBottom: "1.25rem" }}>
         <label htmlFor="email" style={labelStyle}>Email</label>
         <input
@@ -104,25 +103,8 @@ export default function SignInForm() {
 
       {/* ── Password ──────────────────────────────────────────── */}
       <div style={{ marginBottom: "1.75rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.4rem" }}>
+        <div style={{ marginBottom: "0.4rem" }}>
           <label htmlFor="password" style={{ ...labelStyle, marginBottom: 0 }}>Password</label>
-          <button
-            type="button"
-            onClick={handleForgotPassword}
-            disabled={recoveryLoading}
-            style={{
-              fontFamily: "var(--font-body)",
-              fontWeight: 300,
-              fontSize: "0.75rem",
-              color: "var(--orange)",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-            }}
-          >
-            {recoveryLoading ? "Preparing reset..." : "Forgot password?"}
-          </button>
         </div>
         <div style={{ position: "relative" }}>
           <input
@@ -153,6 +135,7 @@ export default function SignInForm() {
               color: "var(--ink-muted)",
               padding: 0,
             }}
+            aria-label={showPass ? "Hide password" : "Show password"}
           >
             {showPass ? "HIDE" : "SHOW"}
           </button>
@@ -179,12 +162,6 @@ export default function SignInForm() {
           >
             {error}
           </p>
-        </div>
-      )}
-
-      {recoveryMessage && (
-        <div style={{ border: "1px solid var(--border)", backgroundColor: "var(--white)", padding: "0.65rem 1rem", marginBottom: "1.25rem" }}>
-          <p style={{ fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.825rem", color: "var(--ink-soft)" }}>{recoveryMessage}</p>
         </div>
       )}
 
@@ -236,7 +213,7 @@ export default function SignInForm() {
       {/* ── Continue as guest ─────────────────────────────────── */}
       <button
         type="button"
-        onClick={() => router.push("/")}
+        onClick={() => router.push("/home")}
         style={{
           width: "100%",
           backgroundColor: "transparent",

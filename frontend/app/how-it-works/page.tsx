@@ -346,7 +346,7 @@ export default function HowItWorksPage() {
               </p>
             </div>
             <Link
-              href="/"
+              href="/home"
               style={{
                 fontFamily: "var(--font-body)",
                 fontWeight: 500,

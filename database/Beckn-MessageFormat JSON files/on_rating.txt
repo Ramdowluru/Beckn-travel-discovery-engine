@@ -1,0 +1,26 @@
+{
+  "context": {
+    "domain": "TRV",
+    "action": "on_rating"
+  },
+  "message": {
+    "rating": {
+      "order_id": "order-001",
+      "status": "RECEIVED",
+      "value": 5
+    }
+  }
+}
+
+
+/on_rating
+│
+├── context
+│   ├── domain
+│   └── action
+│
+└── message
+    └── rating
+        ├── order_id
+        ├── status
+        └── value

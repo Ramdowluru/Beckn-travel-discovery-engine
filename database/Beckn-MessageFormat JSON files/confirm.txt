@@ -1,0 +1,54 @@
+{
+  "context": {
+    "domain": "TRV",
+    "action": "confirm"
+  },
+  "message": {
+    "order": {
+      "id": "order-001",
+      "provider": {
+        "id": "provider-001"
+      },
+      "items": [
+        {
+          "id": "service-001",
+          "quantity": {
+            "selected": {
+              "count": 1
+            }
+          }
+        }
+      ],
+      "payment": {
+        "type": "PREPAID"
+      }
+    }
+  }
+}
+
+
+
+Structure:
+
+
+/confirm
+│
+├── context
+│   ├── domain
+│   └── action
+│
+└── message
+    └── order
+        ├── id
+        │
+        ├── provider
+        │   └── id
+        │
+        ├── items[]
+        │   ├── id
+        │   └── quantity
+        │       └── selected
+        │           └── count
+        │
+        └── payment
+            └── type

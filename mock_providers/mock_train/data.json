@@ -1,0 +1,220 @@
+{
+  "provider": {
+    "id": "mock-train",
+    "name": "Southern Rail Connect",
+    "type": "TRAIN",
+    "category": "transport",
+    "bpp_id": "mock-train.example.in",
+    "bpp_uri": "http://localhost:5002"
+  },
+  "services": [
+    {
+      "service_id": "TRN-001",
+      "name": "Coastline Passenger",
+      "train_number": "60101",
+      "mode": "TRAIN",
+      "class": "Sleeper (SL)",
+      "from": {
+        "code": "VJA",
+        "city": "Vijayawada",
+        "state": "Andhra Pradesh",
+        "gps": "16.5062,80.6480"
+      },
+      "to": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "departure_time": "05:45",
+      "duration_minutes": 440,
+      "price": {
+        "amount": 240,
+        "currency": "INR"
+      },
+      "seats_available": 60
+    },
+    {
+      "service_id": "TRN-002",
+      "name": "Deccan Superfast",
+      "train_number": "60245",
+      "mode": "TRAIN",
+      "class": "3rd AC (3A)",
+      "from": {
+        "code": "VJA",
+        "city": "Vijayawada",
+        "state": "Andhra Pradesh",
+        "gps": "16.5062,80.6480"
+      },
+      "to": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "departure_time": "14:20",
+      "duration_minutes": 330,
+      "price": {
+        "amount": 610,
+        "currency": "INR"
+      },
+      "seats_available": 32
+    },
+    {
+      "service_id": "TRN-003",
+      "name": "Capital Rajdhani Link",
+      "train_number": "60388",
+      "mode": "TRAIN",
+      "class": "2nd AC (2A)",
+      "from": {
+        "code": "VJA",
+        "city": "Vijayawada",
+        "state": "Andhra Pradesh",
+        "gps": "16.5062,80.6480"
+      },
+      "to": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "departure_time": "18:10",
+      "duration_minutes": 300,
+      "price": {
+        "amount": 890,
+        "currency": "INR"
+      },
+      "seats_available": 12
+    },
+    {
+      "service_id": "TRN-004",
+      "name": "Silicon Superfast",
+      "train_number": "60512",
+      "mode": "TRAIN",
+      "class": "3rd AC (3A)",
+      "from": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "to": {
+        "code": "BLR",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "gps": "12.9716,77.5946"
+      },
+      "departure_time": "20:40",
+      "duration_minutes": 620,
+      "price": {
+        "amount": 980,
+        "currency": "INR"
+      },
+      "seats_available": 25
+    },
+    {
+      "service_id": "TRN-005",
+      "name": "Silicon Express Sleeper",
+      "train_number": "60514",
+      "mode": "TRAIN",
+      "class": "Sleeper (SL)",
+      "from": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "to": {
+        "code": "BLR",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "gps": "12.9716,77.5946"
+      },
+      "departure_time": "18:30",
+      "duration_minutes": 760,
+      "price": {
+        "amount": 430,
+        "currency": "INR"
+      },
+      "seats_available": 0
+    },
+    {
+      "service_id": "TRN-006",
+      "name": "Bay Express",
+      "train_number": "60731",
+      "mode": "TRAIN",
+      "class": "Sleeper (SL)",
+      "from": {
+        "code": "VSKP",
+        "city": "Visakhapatnam",
+        "state": "Andhra Pradesh",
+        "gps": "17.6868,83.2185"
+      },
+      "to": {
+        "code": "VJA",
+        "city": "Vijayawada",
+        "state": "Andhra Pradesh",
+        "gps": "16.5062,80.6480"
+      },
+      "departure_time": "06:10",
+      "duration_minutes": 470,
+      "price": {
+        "amount": 260,
+        "currency": "INR"
+      },
+      "seats_available": 48
+    },
+    {
+      "service_id": "TRN-007",
+      "name": "Bay Superfast",
+      "train_number": "60733",
+      "mode": "TRAIN",
+      "class": "3rd AC (3A)",
+      "from": {
+        "code": "VSKP",
+        "city": "Visakhapatnam",
+        "state": "Andhra Pradesh",
+        "gps": "17.6868,83.2185"
+      },
+      "to": {
+        "code": "VJA",
+        "city": "Vijayawada",
+        "state": "Andhra Pradesh",
+        "gps": "16.5062,80.6480"
+      },
+      "departure_time": "15:00",
+      "duration_minutes": 390,
+      "price": {
+        "amount": 640,
+        "currency": "INR"
+      },
+      "seats_available": 29
+    },
+    {
+      "service_id": "TRN-008",
+      "name": "Bay Premium",
+      "train_number": "60735",
+      "mode": "TRAIN",
+      "class": "2nd AC (2A)",
+      "from": {
+        "code": "VSKP",
+        "city": "Visakhapatnam",
+        "state": "Andhra Pradesh",
+        "gps": "17.6868,83.2185"
+      },
+      "to": {
+        "code": "VJA",
+        "city": "Vijayawada",
+        "state": "Andhra Pradesh",
+        "gps": "16.5062,80.6480"
+      },
+      "departure_time": "21:15",
+      "duration_minutes": 375,
+      "price": {
+        "amount": 920,
+        "currency": "INR"
+      },
+      "seats_available": 10
+    }
+  ]
+}

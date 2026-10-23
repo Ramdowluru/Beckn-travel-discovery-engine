@@ -1,39 +1,28 @@
-import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import type { StayOption } from "@/lib/mockData";
-import { serverApiFetch } from "@/lib/serverApi";
-import { buildSearchHref, buildSelectionHref, type PageSearchParams } from "@/lib/searchParams";
+import type { StayOption } from "@/lib/types";
 
 interface Props {
   params: Promise<{ id: string }>;
-  searchParams: Promise<PageSearchParams>;
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export default async function StayDetailPage({ params }: Props) {
   const { id } = await params;
-  let stay: StayOption | undefined;
-  try { stay = await serverApiFetch<StayOption>(`/api/stays/${id}`); } catch { stay = undefined; }
-  return {
-    title: stay ? `${stay.name} stay` : "Stay details",
-    description: stay?.description,
-  };
-}
 
-export default async function StayDetailPage({ params, searchParams }: Props) {
-  const { id } = await params;
-  const currentSearchParams = await searchParams;
-  let stay: StayOption;
-  try { stay = await serverApiFetch<StayOption>(`/api/stays/${id}`); } catch { notFound(); }
-  const galleryImages = (stay.images.length > 0 ? stay.images : [stay.image]).slice(0, 3);
-  const galleryColumns = galleryImages.length === 1
-    ? "1fr"
-    : galleryImages.length === 2
-      ? "1fr 1fr"
-      : "2fr 1fr 1fr";
+  let stay: StayOption | null = null;
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_BASE ?? ""}/api/stays/${id}`,
+      { cache: "no-store" },
+    );
+    if (res.ok) stay = (await res.json()) as StayOption;
+  } catch {
+    /* network error — fall through to notFound */
+  }
+
+  if (!stay) notFound();
 
   return (
     <>
@@ -42,7 +31,7 @@ export default async function StayDetailPage({ params, searchParams }: Props) {
         {/* ── Breadcrumb ──────────────────────────────────────── */}
         <div style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--white)" }}>
           <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", height: "44px", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Link href={buildSearchHref("/results", "stays", currentSearchParams)} style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-soft)", textDecoration: "none" }}>
+            <Link href="/results?tab=stays" style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-soft)", textDecoration: "none" }}>
               Stays results
             </Link>
             <span style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}>→</span>
@@ -54,17 +43,20 @@ export default async function StayDetailPage({ params, searchParams }: Props) {
 
         <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "3rem 2rem 5rem" }}>
 
-          {/* ── Hero image ──────────────────────────────────────── */}
-          <div className="detail-gallery" style={{ display: "grid", gridTemplateColumns: galleryColumns, gap: "2px", marginBottom: "2.5rem", height: "320px" }}>
-            {galleryImages.map((img, i) => (
-              <div key={i} style={{ overflow: "hidden", backgroundColor: "var(--cream-dark)", position: "relative" }}>
-                <Image src={img} alt={stay.name} fill sizes="(max-width: 760px) 100vw, 33vw" style={{ objectFit: "cover" }} />
-              </div>
-            ))}
-          </div>
+          {/* ── Hero images ─────────────────────────────────────── */}
+          {stay.images.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "2px", marginBottom: "2.5rem", height: "320px" }}>
+              {stay.images.slice(0, 3).map((img, i) => (
+                <div key={i} style={{ overflow: "hidden", backgroundColor: "var(--cream-dark)" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={img} alt={stay!.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* ── Two-column body ─────────────────────────────────── */}
-          <div className="detail-layout" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
 
             {/* Left */}
             <div>
@@ -131,13 +123,13 @@ export default async function StayDetailPage({ params, searchParams }: Props) {
                 </p>
 
                 <Link
-                  href={buildSelectionHref("/itinerary", "stays", currentSearchParams, "stays", stay.id)}
+                  href="/itinerary"
                   style={{ display: "block", width: "100%", backgroundColor: "var(--ink)", color: "var(--white)", fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.875rem", letterSpacing: "0.06em", textTransform: "uppercase", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", marginBottom: "0.75rem" }}
                 >
                   Select this stay
                 </Link>
                 <Link
-                  href={buildSearchHref("/results", "stays", currentSearchParams)}
+                  href="/results?tab=stays"
                   style={{ display: "block", width: "100%", backgroundColor: "transparent", color: "var(--ink)", fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.875rem", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", border: "1px solid var(--border)" }}
                 >
                   Back to results

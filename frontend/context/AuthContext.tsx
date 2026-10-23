@@ -4,13 +4,13 @@ import {
   createContext,
   useContext,
   useState,
-  useEffect,
   useCallback,
   ReactNode,
 } from "react";
 
 /* ─── Types ───────────────────────────────────────────────────── */
 export interface AuthUser {
+  id: string;
   name: string;
   email: string;
   initials: string;
@@ -18,7 +18,7 @@ export interface AuthUser {
 
 interface AuthContextValue {
   user: AuthUser | null;
-  signIn: (user: AuthUser) => void;
+  signIn: (user: Omit<AuthUser, "initials">) => void;
   signOut: () => void;
 }
 
@@ -29,30 +29,22 @@ const AuthContext = createContext<AuthContextValue>({
   signOut: () => {},
 });
 
-const STORAGE_KEY = "tde_auth_user";
-
 /* ─── Provider ────────────────────────────────────────────────── */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
 
-  /* Hydrate from localStorage on mount (client only) */
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) setUser(JSON.parse(stored));
-    } catch {
-      /* ignore malformed storage */
-    }
-  }, []);
-
-  const signIn = useCallback((u: AuthUser) => {
-    setUser(u);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
+  const signIn = useCallback((u: Omit<AuthUser, "initials">) => {
+    const initials = u.name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((word) => word[0].toUpperCase())
+      .join("");
+    setUser({ ...u, initials });
   }, []);
 
   const signOut = useCallback(() => {
     setUser(null);
-    localStorage.removeItem(STORAGE_KEY);
   }, []);
 
   return (

@@ -1,0 +1,403 @@
+{
+  "provider": {
+    "id": "mock-hotel",
+    "name": "StayNest Hotels",
+    "type": "HOTEL",
+    "category": "accommodation",
+    "bpp_id": "mock-hotel.example.in",
+    "bpp_uri": "http://localhost:5004"
+  },
+  "hotels": [
+    {
+      "hotel_id": "HTL-001",
+      "name": "StayNest Charminar Heritage",
+      "category": "HOTEL",
+      "city": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "rating": 4.4,
+      "amenities": [
+        "wifi",
+        "restaurant",
+        "parking",
+        "ac"
+      ],
+      "images": [
+        "https://picsum.photos/seed/htl001-1/800/600",
+        "https://picsum.photos/seed/htl001-2/800/600"
+      ],
+      "rooms": [
+        {
+          "room_id": "HTL-001-STD",
+          "name": "Standard",
+          "capacity": 2,
+          "price": {
+            "amount": 2800,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 6
+        },
+        {
+          "room_id": "HTL-001-DLX",
+          "name": "Deluxe",
+          "capacity": 3,
+          "price": {
+            "amount": 4200,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 3
+        }
+      ]
+    },
+    {
+      "hotel_id": "HTL-002",
+      "name": "StayNest Hitech Business Suites",
+      "category": "HOTEL",
+      "city": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "rating": 4.6,
+      "amenities": [
+        "wifi",
+        "gym",
+        "pool",
+        "restaurant",
+        "parking",
+        "ac"
+      ],
+      "images": [
+        "https://picsum.photos/seed/htl002-1/800/600",
+        "https://picsum.photos/seed/htl002-2/800/600",
+        "https://picsum.photos/seed/htl002-3/800/600"
+      ],
+      "rooms": [
+        {
+          "room_id": "HTL-002-STD",
+          "name": "Standard",
+          "capacity": 2,
+          "price": {
+            "amount": 4500,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 10
+        },
+        {
+          "room_id": "HTL-002-DLX",
+          "name": "Deluxe",
+          "capacity": 3,
+          "price": {
+            "amount": 6200,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 5
+        },
+        {
+          "room_id": "HTL-002-STE",
+          "name": "Executive Suite",
+          "capacity": 4,
+          "price": {
+            "amount": 9800,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 2
+        }
+      ]
+    },
+    {
+      "hotel_id": "HTL-003",
+      "name": "StayNest Budget Inn Secunderabad",
+      "category": "HOTEL",
+      "city": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "rating": 3.6,
+      "amenities": [
+        "wifi",
+        "ac"
+      ],
+      "images": [],
+      "rooms": [
+        {
+          "room_id": "HTL-003-STD",
+          "name": "Standard",
+          "capacity": 2,
+          "price": {
+            "amount": 1400,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 12
+        },
+        {
+          "room_id": "HTL-003-DBL",
+          "name": "Double",
+          "capacity": 3,
+          "price": {
+            "amount": 1900,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 0
+        }
+      ]
+    },
+    {
+      "hotel_id": "HTL-004",
+      "name": "StayNest MG Road Residency",
+      "category": "HOTEL",
+      "city": {
+        "code": "BLR",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "gps": "12.9716,77.5946"
+      },
+      "rating": 4.5,
+      "amenities": [
+        "wifi",
+        "gym",
+        "restaurant",
+        "parking",
+        "ac",
+        "bar"
+      ],
+      "images": [
+        "https://picsum.photos/seed/htl004-1/800/600",
+        "https://picsum.photos/seed/htl004-2/800/600"
+      ],
+      "rooms": [
+        {
+          "room_id": "HTL-004-STD",
+          "name": "Standard",
+          "capacity": 2,
+          "price": {
+            "amount": 5200,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 8
+        },
+        {
+          "room_id": "HTL-004-DLX",
+          "name": "Deluxe",
+          "capacity": 3,
+          "price": {
+            "amount": 7100,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 4
+        }
+      ]
+    },
+    {
+      "hotel_id": "HTL-005",
+      "name": "StayNest Koramangala Homestay",
+      "category": "HOMESTAY",
+      "city": {
+        "code": "BLR",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "gps": "12.9716,77.5946"
+      },
+      "rating": 4.2,
+      "amenities": [
+        "wifi",
+        "kitchen",
+        "parking"
+      ],
+      "images": [
+        "https://picsum.photos/seed/htl005-1/800/600",
+        "https://picsum.photos/seed/htl005-2/800/600"
+      ],
+      "rooms": [
+        {
+          "room_id": "HTL-005-PVT",
+          "name": "Private Room",
+          "capacity": 2,
+          "price": {
+            "amount": 2300,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 3
+        },
+        {
+          "room_id": "HTL-005-FAM",
+          "name": "Family Room",
+          "capacity": 5,
+          "price": {
+            "amount": 3800,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 2
+        }
+      ]
+    },
+    {
+      "hotel_id": "HTL-006",
+      "name": "StayNest Baga Beach Resort",
+      "category": "RESORT",
+      "city": {
+        "code": "GOI",
+        "city": "Goa",
+        "state": "Goa",
+        "gps": "15.4909,73.8278"
+      },
+      "rating": 4.7,
+      "amenities": [
+        "wifi",
+        "pool",
+        "beach_access",
+        "restaurant",
+        "bar",
+        "ac",
+        "spa"
+      ],
+      "images": [
+        "https://picsum.photos/seed/htl006-1/800/600",
+        "https://picsum.photos/seed/htl006-2/800/600",
+        "https://picsum.photos/seed/htl006-3/800/600"
+      ],
+      "rooms": [
+        {
+          "room_id": "HTL-006-GDN",
+          "name": "Garden View",
+          "capacity": 2,
+          "price": {
+            "amount": 6800,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 9
+        },
+        {
+          "room_id": "HTL-006-SEA",
+          "name": "Sea View",
+          "capacity": 3,
+          "price": {
+            "amount": 9500,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 5
+        },
+        {
+          "room_id": "HTL-006-VIL",
+          "name": "Private Villa",
+          "capacity": 6,
+          "price": {
+            "amount": 16500,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 1
+        }
+      ]
+    },
+    {
+      "hotel_id": "HTL-007",
+      "name": "StayNest Panjim Backpackers",
+      "category": "HOSTEL",
+      "city": {
+        "code": "GOI",
+        "city": "Goa",
+        "state": "Goa",
+        "gps": "15.4909,73.8278"
+      },
+      "rating": 3.9,
+      "amenities": [
+        "wifi",
+        "common_kitchen"
+      ],
+      "images": [
+        "https://picsum.photos/seed/htl007-1/800/600"
+      ],
+      "rooms": [
+        {
+          "room_id": "HTL-007-DORM",
+          "name": "Dorm Bed",
+          "capacity": 1,
+          "price": {
+            "amount": 700,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 15
+        },
+        {
+          "room_id": "HTL-007-PVT",
+          "name": "Private Room",
+          "capacity": 2,
+          "price": {
+            "amount": 1800,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 4
+        }
+      ]
+    },
+    {
+      "hotel_id": "HTL-008",
+      "name": "StayNest Rushikonda Bay View",
+      "category": "HOTEL",
+      "city": {
+        "code": "VSKP",
+        "city": "Visakhapatnam",
+        "state": "Andhra Pradesh",
+        "gps": "17.6868,83.2185"
+      },
+      "rating": 4.3,
+      "amenities": [
+        "wifi",
+        "restaurant",
+        "parking",
+        "ac",
+        "sea_view"
+      ],
+      "images": [
+        "https://picsum.photos/seed/htl008-1/800/600",
+        "https://picsum.photos/seed/htl008-2/800/600"
+      ],
+      "rooms": [
+        {
+          "room_id": "HTL-008-STD",
+          "name": "Standard",
+          "capacity": 2,
+          "price": {
+            "amount": 3100,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 7
+        },
+        {
+          "room_id": "HTL-008-DLX",
+          "name": "Deluxe Sea View",
+          "capacity": 3,
+          "price": {
+            "amount": 4700,
+            "currency": "INR",
+            "per": "night"
+          },
+          "availability": 3
+        }
+      ]
+    }
+  ]
+}

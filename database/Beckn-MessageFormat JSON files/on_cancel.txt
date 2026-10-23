@@ -1,0 +1,100 @@
+{
+  "context": {
+    "domain": "TRV",
+    "action": "on_cancel"
+  },
+  "message": {
+    "order": {
+      "id": "order-001",
+      "state": "CANCELLED",
+
+      "provider": {
+        "id": "provider-001",
+        "descriptor": {
+          "name": "Example Travel Provider"
+        }
+      },
+
+      "items": [
+        {
+          "id": "service-001",
+          "descriptor": {
+            "name": "Visakhapatnam - Hyderabad Express"
+          },
+          "category_id": "TRAIN"
+        }
+      ],
+
+      "quote": {
+        "price": {
+          "currency": "INR",
+          "value": "850.00"
+        }
+      },
+
+      "payment": {
+        "type": "PREPAID",
+        "status": "REFUND_INITIATED"
+      },
+
+      "cancellation": {
+        "reason": {
+          "code": "USER_REQUEST"
+        },
+        "status": "CANCELLED",
+        "cancelled_at": "2026-09-30T05:00:00Z"
+      },
+
+      "refund": {
+        "status": "INITIATED",
+        "amount": {
+          "currency": "INR",
+          "value": "850.00"
+        }
+      }
+    }
+  }
+}
+
+structure:
+
+/on_cancel
+│
+├── context
+│   ├── domain
+│   └── action
+│
+└── message
+    └── order
+        ├── id
+        ├── state
+        │
+        ├── provider
+        │   ├── id
+        │   └── descriptor
+        │
+        ├── items[]
+        │   ├── id
+        │   ├── descriptor
+        │   └── category_id
+        │
+        ├── quote
+        │   └── price
+        │       ├── currency
+        │       └── value
+        │
+        ├── payment
+        │   ├── type
+        │   └── status
+        │
+        ├── cancellation
+        │   ├── reason
+        │   │   └── code
+        │   ├── status
+        │   └── cancelled_at
+        │
+        └── refund
+            ├── status
+            └── amount
+                ├── currency
+                └── value

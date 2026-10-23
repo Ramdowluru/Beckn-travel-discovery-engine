@@ -1,7 +1,13 @@
-import { experienceOptions } from "@/lib/mockData";
-
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+/* ─── /api/experiences/[id] ──────────────────────────────────────
+   Stub — always returns 404 until wired to the real backend.
+───────────────────────────────────────────────────────────────── */
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const { id } = await params;
-  const experience = experienceOptions.find((item) => item.id === id);
-  return experience ? Response.json(experience) : Response.json({ error: "Experience not found" }, { status: 404 });
+  return Response.json(
+    { error: `Experience '${id}' not found` },
+    { status: 404 },
+  );
 }

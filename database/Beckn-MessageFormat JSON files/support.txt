@@ -1,0 +1,30 @@
+{
+  "context": {
+    "domain": "TRV",
+    "action": "support"
+  },
+  "message": {
+    "support": {
+      "order_id": "order-001",
+      "issue": {
+        "code": "BOOKING_ISSUE",
+        "description": "Unable to access booking details"
+      }
+    }
+  }
+}
+
+
+/support
+│
+├── context
+│   ├── domain
+│   └── action
+│
+└── message
+    └── support
+        ├── order_id
+        │
+        └── issue
+            ├── code
+            └── description

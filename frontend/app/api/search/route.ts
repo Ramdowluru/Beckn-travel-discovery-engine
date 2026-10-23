@@ -1,18 +1,24 @@
-import { experienceOptions, stayOptions, transportOptions } from "@/lib/mockData";
-
+/* ─── /api/search ─────────────────────────────────────────────────
+   Stub — returns empty result sets.
+   Wire to the real Beckn backend when ready.
+───────────────────────────────────────────────────────────────── */
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const travellers = Number(url.searchParams.get("travellers") || "1");
-  return Response.json({
-    query: {
-      from: url.searchParams.get("from") || "Visakhapatnam",
-      to: url.searchParams.get("to") || "Hyderabad",
-      date: url.searchParams.get("date") || "",
-      travellers: Number.isFinite(travellers) && travellers > 0 ? travellers : 1,
+
+  return Response.json(
+    {
+      query: {
+        from: url.searchParams.get("from") || "",
+        to: url.searchParams.get("to") || "",
+        date: url.searchParams.get("date") || "",
+        travellers: Number.isFinite(travellers) && travellers > 0 ? travellers : 1,
+      },
+      counts: { transport: 0, stays: 0, experiences: 0 },
+      transport: [],
+      stays: [],
+      experiences: [],
     },
-    counts: { transport: transportOptions.length, stays: stayOptions.length, experiences: experienceOptions.length },
-    transport: transportOptions,
-    stays: stayOptions,
-    experiences: experienceOptions,
-  }, { headers: { "Cache-Control": "no-store" } });
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }

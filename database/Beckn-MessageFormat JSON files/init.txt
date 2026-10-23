@@ -1,0 +1,47 @@
+{
+  "context": {
+    "domain": "TRV",
+    "action": "init"
+  },
+  "message": {
+    "order": {
+      "provider": {
+        "id": "provider-001"
+      },
+      "items": [
+        {
+          "id": "service-001",
+          "quantity": {
+            "selected": {
+              "count": 1
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+
+Structure:
+
+/init
+│
+├── context
+│   ├── domain
+│   └── action
+│
+└── message
+    └── order
+        ├── provider
+        │   └── id
+        │
+        └── items[]
+            ├── id
+            └── quantity
+                └── selected
+                    └── count
+
+
+
+

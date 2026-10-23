@@ -1,92 +1,18 @@
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import type { ExperienceOption, StayOption, TransportOption } from "@/lib/mockData";
-import { serverApiFetch } from "@/lib/serverApi";
-import { buildSearchHref, getSearchParam, getSelectionIds, type PageSearchParams } from "@/lib/searchParams";
 
 /* ─── Dot colour per segment type ────────────────────────────── */
 const dotColor: Record<string, string> = {
-  START: "var(--ink)",
-  FLIGHT: "var(--ink)",
-  STAY: "var(--ink)",
+  START:      "var(--ink)",
+  FLIGHT:     "var(--ink)",
+  TRAIN:      "var(--ink)",
+  BUS:        "var(--ink)",
+  STAY:       "var(--ink)",
   EXPERIENCE: "var(--orange)",
 };
 
-function formatDate(iso: string): string {
-  if (!iso) return "";
-  const date = new Date(`${iso}T00:00:00`);
-  return Number.isNaN(date.getTime())
-    ? iso
-    : date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
-}
-
-function formatAmount(amount: number): string {
-  return `₹${amount.toLocaleString("en-IN")}`;
-}
-
-export default async function ItineraryPage({
-  searchParams,
-}: {
-  searchParams: Promise<PageSearchParams>;
-}) {
-  const params = await searchParams;
-  const fromCity = getSearchParam(params, "from") || "Visakhapatnam";
-  const toCity = getSearchParam(params, "to") || "Hyderabad";
-  const date = getSearchParam(params, "date");
-  const transportIds = getSelectionIds(params, "transports", "transport");
-  const stayIds = getSelectionIds(params, "stays", "stay");
-  const experienceIds = getSelectionIds(params, "experiences", "experience");
-  const [transports, stays, experiences] = await Promise.all([
-    Promise.all(transportIds.map((id) => serverApiFetch<TransportOption>(`/api/transport/${id}`).catch(() => undefined))),
-    Promise.all(stayIds.map((id) => serverApiFetch<StayOption>(`/api/stays/${id}`).catch(() => undefined))),
-    Promise.all(experienceIds.map((id) => serverApiFetch<ExperienceOption>(`/api/experiences/${id}`).catch(() => undefined))),
-  ]).then(([transportResults, stayResults, experienceResults]) => [
-    transportResults.filter((item): item is TransportOption => Boolean(item)),
-    stayResults.filter((item): item is StayOption => Boolean(item)),
-    experienceResults.filter((item): item is ExperienceOption => Boolean(item)),
-  ] as const);
-
-  const itineraryItems = [
-    {
-      id: "start",
-      type: "START",
-      title: `${fromCity} → ${toCity}`,
-      detail: date ? `Departure on ${formatDate(date)}.` : "Departure point for your trip.",
-      price: null,
-    },
-    ...transports.map((transport) => ({
-      id: transport.id,
-      type: transport.type,
-      title: `${transport.provider} · ${transport.departureCity} → ${transport.arrivalCity}`,
-      detail: `${transport.departure} → ${transport.arrival} · ${transport.duration}`,
-      price: transport.price,
-    })),
-    ...stays.map((stay) => ({
-      id: stay.id,
-      type: "STAY",
-      title: stay.name,
-      detail: `${stay.nights} nights · Check-in ${stay.checkIn} → Check-out ${stay.checkOut}`,
-      price: stay.totalPrice,
-    })),
-    ...experiences.map((experience) => ({
-      id: experience.id,
-      type: "EXPERIENCE",
-      title: experience.name,
-      detail: `${experience.duration} · Meet at ${experience.meetingPoint}`,
-      price: experience.price,
-    })),
-  ];
-
-  const priceBreakdown = [
-    ...transports.map((transport) => ({ label: `${transport.type} · ${transport.provider}`, amount: transport.price, value: transport.priceNum })),
-    ...stays.map((stay) => ({ label: `${stay.name} · ${stay.nights} nights`, amount: stay.totalPrice, value: Number(stay.totalPrice.replace(/[^\d]/g, "")) })),
-    ...experiences.map((experience) => ({ label: experience.name, amount: experience.price, value: experience.priceNum })),
-  ];
-  const totalValue = priceBreakdown.reduce((sum, item) => sum + item.value, 0);
-  const editHref = buildSearchHref("/results", "travel", params);
-  const checkoutHref = buildSearchHref("/booking/confirm", "travel", params);
-
+export default function ItineraryPage() {
   return (
     <>
       <Navbar />
@@ -125,13 +51,12 @@ export default async function ItineraryPage({
               lineHeight: 1.6,
             }}
           >
-            Everything you&apos;ve picked for your {toCity} trip, in one place.
-            Review the details, then check out.
+            Select transport, a stay, and experiences from the results page to
+            build your itinerary.
           </p>
 
           {/* ── Two-column layout ──────────────────────────────── */}
           <div
-            className="itinerary-layout"
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 320px",
@@ -139,115 +64,44 @@ export default async function ItineraryPage({
               alignItems: "start",
             }}
           >
-            {/* ── Left: timeline ─────────────────────────────── */}
-            <div style={{ position: "relative" }}>
-              {/* Vertical spine line */}
-              <div
+            {/* ── Left: empty timeline placeholder ───────────── */}
+            <div
+              style={{
+                border: "1px solid var(--border)",
+                backgroundColor: "var(--white)",
+                padding: "3rem 2rem",
+                textAlign: "center",
+              }}
+            >
+              <p
                 style={{
-                  position: "absolute",
-                  left: "7px",
-                  top: "8px",
-                  bottom: "8px",
-                  width: "1px",
-                  backgroundColor: "var(--border)",
-                  zIndex: 0,
-                }}
-              />
-
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 0,
+                  fontFamily: "var(--font-body)",
+                  fontWeight: 300,
+                  fontSize: "0.9rem",
+                  color: "var(--ink-muted)",
+                  marginBottom: "1.5rem",
+                  lineHeight: 1.6,
                 }}
               >
-                {itineraryItems.map((item, index) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "16px 1fr",
-                      gap: "1.25rem",
-                      paddingBottom: index < itineraryItems.length - 1 ? "2rem" : 0,
-                      position: "relative",
-                      zIndex: 1,
-                    }}
-                  >
-                    {/* Dot */}
-                    <div
-                      style={{
-                        width: "16px",
-                        height: "16px",
-                        backgroundColor: dotColor[item.type] ?? "var(--ink)",
-                        flexShrink: 0,
-                        marginTop: "2px",
-                      }}
-                    />
-
-                    {/* Content */}
-                    <div>
-                      {/* Segment type label */}
-                      <p
-                        className="tag-neutral"
-                        style={{ marginBottom: "0.3rem", fontSize: "0.6rem" }}
-                      >
-                        {item.type}
-                      </p>
-
-                      {/* Title */}
-                      <p
-                        style={{
-                          fontFamily: "var(--font-display)",
-                          fontWeight: 600,
-                          fontSize: "1.05rem",
-                          color: "var(--ink)",
-                          letterSpacing: "-0.01em",
-                          marginBottom: "0.5rem",
-                        }}
-                      >
-                        {item.title}
-                      </p>
-
-                      {/* Detail box */}
-                      <div
-                        className="timeline-detail"
-                        style={{
-                          backgroundColor: "var(--white)",
-                          border: "1px solid var(--border)",
-                          padding: "0.75rem 1rem",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontFamily: "var(--font-body)",
-                            fontWeight: 300,
-                            fontSize: "0.825rem",
-                            color: "var(--ink-soft)",
-                          }}
-                        >
-                          {item.detail}
-                        </span>
-                        {item.price && (
-                          <span
-                            style={{
-                              fontFamily: "var(--font-display)",
-                              fontWeight: 600,
-                              fontSize: "0.95rem",
-                              color: "var(--ink)",
-                              letterSpacing: "-0.01em",
-                            }}
-                          >
-                            {item.price}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                Your itinerary is empty. Search for a trip and select your
+                transport, stay, and experiences.
+              </p>
+              <Link
+                href="/results?tab=travel"
+                style={{
+                  fontFamily: "var(--font-body)",
+                  fontWeight: 500,
+                  fontSize: "0.825rem",
+                  letterSpacing: "0.04em",
+                  color: "var(--white)",
+                  backgroundColor: "var(--ink)",
+                  padding: "0.7rem 1.5rem",
+                  textDecoration: "none",
+                  display: "inline-block",
+                }}
+              >
+                Browse transport
+              </Link>
             </div>
 
             {/* ── Right: price breakdown ─────────────────────── */}
@@ -274,55 +128,19 @@ export default async function ItineraryPage({
                   Price breakdown
                 </h2>
 
-                {/* Line items */}
-                <div
+                {/* Empty breakdown */}
+                <p
                   style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "0.875rem",
+                    fontFamily: "var(--font-body)",
+                    fontWeight: 300,
+                    fontSize: "0.825rem",
+                    color: "var(--ink-muted)",
                     marginBottom: "1.25rem",
+                    lineHeight: 1.5,
                   }}
                 >
-                  {priceBreakdown.length === 0 ? (
-                    <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.825rem", color: "var(--ink-soft)", lineHeight: 1.5 }}>
-                      Select travel, a stay, or an experience to build your itinerary.
-                    </p>
-                  ) : priceBreakdown.map((item) => (
-                    <div
-                      className="price-row"
-                      key={item.label}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "baseline",
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontFamily: "var(--font-body)",
-                          fontWeight: 300,
-                          fontSize: "0.825rem",
-                          color: "var(--ink-soft)",
-                          maxWidth: "180px",
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        {item.label}
-                      </span>
-                      <span
-                        style={{
-                          fontFamily: "var(--font-body)",
-                          fontWeight: 500,
-                          fontSize: "0.875rem",
-                          color: "var(--ink)",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {item.amount}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                  No items selected yet.
+                </p>
 
                 {/* Total */}
                 <div
@@ -351,40 +169,39 @@ export default async function ItineraryPage({
                       fontFamily: "var(--font-display)",
                       fontWeight: 700,
                       fontSize: "1.4rem",
-                      color: "var(--orange)",
+                      color: "var(--ink-muted)",
                       letterSpacing: "-0.02em",
                     }}
                   >
-                    {formatAmount(totalValue)}
+                    ₹0
                   </span>
                 </div>
 
-                {/* Primary CTA */}
-                <Link
-                  href={checkoutHref}
+                {/* Primary CTA — disabled until items are selected */}
+                <button
+                  disabled
                   style={{
                     display: "block",
                     width: "100%",
-                    backgroundColor: "var(--ink)",
+                    backgroundColor: "var(--ink-muted)",
                     color: "var(--white)",
                     fontFamily: "var(--font-body)",
                     fontWeight: 500,
                     fontSize: "0.875rem",
                     letterSpacing: "0.06em",
                     textTransform: "uppercase",
-                    textDecoration: "none",
-                    textAlign: "center",
+                    border: "none",
                     padding: "0.9rem 0",
                     marginBottom: "0.75rem",
-                    transition: "background-color 0.15s",
+                    cursor: "not-allowed",
                   }}
                 >
                   Continue to checkout
-                </Link>
+                </button>
 
                 {/* Secondary CTA */}
                 <Link
-                  href={editHref}
+                  href="/results?tab=travel"
                   style={{
                     display: "block",
                     width: "100%",
@@ -404,7 +221,6 @@ export default async function ItineraryPage({
                   Edit itinerary
                 </Link>
 
-                {/* Disclaimer */}
                 <p
                   style={{
                     fontFamily: "var(--font-body)",
@@ -427,3 +243,6 @@ export default async function ItineraryPage({
     </>
   );
 }
+
+/* Keep dotColor exported so future client components can reuse it */
+export { dotColor };

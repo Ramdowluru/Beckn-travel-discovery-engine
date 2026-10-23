@@ -7,7 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 
 /* ─── Nav link definitions ────────────────────────────────────── */
 const navLinks = [
-  { href: "/",         label: "Explore" },
+  { href: "/home",     label: "Explore" },
   { href: "/trips",    label: "Trips"   },
   { href: "/partners", label: "Our Partners" },
   { href: "/how-it-works", label: "How it works" },
@@ -18,10 +18,10 @@ const navLinks = [
 function getActiveHref(pathname: string): string {
   /* Explore — landing + all results + auth flows */
   if (
-    pathname === "/" ||
+    pathname === "/home" ||
     pathname.startsWith("/results") ||
     pathname.startsWith("/auth")
-  ) return "/";
+  ) return "/home";
 
   /* Trips — profile, itinerary, booking */
   if (
@@ -62,7 +62,7 @@ export default function Navbar() {
 
   function handleSignOut() {
     signOut();
-    router.push("/");
+    router.push("/auth/signin");
   }
 
   return (
@@ -88,7 +88,7 @@ export default function Navbar() {
         className="navbar-inner"
       >
         {/* ── Logo ──────────────────────────────────────────── */}
-        <Link href="/" style={{ textDecoration: "none", flexShrink: 0 }}>
+        <Link href="/home" style={{ textDecoration: "none", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <div
               style={{

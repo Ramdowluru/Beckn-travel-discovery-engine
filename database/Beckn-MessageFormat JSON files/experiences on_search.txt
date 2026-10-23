@@ -1,0 +1,23 @@
+{
+  "id": "EXP-HYD-001",
+  "descriptor": {
+    "name": "Hyderabad Heritage Tour",
+    "short_desc": "Guided tour of Hyderabad heritage sites"
+  },
+  "category_id": "sightseeing",
+  "location_id": "LOC-HYD-001",
+  "duration": {
+    "value": 180,
+    "unit": "minutes"
+  },
+  "price": {
+    "amount": 1200,
+    "currency": "INR"
+  },
+  "availability": {
+    "status": "available",
+    "slots_remaining": 10
+  },
+  "images": [],
+  "status": "active"
+}

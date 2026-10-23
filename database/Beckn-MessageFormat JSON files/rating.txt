@@ -1,0 +1,26 @@
+{
+  "context": {
+    "domain": "TRV",
+    "action": "rating"
+  },
+  "message": {
+    "rating": {
+      "order_id": "order-001",
+      "value": 5,
+      "comment": "Good travel experience"
+    }
+  }
+}
+
+
+/rating
+│
+├── context
+│   ├── domain
+│   └── action
+│
+└── message
+    └── rating
+        ├── order_id
+        ├── value
+        └── comment

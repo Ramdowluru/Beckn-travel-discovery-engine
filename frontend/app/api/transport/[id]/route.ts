@@ -1,7 +1,13 @@
-import { transportOptions } from "@/lib/mockData";
-
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+/* ─── /api/transport/[id] ─────────────────────────────────────────
+   Stub — always returns 404 until wired to the real backend.
+───────────────────────────────────────────────────────────────── */
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const { id } = await params;
-  const option = transportOptions.find((item) => item.id === id);
-  return option ? Response.json(option) : Response.json({ error: "Transport option not found" }, { status: 404 });
+  return Response.json(
+    { error: `Transport option '${id}' not found` },
+    { status: 404 },
+  );
 }

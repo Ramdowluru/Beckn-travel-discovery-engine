@@ -1,4 +1,4 @@
-import type { ExperienceOption, StayOption, TransportOption } from "@/lib/mockData";
+import type { ExperienceOption, StayOption, TransportOption } from "@/lib/types";
 
 export interface SearchResponse {
   query: {
@@ -33,10 +33,20 @@ export interface TripRecord {
 
 export interface AuthResponse {
   user: {
+    id: string;
     name: string;
     email: string;
-    initials: string;
   };
+}
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -44,7 +54,22 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
-  if (!response.ok) throw new Error(`API request failed: ${response.status}`);
+  if (!response.ok) {
+    let message = "Something went wrong. Please try again.";
+    try {
+      const body = await response.json() as {
+        detail?: string | { msg?: string }[];
+      };
+      if (typeof body.detail === "string") {
+        message = body.detail;
+      } else if (Array.isArray(body.detail)) {
+        message = body.detail.map((item) => item.msg || "Invalid input.").join(" ");
+      }
+    } catch {
+      /* Use the generic message when the server response is not JSON. */
+    }
+    throw new ApiError(message, response.status);
+  }
   return response.json() as Promise<T>;
 }
 
@@ -63,17 +88,10 @@ export function signInRequest(email: string, password: string): Promise<AuthResp
   });
 }
 
-export function signUpRequest(name: string, email: string, password: string): Promise<{ verificationCode: string }> {
-  return requestJson<{ verificationCode: string }>("/api/auth/signup", {
+export function signUpRequest(name: string, email: string, password: string): Promise<AuthResponse> {
+  return requestJson<AuthResponse>("/api/auth/signup", {
     method: "POST",
     body: JSON.stringify({ name, email, password }),
-  });
-}
-
-export function verifySignUpRequest(name: string, email: string, code: string): Promise<AuthResponse> {
-  return requestJson<AuthResponse>("/api/auth/verify", {
-    method: "POST",
-    body: JSON.stringify({ name, email, code }),
   });
 }
 

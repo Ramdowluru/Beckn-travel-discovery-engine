@@ -1,0 +1,82 @@
+{
+  "context": {
+    "domain": "TRV",
+    "action": "on_track"
+  },
+  "message": {
+    "order": {
+      "id": "order-001",
+      "state": "IN_PROGRESS",
+
+      "provider": {
+        "id": "provider-001",
+        "descriptor": {
+          "name": "Example Travel Provider"
+        }
+      },
+
+      "fulfillment": {
+        "type": "ROUTE",
+
+        "start": {
+          "location": {
+            "descriptor": {
+              "name": "Visakhapatnam"
+            }
+          }
+        },
+
+        "end": {
+          "location": {
+            "descriptor": {
+              "name": "Hyderabad"
+            }
+          }
+        },
+
+        "tracking": {
+          "status": "ACTIVE",
+          "location": {
+            "descriptor": {
+              "name": "Vijayawada"
+            }
+          },
+          "updated_at": "2026-09-30T10:30:00Z"
+        }
+      }
+    }
+  }
+}
+
+structure:
+
+/on_track
+│
+├── context
+│   ├── domain
+│   └── action
+│
+└── message
+    └── order
+        ├── id
+        ├── state
+        │
+        ├── provider
+        │   ├── id
+        │   └── descriptor
+        │
+        └── fulfillment
+            ├── type
+            ├── start
+            │   └── location
+            │       └── descriptor
+            │
+            ├── end
+            │   └── location
+            │       └── descriptor
+            │
+            └── tracking
+                ├── status
+                ├── location
+                │   └── descriptor
+                └── updated_at

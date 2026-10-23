@@ -1,0 +1,137 @@
+{
+  "context": {
+    "domain": "TRV",
+    "action": "on_confirm"
+  },
+  "message": {
+    "order": {
+      "id": "order-001",
+      "state": "CONFIRMED",
+
+      "provider": {
+        "id": "provider-001",
+        "descriptor": {
+          "name": "Example Travel Provider"
+        }
+      },
+
+      "items": [
+        {
+          "id": "service-001",
+          "descriptor": {
+            "name": "Visakhapatnam - Hyderabad Express"
+          },
+
+          "category_id": "TRAIN",
+
+          "fulfillment": {
+            "type": "ROUTE",
+
+            "start": {
+              "location": {
+                "descriptor": {
+                  "name": "Visakhapatnam"
+                }
+              },
+              "time": {
+                "timestamp": "2026-09-30T06:00:00Z"
+              }
+            },
+
+            "end": {
+              "location": {
+                "descriptor": {
+                  "name": "Hyderabad"
+                }
+              },
+              "time": {
+                "timestamp": "2026-09-30T14:00:00Z"
+              }
+            }
+          },
+
+          "price": {
+            "currency": "INR",
+            "value": "850.00"
+          },
+
+          "quantity": {
+            "selected": {
+              "count": 1
+            }
+          }
+        }
+      ],
+
+      "quote": {
+        "price": {
+          "currency": "INR",
+          "value": "850.00"
+        }
+      },
+
+      "payment": {
+        "type": "PREPAID",
+        "status": "PAID"
+      },
+
+      "booking": {
+        "id": "BOOK-20260930-001",
+        "status": "CONFIRMED"
+      }
+    }
+  }
+}
+
+
+Structure:
+
+/on_confirm
+│
+├── context
+│   ├── domain
+│   └── action
+│
+└── message
+    └── order
+        ├── id
+        ├── state
+        │
+        ├── provider
+        │   ├── id
+        │   └── descriptor
+        │
+        ├── items[]
+        │   ├── id
+        │   ├── descriptor
+        │   ├── category_id
+        │   │
+        │   ├── fulfillment
+        │   │   ├── type
+        │   │   ├── start
+        │   │   │   ├── location
+        │   │   │   └── time
+        │   │   └── end
+        │   │       ├── location
+        │   │       └── time
+        │   │
+        │   ├── price
+        │   │   ├── currency
+        │   │   └── value
+        │   │
+        │   └── quantity
+        │       └── selected
+        │           └── count
+        │
+        ├── quote
+        │   └── price
+        │       ├── currency
+        │       └── value
+        │
+        ├── payment
+        │   ├── type
+        │   └── status
+        │
+        └── booking
+            ├── id
+            └── status

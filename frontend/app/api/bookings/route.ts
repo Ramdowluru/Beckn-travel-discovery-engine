@@ -1,11 +1,29 @@
-import { experienceOptions, stayOptions, transportOptions } from "@/lib/mockData";
-
+/* ─── /api/bookings ───────────────────────────────────────────────
+   Stub — returns a minimal booking shell.
+   Wire to the real Beckn confirm flow when ready.
+───────────────────────────────────────────────────────────────── */
 export async function POST(request: Request) {
-  const body = await request.json() as { from?: string; to?: string; date?: string; transportId?: string; stayId?: string; experienceId?: string };
-  const transport = transportOptions.find((item) => item.id === body.transportId);
-  const stay = stayOptions.find((item) => item.id === body.stayId);
-  const experience = experienceOptions.find((item) => item.id === body.experienceId);
-  const total = (transport?.priceNum || 0) + (stay ? Number(stay.totalPrice.replace(/[^\d]/g, "")) : 0) + (experience?.priceNum || 0);
-  const reference = `TDE-${(body.to || "TRIP").replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase() || "TRI"}-${(body.date || "TRIP").replace(/-/g, "").slice(-6).toUpperCase()}`;
-  return Response.json({ id: `booking-${reference.toLowerCase()}`, reference, status: "CONFIRMED", from: body.from || "Visakhapatnam", to: body.to || "Hyderabad", date: body.date || "", total, items: [transport, stay, experience].filter(Boolean) });
+  const body = await request.json() as {
+    from?: string;
+    to?: string;
+    date?: string;
+    transportId?: string;
+    stayId?: string;
+    experienceId?: string;
+  };
+
+  const dest = (body.to ?? "TRIP").replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase() || "TRI";
+  const datePart = (body.date ?? "").replace(/-/g, "").slice(-6).toUpperCase() || "000000";
+  const reference = `TDE-${dest}-${datePart}`;
+
+  return Response.json({
+    id: `booking-${reference.toLowerCase()}`,
+    reference,
+    status: "PENDING",
+    from: body.from ?? "",
+    to: body.to ?? "",
+    date: body.date ?? "",
+    total: 0,
+    items: [],
+  });
 }
