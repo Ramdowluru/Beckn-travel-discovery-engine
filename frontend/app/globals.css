@@ -160,6 +160,7 @@ h1, h2, h3, h4 {
   .navbar-inner {
     padding: 0 1rem !important;
     gap: 1rem !important;
+    min-width: 0;
   }
 
   .desktop-nav-links {
@@ -224,6 +225,22 @@ h1, h2, h3, h4 {
 
 @media (max-width: 600px) {
   .search-bar {
+    grid-template-columns: 1fr !important;
+  }
+
+  .navbar-brand-copy {
+    display: none;
+  }
+
+  .about-hero {
+    grid-template-columns: 1fr !important;
+    gap: 2rem !important;
+    padding-top: 3.5rem !important;
+    padding-bottom: 4rem !important;
+  }
+
+  .about-category-grid,
+  .about-steps-grid {
     grid-template-columns: 1fr !important;
   }
 }

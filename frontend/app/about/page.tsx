@@ -2,21 +2,31 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
-/* ─── Team data ───────────────────────────────────────────────── */
-const team = [
-  { role: "Beckn / BAP Lead",          responsibility: "Beckn transaction layer, shared internal data schema, BAP implementation." },
-  { role: "Transport Aggregation",      responsibility: "Flight, train and bus provider integrations — normalisation and mock BPP." },
-  { role: "Accommodation & Experiences",responsibility: "Hotel and local experience integrations, GIS and location intelligence." },
-  { role: "Backend Infrastructure",     responsibility: "Redis caching, MongoDB design, retry/timeout logic, performance tuning." },
-  { role: "Frontend / UX",              responsibility: "Next.js UI, end-to-end booking flow, journey-completion tracking." },
+const categories = [
+  {
+    title: "Transport",
+    body: "Compare flights, trains and buses to find a route that fits your time and budget.",
+    href: "/results?tab=travel",
+    label: "Explore transport",
+  },
+  {
+    title: "Hotels",
+    body: "Find comfortable stays in the right location, from simple rooms to memorable getaways.",
+    href: "/results?tab=stays",
+    label: "Browse stays",
+  },
+  {
+    title: "Local experiences",
+    body: "Add something special to your trip with food, culture and activities led by local hosts.",
+    href: "/results?tab=experiences",
+    label: "Find experiences",
+  },
 ];
 
-const stack = [
-  { layer: "Frontend",  tech: "Next.js / React",  purpose: "Mobile-first, responsive UI with SSR" },
-  { layer: "Backend",   tech: "FastAPI (Python)",  purpose: "REST APIs, Beckn protocol, async orchestration" },
-  { layer: "Database",  tech: "MongoDB",           purpose: "Catalog, orders and journey data" },
-  { layer: "Cache",     tech: "Redis",             purpose: "TTL-based price and availability caching" },
-  { layer: "Protocol",  tech: "Beckn v0.9.1",      purpose: "Discovery, order and fulfillment lifecycle" },
+const steps = [
+  ["01", "Tell us where you are going", "Choose your starting point, destination, date and travellers."],
+  ["02", "Compare your options", "See transport, stays and experiences together so planning feels simple."],
+  ["03", "Choose what suits you", "Review the details, pick your favourites and book directly with the provider."],
 ];
 
 export default function AboutPage() {
@@ -24,354 +34,207 @@ export default function AboutPage() {
     <>
       <Navbar />
       <main style={{ flex: 1, backgroundColor: "var(--cream)" }}>
-
-        {/* ── Hero ─────────────────────────────────────────────── */}
-        <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "5rem 2rem 4rem" }}>
-          <p className="tag" style={{ marginBottom: "1.25rem" }}>About TDE</p>
-          <h1
-            style={{
-              fontFamily: "var(--font-display)",
-              fontWeight: 700,
-              fontSize: "clamp(2.25rem, 5vw, 3.75rem)",
-              color: "var(--ink)",
-              letterSpacing: "-0.03em",
-              lineHeight: 1.05,
-              maxWidth: "640px",
-              marginBottom: "1.5rem",
-            }}
-          >
-            Travel planning
-            <br />
-            <em style={{ fontStyle: "italic", fontWeight: 400, color: "var(--ink-soft)" }}>
-              without the middlemen.
-            </em>
-          </h1>
-          <p
-            style={{
-              fontFamily: "var(--font-body)",
-              fontWeight: 300,
-              fontSize: "1rem",
-              color: "var(--ink-soft)",
-              lineHeight: 1.75,
-              maxWidth: "560px",
-            }}
-          >
-            Travel planning in India is fragmented — separate apps for flights,
-            trains, buses, hotels and experiences, with no unified way to
-            compare real-time prices across providers. TDE is a final-year
-            engineering project that addresses this by building a Beckn
-            Protocol-based travel discovery and booking platform.
-          </p>
-        </section>
-
-        {/* ── Problem / Solution ───────────────────────────────── */}
-        <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem 5rem" }}>
-          <div
-            className="about-problem-grid"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "1px",
-              backgroundColor: "var(--border)",
-              border: "1px solid var(--border)",
-            }}
-          >
-            <div style={{ backgroundColor: "var(--white)", padding: "2.5rem 2.5rem" }}>
-              <p className="tag-neutral" style={{ marginBottom: "1rem" }}>The problem</p>
-              <p
-                style={{
-                  fontFamily: "var(--font-body)",
-                  fontWeight: 300,
-                  fontSize: "0.9rem",
-                  color: "var(--ink-soft)",
-                  lineHeight: 1.75,
-                }}
-              >
-                Travelers in India must currently rely on multiple fragmented
-                platforms to plan a single trip — one for transport, another
-                for accommodation, and separate searches for local experiences.
-                There is no unified, real-time way to compare prices and
-                availability across providers. This fragmentation leads to a
-                poor and time-consuming planning experience.
-              </p>
-            </div>
-            <div style={{ backgroundColor: "var(--ink)", padding: "2.5rem 2.5rem" }}>
-              <p
-                className="tag"
-                style={{ color: "rgba(200,75,47,0.8)", marginBottom: "1rem" }}
-              >
-                The solution
-              </p>
-              <p
-                style={{
-                  fontFamily: "var(--font-body)",
-                  fontWeight: 300,
-                  fontSize: "0.9rem",
-                  color: "rgba(242,237,228,0.7)",
-                  lineHeight: 1.75,
-                }}
-              >
-                A single platform that aggregates multi-modal transport,
-                accommodation and local experiences from multiple providers
-                through the Beckn Protocol — an open, decentralized commerce
-                standard. No custom integrations. No middleman markup. Direct
-                bookings from one unified interface.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* ── KPIs ─────────────────────────────────────────────── */}
-        <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem 5rem" }}>
-          <h2
-            style={{
-              fontFamily: "var(--font-display)",
-              fontWeight: 600,
-              fontSize: "1.4rem",
-              color: "var(--ink)",
-              letterSpacing: "-0.02em",
-              marginBottom: "1.5rem",
-            }}
-          >
-            Project targets
-          </h2>
-          <div
-            className="about-kpi-grid"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(5, 1fr)",
-              gap: "1px",
-              backgroundColor: "var(--border)",
-              border: "1px solid var(--border)",
-            }}
-          >
-            {[
-              { metric: "3+",    label: "Provider integrations" },
-              { metric: "<3s",   label: "Search response time" },
-              { metric: ">70%",  label: "Journey completion rate" },
-              { metric: "0%",    label: "Platform markup" },
-              { metric: "3",     label: "Transport modes" },
-            ].map((kpi) => (
-              <div
-                key={kpi.label}
-                style={{ backgroundColor: "var(--white)", padding: "1.5rem 1.25rem", textAlign: "center" }}
-              >
-                <p
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 700,
-                    fontSize: "1.75rem",
-                    color: "var(--orange)",
-                    letterSpacing: "-0.03em",
-                    marginBottom: "0.3rem",
-                  }}
-                >
-                  {kpi.metric}
-                </p>
-                <p
-                  style={{
-                    fontFamily: "var(--font-body)",
-                    fontWeight: 300,
-                    fontSize: "0.75rem",
-                    color: "var(--ink-muted)",
-                    lineHeight: 1.4,
-                  }}
-                >
-                  {kpi.label}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── Tech stack ───────────────────────────────────────── */}
-        <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem 5rem" }}>
-          <h2
-            style={{
-              fontFamily: "var(--font-display)",
-              fontWeight: 600,
-              fontSize: "1.4rem",
-              color: "var(--ink)",
-              letterSpacing: "-0.02em",
-              marginBottom: "1.5rem",
-            }}
-          >
-            Technology stack
-          </h2>
-          <div
-            className="about-tech-grid"
-            style={{
-              border: "1px solid var(--border)",
-              backgroundColor: "var(--white)",
-            }}
-          >
-            {/* Header row */}
-            <div
-              className="about-tech-row"
+        <section
+          style={{
+            maxWidth: "1200px",
+            margin: "0 auto",
+            padding: "5rem 2rem 5.5rem",
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1.1fr) minmax(280px, 0.9fr)",
+            gap: "4rem",
+            alignItems: "end",
+          }}
+          className="about-hero"
+        >
+          <div>
+            <p className="tag" style={{ marginBottom: "1.25rem" }}>About TDE</p>
+            <h1
               style={{
-                display: "grid",
-                gridTemplateColumns: "120px 180px 1fr",
-                borderBottom: "1px solid var(--border)",
-                backgroundColor: "var(--cream-dark)",
+                fontFamily: "var(--font-display)",
+                fontWeight: 700,
+                fontSize: "clamp(2.5rem, 6vw, 4.75rem)",
+                color: "var(--ink)",
+                letterSpacing: "-0.04em",
+                lineHeight: 1,
+                maxWidth: "680px",
+                marginBottom: "1.5rem",
               }}
             >
-              {["Layer", "Technology", "Purpose"].map((h) => (
-                <div key={h} style={{ padding: "0.6rem 1.25rem" }}>
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "0.6rem",
-                      letterSpacing: "0.1em",
-                      color: "var(--ink-muted)",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {h}
-                  </span>
-                </div>
-              ))}
-            </div>
-            {stack.map((row, i) => (
-              <div
-                className="about-tech-row"
-                key={row.layer}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "120px 180px 1fr",
-                  borderBottom: i < stack.length - 1 ? "1px solid var(--border)" : "none",
-                }}
-              >
-                <div style={{ padding: "0.875rem 1.25rem", borderRight: "1px solid var(--border)" }}>
-                  <span style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.825rem", color: "var(--ink)" }}>{row.layer}</span>
-                </div>
-                <div style={{ padding: "0.875rem 1.25rem", borderRight: "1px solid var(--border)" }}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.775rem", color: "var(--orange)" }}>{row.tech}</span>
-                </div>
-                <div style={{ padding: "0.875rem 1.25rem" }}>
-                  <span style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.825rem", color: "var(--ink-soft)" }}>{row.purpose}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── Team ─────────────────────────────────────────────── */}
-        <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem 5rem" }}>
-          <h2
-            style={{
-              fontFamily: "var(--font-display)",
-              fontWeight: 600,
-              fontSize: "1.4rem",
-              color: "var(--ink)",
-              letterSpacing: "-0.02em",
-              marginBottom: "1.5rem",
-            }}
-          >
-            Team structure
-          </h2>
-          <div
-            className="about-team-grid"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "1px",
-              backgroundColor: "var(--border)",
-              border: "1px solid var(--border)",
-            }}
-          >
-            {team.map((member) => (
-              <div
-                key={member.role}
-                style={{
-                  backgroundColor: "var(--white)",
-                  padding: "1.25rem 1.75rem",
-                  display: "grid",
-                  gridTemplateColumns: "240px 1fr",
-                  gap: "2rem",
-                  alignItems: "center",
-                }}
-              >
-                <p
-                  style={{
-                    fontFamily: "var(--font-body)",
-                    fontWeight: 500,
-                    fontSize: "0.875rem",
-                    color: "var(--ink)",
-                  }}
-                >
-                  {member.role}
-                </p>
-                <p
-                  style={{
-                    fontFamily: "var(--font-body)",
-                    fontWeight: 300,
-                    fontSize: "0.85rem",
-                    color: "var(--ink-soft)",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  {member.responsibility}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── Footer CTA ───────────────────────────────────────── */}
-        <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem 5rem" }}>
-          <div
-            style={{
-              border: "1px solid var(--border)",
-              backgroundColor: "var(--white)",
-              padding: "2rem 2.5rem",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: "1rem",
-            }}
-          >
+              Make more of
+              <br />
+              <em style={{ fontStyle: "italic", fontWeight: 400, color: "var(--ink-soft)" }}>
+                every journey.
+              </em>
+            </h1>
             <p
               style={{
                 fontFamily: "var(--font-body)",
                 fontWeight: 300,
-                fontSize: "0.875rem",
+                fontSize: "1rem",
                 color: "var(--ink-soft)",
+                lineHeight: 1.8,
+                maxWidth: "540px",
               }}
             >
-              Want to understand the architecture better?
+              TDE brings the pieces of a trip together. Discover and compare
+              transport, hotels and local experiences in one place, then choose
+              what works best for you.
             </p>
-            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-              <Link
-                href="/how-it-works"
+          </div>
+          <div
+            style={{
+              backgroundColor: "var(--ink)",
+              padding: "2.5rem",
+              minHeight: "220px",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+            }}
+          >
+            <p className="tag" style={{ color: "var(--orange)" }}>Travel, brought together</p>
+            <p
+              style={{
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontWeight: 400,
+                fontSize: "1.8rem",
+                lineHeight: 1.2,
+                color: "var(--cream)",
+                maxWidth: "300px",
+              }}
+            >
+              Less searching.
+              <br />
+              More going.
+            </p>
+          </div>
+        </section>
+
+        <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem 5.5rem" }}>
+          <div
+            className="about-category-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: "1px",
+              backgroundColor: "var(--border)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            {categories.map((category) => (
+              <div key={category.title} style={{ backgroundColor: "var(--white)", padding: "2.25rem 2rem" }}>
+                <p className="tag-neutral" style={{ marginBottom: "1.1rem" }}>TDE / {category.title}</p>
+                <h2
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 600,
+                    fontSize: "1.35rem",
+                    color: "var(--ink)",
+                    letterSpacing: "-0.02em",
+                    marginBottom: "0.7rem",
+                  }}
+                >
+                  {category.title}
+                </h2>
+                <p
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontWeight: 300,
+                    fontSize: "0.875rem",
+                    color: "var(--ink-soft)",
+                    lineHeight: 1.7,
+                    minHeight: "4.5rem",
+                    marginBottom: "1.4rem",
+                  }}
+                >
+                  {category.body}
+                </p>
+                <Link
+                  href={category.href}
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontSize: "0.75rem",
+                    color: "var(--orange)",
+                    textDecoration: "none",
+                  }}
+                >
+                  {category.label} →
+                </Link>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section style={{ backgroundColor: "var(--white)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
+          <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "5rem 2rem" }}>
+            <div style={{ maxWidth: "560px", marginBottom: "2.5rem" }}>
+              <p className="tag" style={{ marginBottom: "1.1rem" }}>A simpler way to plan</p>
+              <h2
                 style={{
-                  fontFamily: "var(--font-body)",
-                  fontWeight: 400,
-                  fontSize: "0.825rem",
+                  fontFamily: "var(--font-display)",
+                  fontWeight: 600,
+                  fontSize: "clamp(1.8rem, 4vw, 2.7rem)",
                   color: "var(--ink)",
-                  border: "1px solid var(--border)",
-                  padding: "0.55rem 1.25rem",
-                  textDecoration: "none",
+                  letterSpacing: "-0.03em",
+                  lineHeight: 1.1,
+                  marginBottom: "1rem",
                 }}
               >
-                How it works
-              </Link>
-              <Link
-                href="/partners"
-                style={{
-                  fontFamily: "var(--font-body)",
-                  fontWeight: 500,
-                  fontSize: "0.825rem",
-                  color: "var(--white)",
-                  backgroundColor: "var(--ink)",
-                  padding: "0.55rem 1.25rem",
-                  textDecoration: "none",
-                }}
-              >
-                Our partners
-              </Link>
+                From first search to next adventure.
+              </h2>
+              <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.9rem", color: "var(--ink-soft)", lineHeight: 1.75 }}>
+                TDE keeps the planning experience clear, flexible and focused
+                on the places you want to go.
+              </p>
+            </div>
+            <div
+              className="about-steps-grid"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: "1px",
+                backgroundColor: "var(--border)",
+                border: "1px solid var(--border)",
+              }}
+            >
+              {steps.map(([number, title, body]) => (
+                <div key={number} style={{ backgroundColor: "var(--cream)", padding: "2rem" }}>
+                  <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.5rem", color: "var(--orange)", marginBottom: "1.25rem" }}>
+                    {number}
+                  </p>
+                  <h3 style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "1.1rem", color: "var(--ink)", marginBottom: "0.6rem" }}>
+                    {title}
+                  </h3>
+                  <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.825rem", color: "var(--ink-soft)", lineHeight: 1.7 }}>
+                    {body}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
+        </section>
+
+        <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "5rem 2rem 6rem", textAlign: "center" }}>
+          <p className="tag" style={{ marginBottom: "1rem" }}>Ready when you are</p>
+          <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "clamp(1.8rem, 4vw, 2.6rem)", color: "var(--ink)", letterSpacing: "-0.03em", marginBottom: "1.5rem" }}>
+            Start planning your next trip.
+          </h2>
+          <Link
+            href="/home"
+            style={{
+              display: "inline-block",
+              backgroundColor: "var(--ink)",
+              color: "var(--cream)",
+              fontFamily: "var(--font-body)",
+              fontSize: "0.8rem",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              textDecoration: "none",
+              padding: "0.9rem 1.5rem",
+            }}
+          >
+            Explore TDE
+          </Link>
         </section>
       </main>
       <Footer />

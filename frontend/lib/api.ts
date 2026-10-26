@@ -73,8 +73,8 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function fetchSearch(params: URLSearchParams): Promise<SearchResponse> {
-  return requestJson<SearchResponse>(`/api/search?${params.toString()}`);
+export function fetchSearch(params: URLSearchParams, signal?: AbortSignal): Promise<SearchResponse> {
+  return requestJson<SearchResponse>(`/api/search?${params.toString()}`, { signal });
 }
 
 export function fetchTrips(): Promise<TripRecord[]> {

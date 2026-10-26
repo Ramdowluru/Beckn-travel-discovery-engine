@@ -2,8 +2,8 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState, useMemo, useEffect } from "react";
-import type { SearchResponse } from "@/lib/api";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { ApiError, fetchSearch } from "@/lib/api";
 import type { TransportOption, StayOption, ExperienceOption } from "@/lib/types";
 
 /* ─── Constants ───────────────────────────────────────────────── */
@@ -18,7 +18,7 @@ const DEPARTURE_HOURS: Record<string, [number, number]> = {
   Afternoon: [12, 17],
   Evening:   [17, 24],
 };
-const TYPE_MAP: Record<string, string> = { Flight: "FLIGHT", Train: "TRAIN", Bus: "BUS" };
+const TYPE_MAP: Record<string, string> = { Flight: "Flight", Train: "Train", Bus: "Bus" };
 const EXP_CATEGORIES = ["Food", "Culture", "Adventure", "History", "Nature", "Local"];
 const AMENITY_OPTIONS = ["WiFi", "AC", "Free cancellation", "Parking", "Restaurant"];
 
@@ -83,26 +83,39 @@ export default function ResultsClient() {
   const [stayOptions,        setStayOptions]        = useState<StayOption[]>([]);
   const [experienceOptions,  setExperienceOptions]  = useState<ExperienceOption[]>([]);
   const [counts,             setCounts]             = useState({ transport: 0, stays: 0, experiences: 0 });
+  const [searchError,        setSearchError        ] = useState("");
+  const requestId = useRef(0);
 
+  // The request reset must happen before the asynchronous response arrives.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    const currentRequestId = ++requestId.current;
+    const controller = new AbortController();
     setLoading(true);
+    setSearchError("");
+    setTransportOptions([]);
+    setStayOptions([]);
+    setExperienceOptions([]);
+    setCounts({ transport: 0, stays: 0, experiences: 0 });
     const params = new URLSearchParams(searchParams.toString());
-    fetch(`/api/search?${params.toString()}`)
-      .then((r) => r.json())
-      .then((data: SearchResponse) => {
+    fetchSearch(params, controller.signal)
+      .then((data) => {
+        if (currentRequestId !== requestId.current) return;
         setTransportOptions(data.transport   ?? []);
         setStayOptions(data.stays            ?? []);
         setExperienceOptions(data.experiences ?? []);
         setCounts(data.counts ?? { transport: 0, stays: 0, experiences: 0 });
+      }).catch((error: unknown) => {
+        if (controller.signal.aborted || currentRequestId !== requestId.current) return;
+        setSearchError(error instanceof ApiError ? error.message : "Search failed. Please try again.");
       })
-      .catch(() => {
-        setTransportOptions([]);
-        setStayOptions([]);
-        setExperienceOptions([]);
-      })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (currentRequestId === requestId.current) setLoading(false);
+      });
+    return () => controller.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams.toString()]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   /* ── Derived max values ─────────────────────────────────────── */
   const TRANSPORT_MAX = useMemo(() =>
@@ -245,7 +258,7 @@ export default function ResultsClient() {
                 )}
               </div>
 
-              {loading ? <LoadingState /> : filteredTransport.length === 0 ? (
+              {searchError ? <EmptyState message={searchError} /> : loading ? <LoadingState /> : filteredTransport.length === 0 ? (
                 <EmptyState message={transportOptions.length === 0
                   ? "No transport options found. Try a different route or date."
                   : "No transport options match your filters. Try adjusting the filters on the right."
@@ -309,7 +322,7 @@ export default function ResultsClient() {
                 <button onClick={() => setSelAmen(toggle(selAmen, "Free cancellation"))} style={PILL(selAmen.includes("Free cancellation"))}>Free cancellation</button>
               </div>
 
-              {loading ? <LoadingState /> : filteredStays.length === 0 ? (
+              {searchError ? <EmptyState message={searchError} /> : loading ? <LoadingState /> : filteredStays.length === 0 ? (
                 <EmptyState message={stayOptions.length === 0
                   ? "No stays found for this destination."
                   : "No stays match your filters. Try adjusting the options on the right."
@@ -381,7 +394,7 @@ export default function ResultsClient() {
                 ))}
               </div>
 
-              {loading ? <LoadingState /> : filteredExp.length === 0 ? (
+              {searchError ? <EmptyState message={searchError} /> : loading ? <LoadingState /> : filteredExp.length === 0 ? (
                 <EmptyState message={experienceOptions.length === 0
                   ? "No experiences found for this destination."
                   : "No experiences in this category yet."

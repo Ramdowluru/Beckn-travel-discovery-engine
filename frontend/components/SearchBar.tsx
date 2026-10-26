@@ -402,6 +402,13 @@ function SearchBarInner() {
     );
   }
 
+  function citySuggestions(value: string, exclude: string): string[] {
+    const normalized = value.trim().toLowerCase();
+    return searchOptions.cities.filter((city) =>
+      city !== exclude && (!normalized || city.toLowerCase().includes(normalized)),
+    );
+  }
+
   return (
     <div
       className="search-bar"
@@ -426,14 +433,34 @@ function SearchBarInner() {
         onClick={() => { setFromOpen(v => !v); setToOpen(false); setCalOpen(false); }}
       >
         <p style={fieldLabel}>From</p>
-        <p style={{
-          fontFamily: "var(--font-body)",
-          fontWeight: 500,
-          fontSize: "0.9rem",
-          color: from ? "var(--ink)" : "var(--ink-muted)",
+        <input
+          aria-label="From"
+          value={from}
+          onChange={(e) => { setFrom(e.target.value); setFromOpen(true); }}
+          onFocus={() => { setFromOpen(true); setToOpen(false); setCalOpen(false); }}
+          onClick={(e) => e.stopPropagation()}
+          placeholder="City or airport"
+          style={{
+            width: "100%",
+            padding: 0,
+            border: "none",
+            outline: "none",
+            background: "transparent",
+            fontFamily: "var(--font-body)",
+            fontWeight: 500,
+            fontSize: "0.9rem",
+            color: from ? "var(--ink)" : "var(--ink-muted)",
+          }}
+        />
+        {/* Keep the field height stable while the input is empty. */}
+        <span aria-hidden="true" style={{
+          position: "absolute",
+          width: 1,
+          height: 1,
+          overflow: "hidden",
         }}>
           {from || "City or airport"}
-        </p>
+        </span>
 
         {/* Swap button */}
         <button
@@ -464,7 +491,7 @@ function SearchBarInner() {
 
         {fromOpen && (
           <div className="search-dropdown" style={dropdownStyle}>
-            {searchOptions.cities.filter(c => c !== to).map(city => (
+            {citySuggestions(from, to).map(city => (
               <CityButton
                 key={city}
                 city={city}
@@ -488,18 +515,29 @@ function SearchBarInner() {
         onClick={() => { setToOpen(v => !v); setFromOpen(false); setCalOpen(false); }}
       >
         <p style={fieldLabel}>To</p>
-        <p style={{
-          fontFamily: "var(--font-body)",
-          fontWeight: 500,
-          fontSize: "0.9rem",
-          color: to ? "var(--ink)" : "var(--ink-muted)",
-        }}>
-          {to || "City or airport"}
-        </p>
+        <input
+          aria-label="To"
+          value={to}
+          onChange={(e) => { setTo(e.target.value); setToOpen(true); }}
+          onFocus={() => { setToOpen(true); setFromOpen(false); setCalOpen(false); }}
+          onClick={(e) => e.stopPropagation()}
+          placeholder="City or airport"
+          style={{
+            width: "100%",
+            padding: 0,
+            border: "none",
+            outline: "none",
+            background: "transparent",
+            fontFamily: "var(--font-body)",
+            fontWeight: 500,
+            fontSize: "0.9rem",
+            color: to ? "var(--ink)" : "var(--ink-muted)",
+          }}
+        />
 
         {toOpen && (
           <div className="search-dropdown" style={dropdownStyle}>
-            {searchOptions.cities.filter(c => c !== from).map(city => (
+            {citySuggestions(to, from).map(city => (
               <CityButton
                 key={city}
                 city={city}

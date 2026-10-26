@@ -1,24 +1,14 @@
-/* ─── /api/search ─────────────────────────────────────────────────
-   Stub — returns empty result sets.
-   Wire to the real Beckn backend when ready.
-───────────────────────────────────────────────────────────────── */
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const travellers = Number(url.searchParams.get("travellers") || "1");
+import { forwardSearchRequest } from "@/lib/serverBackend";
 
-  return Response.json(
-    {
-      query: {
-        from: url.searchParams.get("from") || "",
-        to: url.searchParams.get("to") || "",
-        date: url.searchParams.get("date") || "",
-        travellers: Number.isFinite(travellers) && travellers > 0 ? travellers : 1,
-      },
-      counts: { transport: 0, stays: 0, experiences: 0 },
-      transport: [],
-      stays: [],
-      experiences: [],
-    },
-    { headers: { "Cache-Control": "no-store" } },
-  );
+export async function GET(request: Request) {
+  const incoming = new URL(request.url).searchParams;
+  const query = new URLSearchParams();
+  for (const key of ["from", "to", "date", "travellers", "tab"]) {
+    const value = incoming.get(key);
+    if (value !== null) query.set(key, value);
+  }
+
+  const response = await forwardSearchRequest(query);
+  response.headers.set("Cache-Control", "no-store");
+  return response;
 }

@@ -8,6 +8,7 @@ class SignupRequest(BaseModel):
 
     @field_validator("name")
     @classmethod
+    
     def name_must_not_be_empty(cls, value: str) -> str:
         if not value.strip():
             raise ValueError("Name must not be empty.")

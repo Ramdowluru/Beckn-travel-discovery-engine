@@ -1,15 +1,21 @@
 from contextlib import asynccontextmanager
 
+import httpx
+import logging
 from fastapi import FastAPI
 
 from app.core.database import close_mongo, connect_to_mongo, get_db, initialize_indexes
+
+logging.basicConfig(level=logging.INFO)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     connect_to_mongo()
     await initialize_indexes()
+    app.state.http_client = httpx.AsyncClient(timeout=5, trust_env=False)
     yield
+    await app.state.http_client.aclose()
     await close_mongo()
 
 app = FastAPI(title="Travel Discovery BAP",lifespan=lifespan)

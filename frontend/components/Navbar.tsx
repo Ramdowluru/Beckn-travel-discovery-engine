@@ -9,8 +9,6 @@ import { useAuth } from "@/context/AuthContext";
 const navLinks = [
   { href: "/home",     label: "Explore" },
   { href: "/trips",    label: "Trips"   },
-  { href: "/partners", label: "Our Partners" },
-  { href: "/how-it-works", label: "How it works" },
   { href: "/about",    label: "About"   },
 ];
 
@@ -30,14 +28,8 @@ function getActiveHref(pathname: string): string {
     pathname.startsWith("/booking")
   ) return "/trips";
 
-  /* Partners */
-  if (pathname.startsWith("/partners")) return "/partners";
-
-  /* How it works */
-  if (pathname.startsWith("/how-it-works")) return "/how-it-works";
-
   /* About */
-  if (pathname.startsWith("/about")) return "/about";
+  if (pathname.startsWith("/about") || pathname.startsWith("/partners") || pathname.startsWith("/how-it-works")) return "/about";
 
   return "";
 }
@@ -112,7 +104,7 @@ export default function Navbar() {
                 TDE
               </span>
             </div>
-            <div>
+            <div className="navbar-brand-copy">
               <div
                 style={{
                   fontFamily: "var(--font-body)",
@@ -187,15 +179,6 @@ export default function Navbar() {
           }}
           className="navbar-actions"
         >
-          <Link
-            href="/how-it-works"
-            className="tag-neutral navbar-system-tag"
-            style={{ color: "rgba(242,237,228,0.35)", fontSize: "0.6rem" }}
-            title="View how TDE works"
-          >
-            [SYS-OPS]
-          </Link>
-
           <button
             type="button"
             className="mobile-menu-button"

@@ -16,3 +16,22 @@ export async function forwardAuthRequest(path: string, body: unknown): Promise<R
     );
   }
 }
+
+export async function forwardSearchRequest(query: URLSearchParams): Promise<Response> {
+  try {
+    const response = await fetch(`${backendUrl}/api/search?${query.toString()}`, {
+      method: "GET",
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    return new Response(await response.text(), {
+      status: response.status,
+      headers: { "Content-Type": response.headers.get("Content-Type") || "application/json" },
+    });
+  } catch {
+    return Response.json(
+      { detail: "Search service is unavailable. Please try again." },
+      { status: 503 },
+    );
+  }
+}

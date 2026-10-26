@@ -16,6 +16,11 @@ def start_session(transaction_id: str) -> None:
     _sessions[transaction_id] = SearchSession()
 
 
+def session_elapsed(transaction_id: str) -> float | None:
+    session = _sessions.get(transaction_id)
+    return time.monotonic() - session.started_at if session else None
+
+
 def add_response(transaction_id: str, payload: dict) -> bool:
     session = _sessions.get(transaction_id)
     if session is None:
