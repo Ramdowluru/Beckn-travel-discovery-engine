@@ -4,8 +4,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect, Suspense } from "react";
 
 /* ─── Helpers ────────────────────────────────────────────────── */
+function todayKolkataIso(): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return formatter.format(new Date());
+}
+
 function todayIso(): string {
-  return new Date().toISOString().split("T")[0];
+  return todayKolkataIso();
 }
 
 function isoToDate(iso: string): Date | null {
@@ -76,10 +86,10 @@ function Calendar({ value, onChange, onClose, months, days }: CalendarProps) {
     onClose();
   }
   function isPast(day: number): boolean {
-    const d = new Date(viewYear, viewMonth, day);
-    d.setHours(0,0,0,0);
-    const t = new Date(); t.setHours(0,0,0,0);
-    return d < t;
+    const y = String(viewYear);
+    const m = String(viewMonth + 1).padStart(2, "0");
+    const d = String(day).padStart(2, "0");
+    return `${y}-${m}-${d}` < todayKolkataIso();
   }
   function isSelected(day: number): boolean {
     if (!selected) return false;
@@ -88,9 +98,10 @@ function Calendar({ value, onChange, onClose, months, days }: CalendarProps) {
            selected.getDate()     === day;
   }
   function isToday(day: number): boolean {
-    return today.getFullYear() === viewYear &&
-           today.getMonth()    === viewMonth &&
-           today.getDate()     === day;
+    const y = String(viewYear);
+    const m = String(viewMonth + 1).padStart(2, "0");
+    const d = String(day).padStart(2, "0");
+    return `${y}-${m}-${d}` === todayKolkataIso();
   }
 
   return (
@@ -267,12 +278,14 @@ function Calendar({ value, onChange, onClose, months, days }: CalendarProps) {
           { label: "+1 week",  offset: 7 },
           { label: "+1 month", offset: 30 },
         ].map(({ label, offset }) => {
-          const d = new Date();
-          d.setDate(d.getDate() + offset);
+          const todayKolkata = todayKolkataIso();
+          const [y, m, d] = todayKolkata.split("-").map(Number);
+          const target = new Date(y, m - 1, d + offset);
+          const targetIso = dateToIso(target);
           return (
             <button
               key={label}
-              onClick={() => { onChange(dateToIso(d)); onClose(); }}
+              onClick={() => { onChange(targetIso); onClose(); }}
               style={{
                 fontFamily: "var(--font-body)",
                 fontWeight: 300,
@@ -307,7 +320,7 @@ function SearchBarInner() {
   const router       = useRouter();
   const searchParams = useSearchParams();
 
-  const [from,       setFrom]       = useState(searchParams.get("from")       ?? "Visakhapatnam");
+  const [from,       setFrom]       = useState(searchParams.get("from")       ?? "Vijayawada");
   const [to,         setTo]         = useState(searchParams.get("to")         ?? "Hyderabad");
   const [date,       setDate]       = useState(searchParams.get("date")       ?? todayIso());
   const [travellers, setTravellers] = useState(Number(searchParams.get("travellers") ?? 1));
@@ -317,6 +330,7 @@ function SearchBarInner() {
   const [toOpen,   setToOpen]   = useState(false);
   const [calOpen,  setCalOpen]  = useState(false);
   const [hovered,  setHovered]  = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const fromRef = useRef<HTMLDivElement>(null);
   const toRef   = useRef<HTMLDivElement>(null);
@@ -340,9 +354,63 @@ function SearchBarInner() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  function validateSearch(): string | null {
+    const trimmedFrom = from.trim();
+    const trimmedTo = to.trim();
+
+    if (!trimmedFrom) {
+      return "Please enter an origin city.";
+    }
+    if (!trimmedTo) {
+      return "Please enter a destination city.";
+    }
+    if (trimmedFrom.toLowerCase() === trimmedTo.toLowerCase()) {
+      return "Origin and destination must be different cities.";
+    }
+    if (!date || !date.trim()) {
+      return "Please select a travel date.";
+    }
+
+    const trimmedDate = date.trim();
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(trimmedDate)) {
+      return "Please enter a valid travel date (YYYY-MM-DD).";
+    }
+
+    const [year, month, day] = trimmedDate.split("-").map(Number);
+    const parsedDate = new Date(year, month - 1, day);
+    if (
+      parsedDate.getFullYear() !== year ||
+      parsedDate.getMonth() !== month - 1 ||
+      parsedDate.getDate() !== day
+    ) {
+      return "Please enter a valid calendar date.";
+    }
+
+    const todayKolkata = todayKolkataIso();
+    if (trimmedDate < todayKolkata) {
+      return "Travel date must be today or later.";
+    }
+
+    if (!Number.isInteger(travellers) || travellers < 1 || travellers > 9) {
+      return "Travellers must be an integer between 1 and 9.";
+    }
+
+    return null;
+  }
+
   function handleSearch() {
+    const error = validateSearch();
+    if (error) {
+      setErrorMessage(error);
+      return;
+    }
+    setErrorMessage("");
+
     const params = new URLSearchParams({
-      from, to, date,
+      from: from.trim(),
+      to: to.trim(),
+      date: date.trim(),
       travellers: String(travellers),
       tab: "travel",
     });
@@ -352,6 +420,7 @@ function SearchBarInner() {
   function swapCities() {
     setFrom(to);
     setTo(from);
+    if (errorMessage) setErrorMessage("");
   }
 
   /* ── Shared style objects ─────────────────────────────────── */
@@ -410,263 +479,311 @@ function SearchBarInner() {
   }
 
   return (
-    <div
-      className="search-bar"
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr 1fr 1fr auto",
-        border: "1px solid var(--border)",
-        backgroundColor: "var(--white)",
-        maxWidth: "860px",
-        position: "relative",
-      }}
-    >
-      {/* ── FROM ──────────────────────────────────────────── */}
+    <div style={{ maxWidth: "860px", width: "100%", position: "relative" }}>
       <div
-        ref={fromRef}
+        className="search-bar"
         style={{
-          padding: "0.875rem 1.25rem",
-          borderRight: "1px solid var(--border)",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr 1fr auto",
+          border: "1px solid var(--border)",
+          backgroundColor: "var(--white)",
+          maxWidth: "860px",
           position: "relative",
-          cursor: "pointer",
         }}
-        onClick={() => { setFromOpen(v => !v); setToOpen(false); setCalOpen(false); }}
       >
-        <p style={fieldLabel}>From</p>
-        <input
-          aria-label="From"
-          value={from}
-          onChange={(e) => { setFrom(e.target.value); setFromOpen(true); }}
-          onFocus={() => { setFromOpen(true); setToOpen(false); setCalOpen(false); }}
-          onClick={(e) => e.stopPropagation()}
-          placeholder="City or airport"
+        {/* ── FROM ──────────────────────────────────────────── */}
+        <div
+          ref={fromRef}
           style={{
-            width: "100%",
-            padding: 0,
-            border: "none",
-            outline: "none",
-            background: "transparent",
+            padding: "0.875rem 1.25rem",
+            borderRight: "1px solid var(--border)",
+            position: "relative",
+            cursor: "pointer",
+          }}
+          onClick={() => { setFromOpen(v => !v); setToOpen(false); setCalOpen(false); }}
+        >
+          <p style={fieldLabel}>From</p>
+          <input
+            aria-label="From"
+            value={from}
+            onChange={(e) => {
+              setFrom(e.target.value);
+              setFromOpen(true);
+              if (errorMessage) setErrorMessage("");
+            }}
+            onFocus={() => { setFromOpen(true); setToOpen(false); setCalOpen(false); }}
+            onClick={(e) => e.stopPropagation()}
+            placeholder="City or airport"
+            style={{
+              width: "100%",
+              padding: 0,
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              fontFamily: "var(--font-body)",
+              fontWeight: 500,
+              fontSize: "0.9rem",
+              color: from ? "var(--ink)" : "var(--ink-muted)",
+            }}
+          />
+          {/* Keep the field height stable while the input is empty. */}
+          <span aria-hidden="true" style={{
+            position: "absolute",
+            width: 1,
+            height: 1,
+            overflow: "hidden",
+          }}>
+            {from || "City or airport"}
+          </span>
+
+          {/* Swap button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); swapCities(); }}
+            title="Swap cities"
+            style={{
+              position: "absolute",
+              right: "-11px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              width: "22px",
+              height: "22px",
+              backgroundColor: "var(--white)",
+              border: "1px solid var(--border)",
+              cursor: "pointer",
+              zIndex: 10,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "0.65rem",
+              color: "var(--ink-soft)",
+              padding: 0,
+              lineHeight: 1,
+            }}
+          >
+            ⇄
+          </button>
+
+          {fromOpen && (
+            <div className="search-dropdown" style={dropdownStyle}>
+              {citySuggestions(from, to).map(city => (
+                <CityButton
+                  key={city}
+                  city={city}
+                  selected={city === from}
+                  onSelect={() => {
+                    setFrom(city);
+                    setFromOpen(false);
+                    if (errorMessage) setErrorMessage("");
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── TO ────────────────────────────────────────────── */}
+        <div
+          ref={toRef}
+          style={{
+            padding: "0.875rem 1.25rem",
+            borderRight: "1px solid var(--border)",
+            position: "relative",
+            cursor: "pointer",
+          }}
+          onClick={() => { setToOpen(v => !v); setFromOpen(false); setCalOpen(false); }}
+        >
+          <p style={fieldLabel}>To</p>
+          <input
+            aria-label="To"
+            value={to}
+            onChange={(e) => {
+              setTo(e.target.value);
+              setToOpen(true);
+              if (errorMessage) setErrorMessage("");
+            }}
+            onFocus={() => { setToOpen(true); setFromOpen(false); setCalOpen(false); }}
+            onClick={(e) => e.stopPropagation()}
+            placeholder="City or airport"
+            style={{
+              width: "100%",
+              padding: 0,
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              fontFamily: "var(--font-body)",
+              fontWeight: 500,
+              fontSize: "0.9rem",
+              color: to ? "var(--ink)" : "var(--ink-muted)",
+            }}
+          />
+
+          {toOpen && (
+            <div className="search-dropdown" style={dropdownStyle}>
+              {citySuggestions(to, from).map(city => (
+                <CityButton
+                  key={city}
+                  city={city}
+                  selected={city === to}
+                  onSelect={() => {
+                    setTo(city);
+                    setToOpen(false);
+                    if (errorMessage) setErrorMessage("");
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── DATE ──────────────────────────────────────────── */}
+        <div
+          ref={calRef}
+          style={{
+            padding: "0.875rem 1.25rem",
+            borderRight: "1px solid var(--border)",
+            position: "relative",
+            cursor: "pointer",
+            backgroundColor: calOpen ? "var(--cream)" : "transparent",
+            transition: "background-color 0.1s",
+          }}
+          onClick={() => { setCalOpen(v => !v); setFromOpen(false); setToOpen(false); }}
+        >
+          <p style={fieldLabel}>Date</p>
+          <p style={{
             fontFamily: "var(--font-body)",
             fontWeight: 500,
             fontSize: "0.9rem",
-            color: from ? "var(--ink)" : "var(--ink-muted)",
-          }}
-        />
-        {/* Keep the field height stable while the input is empty. */}
-        <span aria-hidden="true" style={{
-          position: "absolute",
-          width: 1,
-          height: 1,
-          overflow: "hidden",
-        }}>
-          {from || "City or airport"}
-        </span>
+            color: date ? "var(--ink)" : "var(--ink-muted)",
+          }}>
+            {formatDisplay(date)}
+          </p>
 
-        {/* Swap button */}
-        <button
-          onClick={(e) => { e.stopPropagation(); swapCities(); }}
-          title="Swap cities"
+          {calOpen && (
+            <Calendar
+              value={date}
+              onChange={(iso) => {
+                setDate(iso);
+                if (errorMessage) setErrorMessage("");
+              }}
+              onClose={() => setCalOpen(false)}
+              months={searchOptions.months}
+              days={searchOptions.days}
+            />
+          )}
+        </div>
+
+        {/* ── TRAVELLERS ────────────────────────────────────── */}
+        <div
           style={{
-            position: "absolute",
-            right: "-11px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: "22px",
-            height: "22px",
-            backgroundColor: "var(--white)",
-            border: "1px solid var(--border)",
-            cursor: "pointer",
-            zIndex: 10,
+            padding: "0.875rem 1.25rem",
             display: "flex",
-            alignItems: "center",
+            flexDirection: "column",
             justifyContent: "center",
-            fontSize: "0.65rem",
-            color: "var(--ink-soft)",
-            padding: 0,
-            lineHeight: 1,
           }}
         >
-          ⇄
-        </button>
-
-        {fromOpen && (
-          <div className="search-dropdown" style={dropdownStyle}>
-            {citySuggestions(from, to).map(city => (
-              <CityButton
-                key={city}
-                city={city}
-                selected={city === from}
-                onSelect={() => { setFrom(city); setFromOpen(false); }}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── TO ────────────────────────────────────────────── */}
-      <div
-        ref={toRef}
-        style={{
-          padding: "0.875rem 1.25rem",
-          borderRight: "1px solid var(--border)",
-          position: "relative",
-          cursor: "pointer",
-        }}
-        onClick={() => { setToOpen(v => !v); setFromOpen(false); setCalOpen(false); }}
-      >
-        <p style={fieldLabel}>To</p>
-        <input
-          aria-label="To"
-          value={to}
-          onChange={(e) => { setTo(e.target.value); setToOpen(true); }}
-          onFocus={() => { setToOpen(true); setFromOpen(false); setCalOpen(false); }}
-          onClick={(e) => e.stopPropagation()}
-          placeholder="City or airport"
-          style={{
-            width: "100%",
-            padding: 0,
-            border: "none",
-            outline: "none",
-            background: "transparent",
-            fontFamily: "var(--font-body)",
-            fontWeight: 500,
-            fontSize: "0.9rem",
-            color: to ? "var(--ink)" : "var(--ink-muted)",
-          }}
-        />
-
-        {toOpen && (
-          <div className="search-dropdown" style={dropdownStyle}>
-            {citySuggestions(to, from).map(city => (
-              <CityButton
-                key={city}
-                city={city}
-                selected={city === to}
-                onSelect={() => { setTo(city); setToOpen(false); }}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── DATE ──────────────────────────────────────────── */}
-      <div
-        ref={calRef}
-        style={{
-          padding: "0.875rem 1.25rem",
-          borderRight: "1px solid var(--border)",
-          position: "relative",
-          cursor: "pointer",
-          backgroundColor: calOpen ? "var(--cream)" : "transparent",
-          transition: "background-color 0.1s",
-        }}
-        onClick={() => { setCalOpen(v => !v); setFromOpen(false); setToOpen(false); }}
-      >
-        <p style={fieldLabel}>Date</p>
-        <p style={{
-          fontFamily: "var(--font-body)",
-          fontWeight: 500,
-          fontSize: "0.9rem",
-          color: date ? "var(--ink)" : "var(--ink-muted)",
-        }}>
-          {formatDisplay(date)}
-        </p>
-
-        {calOpen && (
-          <Calendar
-            value={date}
-            onChange={setDate}
-            onClose={() => setCalOpen(false)}
-            months={searchOptions.months}
-            days={searchOptions.days}
-          />
-        )}
-      </div>
-
-      {/* ── TRAVELLERS ────────────────────────────────────── */}
-      <div
-        style={{
-          padding: "0.875rem 1.25rem",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-        }}
-      >
-        <p style={fieldLabel}>Travellers</p>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <button
-            onClick={() => setTravellers(v => Math.max(1, v - 1))}
-            style={{
-              width: "20px", height: "20px",
-              border: "1px solid var(--border)",
-              backgroundColor: "transparent",
-              cursor: "pointer",
+          <p style={fieldLabel}>Travellers</p>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <button
+              onClick={() => {
+                setTravellers(v => Math.max(1, v - 1));
+                if (errorMessage) setErrorMessage("");
+              }}
+              style={{
+                width: "20px", height: "20px",
+                border: "1px solid var(--border)",
+                backgroundColor: "transparent",
+                cursor: "pointer",
+                fontFamily: "var(--font-body)",
+                fontSize: "0.9rem",
+                color: "var(--ink-soft)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 0,
+                flexShrink: 0,
+              }}
+            >
+              −
+            </button>
+            <span style={{
               fontFamily: "var(--font-body)",
+              fontWeight: 500,
               fontSize: "0.9rem",
-              color: "var(--ink-soft)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 0,
-              flexShrink: 0,
-            }}
-          >
-            −
-          </button>
-          <span style={{
-            fontFamily: "var(--font-body)",
-            fontWeight: 500,
-            fontSize: "0.9rem",
-            color: "var(--ink)",
-            minWidth: "80px",
-            textAlign: "center",
-          }}>
-            {travellers} {travellers === 1 ? "Traveller" : "Travellers"}
-          </span>
-          <button
-            onClick={() => setTravellers(v => Math.min(9, v + 1))}
-            style={{
-              width: "20px", height: "20px",
-              border: "1px solid var(--border)",
-              backgroundColor: "transparent",
-              cursor: "pointer",
-              fontFamily: "var(--font-body)",
-              fontSize: "0.9rem",
-              color: "var(--ink-soft)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 0,
-              flexShrink: 0,
-            }}
-          >
-            +
-          </button>
+              color: "var(--ink)",
+              minWidth: "80px",
+              textAlign: "center",
+            }}>
+              {travellers} {travellers === 1 ? "Traveller" : "Travellers"}
+            </span>
+            <button
+              onClick={() => {
+                setTravellers(v => Math.min(9, v + 1));
+                if (errorMessage) setErrorMessage("");
+              }}
+              style={{
+                width: "20px", height: "20px",
+                border: "1px solid var(--border)",
+                backgroundColor: "transparent",
+                cursor: "pointer",
+                fontFamily: "var(--font-body)",
+                fontSize: "0.9rem",
+                color: "var(--ink-soft)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 0,
+                flexShrink: 0,
+              }}
+            >
+              +
+            </button>
+          </div>
         </div>
+        {/* ── SEARCH ────────────────────────────────────────── */}
+        <button
+          onClick={handleSearch}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          style={{
+            backgroundColor: hovered ? "var(--orange-hover)" : "var(--orange)",
+            color: "var(--white)",
+            border: "none",
+            padding: "0 2rem",
+            fontFamily: "var(--font-body)",
+            fontWeight: 600,
+            fontSize: "0.875rem",
+            letterSpacing: "0.04em",
+            cursor: "pointer",
+            transition: "background-color 0.15s",
+            whiteSpace: "nowrap",
+            minHeight: "56px",
+          }}
+        >
+          Search
+        </button>
       </div>
 
-      {/* ── SEARCH ────────────────────────────────────────── */}
-      <button
-        onClick={handleSearch}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        style={{
-          backgroundColor: hovered ? "var(--orange-hover)" : "var(--orange)",
-          color: "var(--white)",
-          border: "none",
-          padding: "0 2rem",
-          fontFamily: "var(--font-body)",
-          fontWeight: 600,
-          fontSize: "0.875rem",
-          letterSpacing: "0.04em",
-          cursor: "pointer",
-          transition: "background-color 0.15s",
-          whiteSpace: "nowrap",
-          minHeight: "56px",
-        }}
-      >
-        Search
-      </button>
+      {errorMessage && (
+        <div
+          role="alert"
+          style={{
+            marginTop: "0.5rem",
+            padding: "0.6rem 0.85rem",
+            backgroundColor: "#FEF2F2",
+            border: "1px solid #FCA5A5",
+            color: "#B91C1C",
+            fontFamily: "var(--font-body)",
+            fontSize: "0.8rem",
+            fontWeight: 500,
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+          }}
+        >
+          <span aria-hidden="true" style={{ fontWeight: 700 }}>⚠</span>
+          <span>{errorMessage}</span>
+        </div>
+      )}
     </div>
   );
 }

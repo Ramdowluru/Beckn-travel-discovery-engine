@@ -2,13 +2,23 @@ from __future__ import annotations
 
 import math
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any
+from copy import deepcopy
+
+from app.services.search_session import valid_callbacks
 
 
-def normalize_transport_callbacks(responses: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def normalize_transport_callbacks(
+    responses: list[dict[str, Any]],
+    requested_travellers: int = 1,
+    expected_provider_ids: set[str] | None = None,
+) -> list[dict[str, Any]]:
     """Convert raw transport on_search catalogs into frontend transport options."""
+    if isinstance(requested_travellers, bool) or requested_travellers < 1:
+        requested_travellers = 1
     options: list[dict[str, Any]] = []
-    for response in responses:
+    for response in valid_callbacks(responses, expected_provider_ids or set()):
         context = response.get("context")
         message = response.get("message")
         if not isinstance(context, dict) or not isinstance(message, dict):
@@ -32,16 +42,47 @@ def normalize_transport_callbacks(responses: list[dict[str, Any]]) -> list[dict[
             if not isinstance(items, list):
                 continue
             for item in items:
-                option = _normalize_item(item, provider_id, provider_name)
+                # Resolve Beckn references only inside the frontend adapter.
+                # Raw callbacks and stored protocol objects remain untouched.
+                item = _resolve_relationships(provider, item)
+                option = _normalize_item(
+                    item,
+                    provider_id,
+                    provider_name,
+                    requested_travellers,
+                    context_provider_id,
+                    context.get("bpp_uri"),
+                )
                 if option is not None:
                     options.append(option)
     return options
+
+
+def _resolve_relationships(provider, item):
+    if not isinstance(item, dict) or "fulfillment_ids" not in item:
+        return item  # old persisted snapshots/reference tests remain readable
+    adapted = deepcopy(item)
+    refs = item.get("fulfillment_ids", [])
+    fulfillment = next((f for f in provider.get("fulfillments", []) if f.get("id") in refs), None)
+    if fulfillment:
+        fulfillment = deepcopy(fulfillment)
+        stops = fulfillment.get("stops", [])
+        fulfillment["start"] = next((s for s in stops if s.get("type") == "START"), {})
+        fulfillment["end"] = next((s for s in stops if s.get("type") == "END"), {})
+        # Endpoints alone do not assert that no unlisted intermediate stops exist.
+        fulfillment.pop("stops", None)
+        adapted["fulfillment"] = fulfillment
+    adapted["category_id"] = next(iter(item.get("category_ids", [])), "")
+    return adapted
 
 
 def _normalize_item(
     item: Any,
     provider_id: str,
     provider_name: str,
+    requested_travellers: int,
+    bpp_id: str,
+    bpp_uri: str | None,
 ) -> dict[str, Any] | None:
     if not isinstance(item, dict):
         return None
@@ -51,11 +92,11 @@ def _normalize_item(
     if not item_id or not isinstance(price, dict) or fulfillment is None:
         return None
 
-    price_value = _number(price.get("value"))
+    price_value = _decimal(price.get("value"))
     if price_value is None:
         return None
     availability = _availability_count(item.get("quantity"))
-    if availability is not None and availability <= 0:
+    if availability is None or availability < requested_travellers:
         return None
 
     departure_city = _location_name(fulfillment.get("start"))
@@ -76,13 +117,18 @@ def _normalize_item(
     stops = fulfillment.get("stops")
     stop_count = len(stops) - 2 if isinstance(stops, list) and len(stops) >= 2 else None
     currency = _text(price.get("currency")) or ""
-    price_text = f"{currency} {price_value:g}".strip()
+    total_price = (price_value * requested_travellers).quantize(
+        Decimal("0.01"),
+        rounding=ROUND_HALF_UP,
+    )
+    unit_price = price_value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    price_text = f"{currency} {unit_price:g}".strip()
     descriptor = item.get("descriptor")
     description = ""
     if isinstance(descriptor, dict):
         description = _text(descriptor.get("short_desc")) or _text(descriptor.get("long_desc")) or ""
 
-    return {
+    result = {
         "id": f"{provider_id}:{item_id}",
         "provider": provider_name,
         "type": mode,
@@ -99,12 +145,28 @@ def _normalize_item(
             else ""
         ),
         "price": price_text,
-        "priceNum": price_value,
+        "priceNum": float(unit_price),
+        "currency": currency,
+        "unitPrice": float(unit_price),
+        "totalPrice": float(total_price),
+        "travellerCount": requested_travellers,
         "description": description,
         "amenities": [],
         "cancellation": "",
         "providerNote": "",
     }
+    protocol_availability = int(availability) if availability.is_integer() else availability
+    result["_beckn"] = {
+        "bpp_id": bpp_id,
+        "bpp_uri": bpp_uri,
+        "provider_id": provider_id,
+        "item_id": item_id,
+        "category_id": item.get("category_id", ""),
+        "fulfillment": fulfillment,
+        "price": {"currency": currency, "value": f"{unit_price:.2f}"},
+        "available": protocol_availability,
+    }
+    return result
 
 
 def _first_fulfillment(value: Any) -> dict[str, Any] | None:
@@ -211,3 +273,13 @@ def _number(value: Any) -> float | None:
         return number if math.isfinite(number) else None
     except (TypeError, ValueError):
         return None
+
+
+def _decimal(value: Any) -> Decimal | None:
+    if isinstance(value, bool):
+        return None
+    try:
+        number = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+    return number if number.is_finite() else None

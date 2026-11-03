@@ -48,13 +48,17 @@ function initials(name: string): string {
 export default function Navbar() {
   const pathname   = usePathname();
   const router     = useRouter();
-  const { user, signOut } = useAuth();
+  const { user, loading, error: authError, signOut } = useAuth();
   const activeHref = getActiveHref(pathname);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  function handleSignOut() {
-    signOut();
-    router.push("/auth/signin");
+  async function handleSignOut() {
+    try {
+      await signOut();
+      router.push("/auth/signin");
+    } catch {
+      window.alert("We couldn’t sign out. Please try again.");
+    }
   }
 
   return (
@@ -191,7 +195,11 @@ export default function Navbar() {
             <span />
           </button>
 
-          {user ? (
+          {loading ? (
+            <span style={{ fontFamily: "var(--font-body)", fontSize: "0.75rem", color: "rgba(242,237,228,0.65)" }}>
+              Checking session…
+            </span>
+          ) : user ? (
             /* ── Authenticated ─────────────────────────────── */
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
               {/* Avatar */}
@@ -270,6 +278,12 @@ export default function Navbar() {
             </div>
           ) : (
             /* ── Unauthenticated ───────────────────────────── */
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            {authError && (
+              <span role="status" style={{ fontFamily: "var(--font-body)", fontSize: "0.7rem", color: "var(--orange)" }}>
+                Session unavailable
+              </span>
+            )}
             <Link
               href="/auth/signin"
               onClick={() => setMenuOpen(false)}
@@ -288,6 +302,7 @@ export default function Navbar() {
             >
               Sign in
             </Link>
+            </div>
           )}
         </div>
 

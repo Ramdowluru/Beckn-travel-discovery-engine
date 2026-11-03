@@ -6,7 +6,11 @@ from pathlib import Path
 
 import httpx
 from contextlib import asynccontextmanager
-from fastapi import BackgroundTasks, FastAPI
+from fastapi import BackgroundTasks, FastAPI, Request
+from fastapi.responses import JSONResponse
+import common  # initializes shared protocol import path
+from protocol.contracts import ProtocolError, validate_message, ack, require_ack, prepare_discovery_validation
+from protocol.signing import Identity
 
 logging.basicConfig(level=logging.INFO)
 
@@ -15,7 +19,9 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    prepare_discovery_validation()
     app.state.http_client = httpx.AsyncClient(timeout=1, trust_env=False)
+    app.state.beckn_identity = Identity.load("mock-gateway.example.in")
     yield
     await app.state.http_client.aclose()
 
@@ -39,15 +45,33 @@ def detect_category(payload: dict) -> str | None:
     stop_types = {stop.get("type") for stop in stops}
     if {"START", "END"} <= stop_types:
         return "transport"
+    fulfillment = intent.get("fulfillment", {})
+    if (
+        fulfillment.get("type") == "STAY"
+        and fulfillment.get("location", {}).get("descriptor", {}).get("name")
+        and fulfillment.get("start", {}).get("time", {}).get("range", {}).get("start")
+        and fulfillment.get("end", {}).get("time", {}).get("range", {}).get("end")
+    ):
+        return "hotel"
+    if (
+        fulfillment.get("type") == "EXPERIENCE"
+        and fulfillment.get("location", {}).get("descriptor", {}).get("name")
+        and fulfillment.get("start", {}).get("time", {}).get("range", {}).get("start")
+    ):
+        return "experience"
     return None
 
 
-async def forward(provider: dict, payload: dict, client: httpx.AsyncClient) -> None:
+async def forward(provider: dict, payload: dict, client: httpx.AsyncClient, body: bytes, authorization: str) -> None:
     url = f"{provider['bpp_uri']}/search"
     transaction_id = payload.get("context", {}).get("transaction_id")
     started_at = time.monotonic()
     try:
-        response = await client.post(url, json=payload)
+        headers = app.state.beckn_identity.headers(body)
+        headers["X-Gateway-Authorization"] = headers.pop("Authorization")
+        headers["Authorization"] = authorization  # preserve original BAP signature and bytes
+        response = await client.post(url, content=body, headers=headers)
+        require_ack(response)
         logger.info(
             "provider ACK transaction_id=%s provider=%s status=%s body=%s elapsed_ms=%.1f",
             transaction_id,
@@ -56,7 +80,7 @@ async def forward(provider: dict, payload: dict, client: httpx.AsyncClient) -> N
             response.text,
             (time.monotonic() - started_at) * 1000,
         )
-    except httpx.RequestError as error:
+    except (httpx.RequestError, ProtocolError) as error:
         logger.warning(
             "provider request failed transaction_id=%s provider=%s error=%s elapsed_ms=%.1f",
             transaction_id,
@@ -65,9 +89,9 @@ async def forward(provider: dict, payload: dict, client: httpx.AsyncClient) -> N
             (time.monotonic() - started_at) * 1000,
         )
 
-async def forward_all(providers:list[dict],payload:dict, client: httpx.AsyncClient)->None:
+async def forward_all(providers:list[dict],payload:dict, client: httpx.AsyncClient, body: bytes, authorization: str)->None:
     results = await asyncio.gather(
-        *(forward(provider, payload, client) for provider in providers),
+        *(forward(provider, payload, client, body, authorization) for provider in providers),
         return_exceptions=True,
     )
     for provider, result in zip(providers, results):
@@ -81,18 +105,27 @@ async def forward_all(providers:list[dict],payload:dict, client: httpx.AsyncClie
 
 
 @app.post("/search")
-async def search(payload: dict, background_tasks: BackgroundTasks):
+async def search(request: Request, background_tasks: BackgroundTasks):
+    try:
+        raw_body = await request.body()
+        payload = json.loads(raw_body)
+        validate_message(payload, "search")
+        identity = app.state.beckn_identity
+        identity.verify(raw_body, request.headers, payload["context"]["bap_id"])
+        identity.check_address(payload["context"]["bap_id"], payload["context"]["bap_uri"])
+    except (ProtocolError, ValueError, TypeError, AttributeError, KeyError):
+        return JSONResponse(ack("Invalid or unauthenticated search"), status_code=400)
     started_at = time.monotonic()
     transaction_id = payload.get("context", {}).get("transaction_id")
     category = detect_category(payload)
     if category is None:
-        body = {"message":{"ack":{"status":"NACK"}}}
+        body = ack("Unsupported discovery category")
         logger.info("gateway NACK transaction_id=%s body=%s", transaction_id, body)
         return body
 
-    targets = [p for p in PROVIDERS if p["category"]==category]
-    background_tasks.add_task(forward_all, targets, payload, app.state.http_client)
-    body = {"message":{"ack":{"status":"ACK"}}}
+    targets = [p for p in PROVIDERS if p["category"] == category]
+    background_tasks.add_task(forward_all, targets, payload, app.state.http_client, raw_body, request.headers["authorization"])
+    body = ack()
     logger.info(
         "gateway ACK transaction_id=%s targets=%s body=%s elapsed_ms=%.1f",
         transaction_id,
@@ -100,7 +133,7 @@ async def search(payload: dict, background_tasks: BackgroundTasks):
         body,
         (time.monotonic() - started_at) * 1000,
     )
-    return body
+    return JSONResponse(body, headers={"X-TDE-Expected-Providers": json.dumps([p["bpp_id"] for p in targets])})
 
 
 

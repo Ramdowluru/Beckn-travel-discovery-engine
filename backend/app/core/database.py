@@ -2,6 +2,10 @@ from pymongo import AsyncMongoClient
 from pymongo.asynchronous.database import AsyncDatabase
 
 from app.core.config import settings
+from app.repositories.sessions import SessionRepository
+from app.repositories.itineraries import ItineraryRepository
+from app.repositories.transport_snapshots import TransportSnapshotRepository
+from app.repositories.transport_selections import TransportSelectionRepository
 from app.repositories.users import UserRepository
 
 _client: AsyncMongoClient | None = None
@@ -21,4 +25,15 @@ def get_db() -> AsyncDatabase:
 
 
 async def initialize_indexes() -> None:
-    await UserRepository(get_db()).ensure_indexes()
+    database = get_db()
+    await UserRepository(database).ensure_indexes()
+    await TransportSnapshotRepository(
+        database,
+        settings.transport_snapshot_ttl_seconds,
+    ).ensure_indexes()
+    await SessionRepository(
+        database,
+        settings.session_lifetime_seconds,
+    ).ensure_indexes()
+    await ItineraryRepository(database).ensure_indexes()
+    await TransportSelectionRepository(database).ensure_indexes()

@@ -1,28 +1,92 @@
-import { notFound } from "next/navigation";
 import Link from "next/link";
+import { headers } from "next/headers";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import type { TransportOption } from "@/lib/types";
+import TransportSelectButton from "@/components/TransportSelectButton";
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ transaction_id?: string | string[] }>;
 }
 
-export default async function TransportDetailPage({ params }: Props) {
+export default async function TransportDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const query = await searchParams;
+  const transactionId = Array.isArray(query.transaction_id)
+    ? query.transaction_id[0] ?? ""
+    : query.transaction_id ?? "";
+  const decodedOfferId = decodeURIComponent(id);
 
   let opt: TransportOption | null = null;
+  let detailError = "";
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE ?? ""}/api/transport/${id}`,
-      { cache: "no-store" },
-    );
-    if (res.ok) opt = (await res.json()) as TransportOption;
+    const requestHeaders = await headers();
+    const host = requestHeaders.get("host");
+    const protocol = requestHeaders.get("x-forwarded-proto") ?? "http";
+    if (!host || !transactionId) {
+      detailError = "This transport offer is no longer available. Please search again.";
+    } else {
+      const responseUrl = `${protocol}://${host}/api/transport/${encodeURIComponent(decodedOfferId)}?transaction_id=${encodeURIComponent(transactionId)}`;
+      const res = await fetch(responseUrl, { cache: "no-store" });
+      if (res.ok) {
+        opt = (await res.json()) as TransportOption;
+      } else {
+        const body = await res.json().catch(() => ({})) as { detail?: string };
+        detailError = body.detail ?? (
+          res.status >= 500
+            ? "Transport details are temporarily unavailable. Please try again."
+            : "This transport offer is no longer available. Please search again."
+        );
+      }
+    }
   } catch {
-    /* network error — fall through to notFound */
+    detailError = "Transport details are temporarily unavailable. Please try again.";
   }
 
-  if (!opt) notFound();
+  if (!opt) {
+    return (
+      <>
+        <Navbar />
+        <main style={{ flex: 1, backgroundColor: "var(--cream)", padding: "5rem 2rem", textAlign: "center" }}>
+          <h1 style={{ fontFamily: "var(--font-display)", color: "var(--ink)", marginBottom: "0.75rem" }}>
+            Transport details unavailable
+          </h1>
+          <p style={{ fontFamily: "var(--font-body)", color: "var(--ink-soft)", marginBottom: "1.5rem" }}>
+            {detailError}
+          </p>
+          <Link href="/results?tab=travel" style={{ color: "var(--ink)", fontFamily: "var(--font-body)" }}>
+            Search again
+          </Link>
+        </main>
+      </>
+    );
+  }
+
+  const itineraryParams = new URLSearchParams({
+    transaction_id: transactionId,
+    offer_id: decodedOfferId,
+  });
+  const storedQuery = (opt as TransportOption & {
+    query?: { from?: string; to?: string; date?: string; travellers?: number };
+  }).query;
+  const resultsParams = new URLSearchParams({ tab: "travel" });
+  for (const [key, value] of Object.entries({
+    from: storedQuery?.from,
+    to: storedQuery?.to,
+    date: storedQuery?.date,
+    travellers: storedQuery?.travellers?.toString(),
+  })) {
+    if (value) resultsParams.set(key, value);
+  }
+  for (const [key, value] of Object.entries({
+    from: storedQuery?.from,
+    to: storedQuery?.to,
+    date: storedQuery?.date,
+    travellers: storedQuery?.travellers?.toString(),
+  })) {
+    if (value) itineraryParams.set(key, value);
+  }
 
   return (
     <>
@@ -109,20 +173,37 @@ export default async function TransportDetailPage({ params }: Props) {
             <div style={{ border: "1px solid var(--border)", backgroundColor: "var(--white)", padding: "1.75rem" }}>
               <p className="tag-neutral" style={{ marginBottom: "0.5rem" }}>Price per person</p>
               <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "2.25rem", color: "var(--ink)", letterSpacing: "-0.03em", marginBottom: "0.25rem" }}>
-                {opt.price}
+                {opt.currency} {opt.unitPrice.toLocaleString("en-IN", { maximumFractionDigits: 2 })} per person
+              </p>
+              <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-muted)", marginBottom: "1.75rem" }}>
+                {opt.currency} {opt.totalPrice.toLocaleString("en-IN", { maximumFractionDigits: 2 })} total for {opt.travellerCount} {opt.travellerCount === 1 ? "traveller" : "travellers"}
               </p>
               <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.75rem", color: "var(--ink-muted)", marginBottom: "1.75rem" }}>
-                No booking fee · Pay provider directly
+                Simulated booking only · No payment is collected
               </p>
 
+              <TransportSelectButton
+                offerId={decodedOfferId}
+                transactionId={transactionId}
+                quantity={opt.travellerCount}
+                reviewDetails={[
+                  `Provider: ${opt.provider}`,
+                  `Service: ${opt.type}`,
+                  `Route: ${opt.departureCity} → ${opt.arrivalCity}`,
+                  `Date: ${storedQuery?.date ?? "As selected"}`,
+                  `Time: ${opt.departure} – ${opt.arrival}`,
+                  `Passengers: ${opt.travellerCount}`,
+                  `Published fare: ${opt.currency} ${opt.unitPrice} per passenger`,
+                ]}
+              />
               <Link
-                href="/itinerary"
-                style={{ display: "block", width: "100%", backgroundColor: "var(--ink)", color: "var(--white)", fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.875rem", letterSpacing: "0.06em", textTransform: "uppercase", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", marginBottom: "0.75rem" }}
+                href={`/itinerary?${itineraryParams.toString()}`}
+                style={{ display: "block", width: "100%", backgroundColor: "transparent", color: "var(--ink)", fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.875rem", letterSpacing: "0.04em", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", marginBottom: "0.75rem", border: "1px solid var(--border)" }}
               >
-                Select this option
+                Save itinerary instead
               </Link>
               <Link
-                href="/results?tab=travel"
+                href={`/results?${resultsParams.toString()}`}
                 style={{ display: "block", width: "100%", backgroundColor: "transparent", color: "var(--ink)", fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.875rem", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", border: "1px solid var(--border)" }}
               >
                 Back to results

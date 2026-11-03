@@ -2,7 +2,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { serverApiFetch } from "@/lib/serverApi";
-import type { TripRecord } from "@/lib/api";
+import type { BookingRecord, SavedItinerary, TripRecord } from "@/lib/api";
 
 /* ─── Sidebar nav ─────────────────────────────────────────────── */
 const sidebarNav = [
@@ -24,10 +24,29 @@ const statusStyle: Record<TripStatus, { color: string; bg: string; border: strin
 
 export default async function TripsPage() {
   let trips: TripRecord[] = [];
+  let bookings: BookingRecord[] = [];
   try {
-    trips = await serverApiFetch<TripRecord[]>("/api/trips");
+    bookings = await serverApiFetch<BookingRecord[]>("/api/bookings");
   } catch {
-    /* backend not available — render with empty state */
+    /* Signed-out and unavailable states share the existing empty presentation. */
+  }
+  try {
+    const saved = await serverApiFetch<SavedItinerary[]>("/api/itineraries");
+    trips = saved.map((item) => ({
+      id: item.id,
+      title: `${item.transport.provider} ${item.transport.type}`,
+      status: "SAVED",
+      route: `${item.query.from} → ${item.query.to}`,
+      dates: `${item.query.date} · ${item.query.travellers} ${item.query.travellers === 1 ? "traveller" : "travellers"}`,
+      included: `${item.transport.currency} ${item.transport.totalPrice} saved estimate`,
+      total: `${item.transport.currency} ${item.transport.totalPrice}`,
+      primaryCta: "View itinerary",
+      primaryHref: `/trips/${encodeURIComponent(item.id)}`,
+      secondaryCta: "Search again",
+      secondaryHref: `/results?tab=travel&from=${encodeURIComponent(item.query.from)}&to=${encodeURIComponent(item.query.to)}&date=${encodeURIComponent(item.query.date)}&travellers=${item.query.travellers}`,
+    }));
+  } catch {
+    /* Signed-out and unavailable states share the existing empty presentation. */
   }
 
   return (
@@ -117,6 +136,60 @@ export default async function TripsPage() {
               </Link>
             </div>
 
+            <section aria-labelledby="bookings-heading" style={{ marginBottom: "2.5rem" }}>
+              <h2
+                id="bookings-heading"
+                style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "1.25rem", color: "var(--ink)", marginBottom: "1rem" }}
+              >
+                My bookings
+              </h2>
+              {bookings.length === 0 ? (
+                <p style={{ backgroundColor: "var(--white)", border: "1px solid var(--border)", padding: "1.25rem", color: "var(--ink-soft)", fontFamily: "var(--font-body)", fontSize: "0.85rem" }}>
+                  No provider bookings yet. Saved itineraries are estimates and are listed separately below.
+                </p>
+              ) : (
+                <div style={{ display: "grid", gap: "0.75rem" }}>
+                  {bookings.map((booking) => (
+                    <article key={booking.id} style={{ backgroundColor: "var(--white)", border: "1px solid var(--border)", padding: "1.25rem" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+                        <div>
+                          <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1rem", color: "var(--ink)" }}>
+                            {booking.service || (booking.kind === "hotel" ? "Hotel booking" : booking.kind === "experience" ? "Experience booking" : "Transport booking")}
+                          </h3>
+                          <p style={{ fontFamily: "var(--font-body)", fontSize: "0.8rem", color: "var(--ink-soft)", marginTop: "0.25rem" }}>
+                            {booking.provider_name || booking.provider_id} · {booking.kind}
+                          </p>
+                          {booking.provider_order_id && (
+                            <p style={{ fontFamily: "var(--font-body)", fontSize: "0.75rem", color: "var(--ink-muted)", marginTop: "0.25rem" }}>
+                              Provider reference: {booking.provider_order_id}
+                            </p>
+                          )}
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <strong style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: booking.status === "CONFIRMED" ? "var(--orange)" : "var(--ink-soft)" }}>
+                            {booking.status.replaceAll("_", " ")}
+                          </strong>
+                          <p style={{ fontFamily: "var(--font-body)", fontSize: "0.85rem", color: "var(--ink)", marginTop: "0.35rem" }}>
+                            {booking.quote?.price?.currency} {booking.quote?.price?.value}
+                          </p>
+                        </div>
+                      </div>
+                      <Link
+                        href={`/trips/bookings/${encodeURIComponent(booking.id)}`}
+                        style={{ display: "inline-block", marginTop: "0.9rem", color: "var(--ink)", fontFamily: "var(--font-body)", fontSize: "0.8rem" }}
+                      >
+                        Manage booking
+                      </Link>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "1.25rem", color: "var(--ink)", marginBottom: "1rem" }}>
+              Saved itineraries
+            </h2>
+
             {/* Empty state */}
             {trips.length === 0 && (
               <div
@@ -136,7 +209,7 @@ export default async function TripsPage() {
                     marginBottom: "1.25rem",
                   }}
                 >
-                  No trips yet. Start planning your first journey.
+                  No saved itineraries yet. Search for travel and save an estimate to return to it later.
                 </p>
                 <Link
                   href="/home"

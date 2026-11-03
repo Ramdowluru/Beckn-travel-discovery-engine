@@ -15,6 +15,10 @@ export interface TransportOption {
   stops: string;
   price: string;
   priceNum: number;
+  currency: string;
+  unitPrice: number;
+  totalPrice: number;
+  travellerCount: number;
   description: string;
   amenities: string[];
   cancellation: string;
@@ -47,6 +51,11 @@ export interface ExperienceOption {
   duration: string;
   price: string;
   priceNum: number;
+  totalPrice: string;
+  participants: number;
+  availability: number;
+  date: string;
+  time: string;
   rating: string;
   category: string;
   image: string;

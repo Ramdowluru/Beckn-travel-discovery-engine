@@ -1,5 +1,7 @@
 [
   { "bpp_id": "mock-bus.example.in", "category": "transport", "bpp_uri": "http://127.0.0.1:5001" },
   { "bpp_id": "mock-train.example.in", "category": "transport", "bpp_uri": "http://127.0.0.1:5002" },
-  { "bpp_id": "mock-flight.example.in", "category": "transport", "bpp_uri": "http://127.0.0.1:5003" }
+  { "bpp_id": "mock-flight.example.in", "category": "transport", "bpp_uri": "http://127.0.0.1:5003" },
+  { "bpp_id": "mock-hotel.example.in", "category": "hotel", "bpp_uri": "http://127.0.0.1:5004" }
+  ,{ "bpp_id": "mock-experience.example.in", "category": "experience", "bpp_uri": "http://127.0.0.1:5005" }
 ]

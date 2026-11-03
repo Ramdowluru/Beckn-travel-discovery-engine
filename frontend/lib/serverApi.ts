@@ -8,7 +8,12 @@ async function apiOrigin(): Promise<string> {
 }
 
 export async function serverApiFetch<T>(path: string): Promise<T> {
-  const response = await fetch(`${await apiOrigin()}${path}`, { cache: "no-store" });
+  const requestHeaders = await headers();
+  const requestCookie = requestHeaders.get("cookie");
+  const response = await fetch(`${await apiOrigin()}${path}`, {
+    cache: "no-store",
+    headers: requestCookie ? { cookie: requestCookie } : undefined,
+  });
   if (!response.ok) throw new Error(`API request failed: ${response.status}`);
   return response.json() as Promise<T>;
 }

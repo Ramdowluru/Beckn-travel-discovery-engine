@@ -1,20 +1,30 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { headers } from "next/headers";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import CategorySelectButton from "@/components/CategorySelectButton";
 import type { ExperienceOption } from "@/lib/types";
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ transaction_id?: string; participants?: string }>;
 }
 
-export default async function ExperienceDetailPage({ params }: Props) {
+export default async function ExperienceDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const decodedOfferId = decodeURIComponent(id);
+  const { transaction_id: transactionId = "", participants: participantsParam } = await searchParams;
+  const participants = Math.max(1, Number(participantsParam ?? 1));
 
   let exp: ExperienceOption | null = null;
   try {
+    const requestHeaders = await headers();
+    const host = requestHeaders.get("host");
+    const protocol = requestHeaders.get("x-forwarded-proto") ?? "http";
+    if (!host || !transactionId) notFound();
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE ?? ""}/api/experiences/${id}`,
+      `${protocol}://${host}/api/experiences/${encodeURIComponent(decodedOfferId)}?transaction_id=${encodeURIComponent(transactionId)}`,
       { cache: "no-store" },
     );
     if (res.ok) exp = (await res.json()) as ExperienceOption;
@@ -115,15 +125,25 @@ export default async function ExperienceDetailPage({ params }: Props) {
                   {exp.price}
                 </p>
                 <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.75rem", color: "var(--ink-muted)", marginBottom: "1.75rem" }}>
-                  No booking fee · Pay provider directly
+                  Simulated quote only · No payment or inventory reservation
                 </p>
 
-                <Link
-                  href="/itinerary"
-                  style={{ display: "block", width: "100%", backgroundColor: "var(--ink)", color: "var(--white)", fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.875rem", letterSpacing: "0.06em", textTransform: "uppercase", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", marginBottom: "0.75rem" }}
-                >
-                  Add to journey
-                </Link>
+                <CategorySelectButton
+                  kind="experience"
+                  offerId={decodedOfferId}
+                  transactionId={transactionId}
+                  quantity={participants}
+                  peopleCount={participants}
+                  reviewDetails={[
+                    `Provider: ${exp.provider}`,
+                    `Activity: ${exp.name}`,
+                    `Date: ${exp.date}`,
+                    `Time: ${exp.time}`,
+                    `Meeting point: ${exp.meetingPoint}`,
+                    `Participants: ${participants}`,
+                    `Published price: ${exp.price}`,
+                  ]}
+                />
                 <Link
                   href="/results?tab=experiences"
                   style={{ display: "block", width: "100%", backgroundColor: "transparent", color: "var(--ink)", fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.875rem", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", border: "1px solid var(--border)" }}

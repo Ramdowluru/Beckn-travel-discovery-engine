@@ -36,6 +36,8 @@ export default function SignUpForm() {
         setError(requestError.message);
       } else if (requestError instanceof ApiError && requestError.status === 503) {
         setError("Authentication service is unavailable. Please try again.");
+      } else if (requestError instanceof ApiError && requestError.status === 403) {
+        setError("Security check failed. Refresh the page and try again.");
       } else {
         setError("We couldn’t create your account. Please try again.");
       }

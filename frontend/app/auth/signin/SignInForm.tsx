@@ -38,6 +38,8 @@ export default function SignInForm() {
         setError("Authentication service is unavailable. Please try again.");
       } else if (error instanceof ApiError && error.status === 422) {
         setError(error.message);
+      } else if (error instanceof ApiError && error.status === 403) {
+        setError("Security check failed. Refresh the page and try again.");
       } else {
         setError("We couldn’t complete sign in. Please try again.");
       }

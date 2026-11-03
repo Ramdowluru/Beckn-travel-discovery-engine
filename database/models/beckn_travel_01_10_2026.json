@@ -1,0 +1,986 @@
+{
+  "collections": {
+    "beckn_travel.Providers": {
+      "ns": "beckn_travel.Providers",
+      "jsonSchema": {
+        "bsonType": "object",
+        "required": [
+          "_id",
+          "category",
+          "created_at",
+          "integration",
+          "name",
+          "status",
+          "type",
+          "updated_at"
+        ],
+        "properties": {
+          "_id": {
+            "bsonType": "objectId"
+          },
+          "category": {
+            "bsonType": "string"
+          },
+          "created_at": {
+            "bsonType": "date"
+          },
+          "integration": {
+            "bsonType": "object",
+            "properties": {
+              "bpp_id": {
+                "bsonType": "string"
+              },
+              "type": {
+                "bsonType": "string"
+              }
+            },
+            "required": [
+              "bpp_id",
+              "type"
+            ]
+          },
+          "name": {
+            "bsonType": "string"
+          },
+          "status": {
+            "bsonType": "string"
+          },
+          "type": {
+            "bsonType": "string"
+          },
+          "updated_at": {
+            "bsonType": "date"
+          }
+        }
+      }
+    },
+    "beckn_travel.accommodations": {
+      "ns": "beckn_travel.accommodations",
+      "jsonSchema": {
+        "bsonType": "object",
+        "required": [
+          "_id",
+          "amenities",
+          "category",
+          "images",
+          "location_id",
+          "name",
+          "provider_id",
+          "rating",
+          "rooms",
+          "status"
+        ],
+        "properties": {
+          "_id": {
+            "bsonType": "objectId"
+          },
+          "amenities": {
+            "bsonType": "array",
+            "items": {
+              "bsonType": "string"
+            }
+          },
+          "category": {
+            "bsonType": "string"
+          },
+          "images": {
+            "bsonType": "array"
+          },
+          "location_id": {
+            "bsonType": "objectId"
+          },
+          "name": {
+            "bsonType": "string"
+          },
+          "provider_id": {
+            "bsonType": "objectId"
+          },
+          "rating": {
+            "bsonType": "double"
+          },
+          "rooms": {
+            "bsonType": "array",
+            "items": {
+              "bsonType": "object",
+              "properties": {
+                "availability": {
+                  "bsonType": "int"
+                },
+                "capacity": {
+                  "bsonType": "int"
+                },
+                "name": {
+                  "bsonType": "string"
+                },
+                "price": {
+                  "bsonType": "object",
+                  "properties": {
+                    "amount": {
+                      "bsonType": "int"
+                    },
+                    "currency": {
+                      "bsonType": "string"
+                    },
+                    "per": {
+                      "bsonType": "string"
+                    }
+                  },
+                  "required": [
+                    "amount",
+                    "currency",
+                    "per"
+                  ]
+                },
+                "room_id": {
+                  "bsonType": "string"
+                }
+              },
+              "required": [
+                "availability",
+                "capacity",
+                "name",
+                "price",
+                "room_id"
+              ]
+            }
+          },
+          "status": {
+            "bsonType": "string"
+          }
+        }
+      }
+    },
+    "beckn_travel.bookings": {
+      "ns": "beckn_travel.bookings",
+      "jsonSchema": {
+        "bsonType": "object",
+        "required": [
+          "_id",
+          "beckn",
+          "booking_reference",
+          "created_at",
+          "items",
+          "journey_id",
+          "pricing",
+          "status",
+          "updated_at",
+          "user_id"
+        ],
+        "properties": {
+          "_id": {
+            "bsonType": "objectId"
+          },
+          "beckn": {
+            "bsonType": "object",
+            "properties": {
+              "order_id": {
+                "bsonType": "string"
+              },
+              "transaction_id": {
+                "bsonType": "string"
+              }
+            },
+            "required": [
+              "order_id",
+              "transaction_id"
+            ]
+          },
+          "booking_reference": {
+            "bsonType": "string"
+          },
+          "created_at": {
+            "bsonType": "date"
+          },
+          "items": {
+            "bsonType": "array",
+            "items": {
+              "bsonType": "object",
+              "properties": {
+                "item_id": {
+                  "bsonType": "objectId"
+                },
+                "provider_id": {
+                  "bsonType": "objectId"
+                },
+                "type": {
+                  "bsonType": "string"
+                }
+              },
+              "required": [
+                "item_id",
+                "provider_id",
+                "type"
+              ]
+            }
+          },
+          "journey_id": {
+            "bsonType": "objectId"
+          },
+          "pricing": {
+            "bsonType": "object",
+            "properties": {
+              "currency": {
+                "bsonType": "string"
+              },
+              "total": {
+                "bsonType": "int"
+              }
+            },
+            "required": [
+              "currency",
+              "total"
+            ]
+          },
+          "status": {
+            "bsonType": "string"
+          },
+          "updated_at": {
+            "bsonType": "date"
+          },
+          "user_id": {
+            "bsonType": "objectId"
+          }
+        }
+      }
+    },
+    "beckn_travel.experiences": {
+      "ns": "beckn_travel.experiences",
+      "jsonSchema": {
+        "bsonType": "object",
+        "required": [
+          "_id",
+          "availability",
+          "category",
+          "description",
+          "duration_minutes",
+          "images",
+          "location_id",
+          "name",
+          "price",
+          "provider_id",
+          "status"
+        ],
+        "properties": {
+          "_id": {
+            "bsonType": "objectId"
+          },
+          "availability": {
+            "bsonType": "object",
+            "properties": {
+              "slots_remaining": {
+                "bsonType": "int"
+              },
+              "status": {
+                "bsonType": "string"
+              }
+            },
+            "required": [
+              "slots_remaining",
+              "status"
+            ]
+          },
+          "category": {
+            "bsonType": "string"
+          },
+          "description": {
+            "bsonType": "string"
+          },
+          "duration_minutes": {
+            "bsonType": "int"
+          },
+          "images": {
+            "bsonType": "array"
+          },
+          "location_id": {
+            "bsonType": "objectId"
+          },
+          "name": {
+            "bsonType": "string"
+          },
+          "price": {
+            "bsonType": "object",
+            "properties": {
+              "amount": {
+                "bsonType": "int"
+              },
+              "currency": {
+                "bsonType": "string"
+              }
+            },
+            "required": [
+              "amount",
+              "currency"
+            ]
+          },
+          "provider_id": {
+            "bsonType": "objectId"
+          },
+          "status": {
+            "bsonType": "string"
+          }
+        }
+      }
+    },
+    "beckn_travel.journeys": {
+      "ns": "beckn_travel.journeys",
+      "jsonSchema": {
+        "bsonType": "object",
+        "required": [
+          "_id",
+          "created_at",
+          "dates",
+          "items",
+          "pricing",
+          "route",
+          "status",
+          "title",
+          "updated_at",
+          "user_id"
+        ],
+        "properties": {
+          "_id": {
+            "bsonType": "objectId"
+          },
+          "created_at": {
+            "bsonType": "date"
+          },
+          "dates": {
+            "bsonType": "object",
+            "properties": {
+              "end": {
+                "bsonType": "date"
+              },
+              "start": {
+                "bsonType": "date"
+              }
+            },
+            "required": [
+              "end",
+              "start"
+            ]
+          },
+          "items": {
+            "bsonType": "array",
+            "items": {
+              "bsonType": "object",
+              "properties": {
+                "item_id": {
+                  "bsonType": "objectId"
+                },
+                "type": {
+                  "bsonType": "string"
+                }
+              },
+              "required": [
+                "item_id",
+                "type"
+              ]
+            }
+          },
+          "pricing": {
+            "bsonType": "object",
+            "properties": {
+              "currency": {
+                "bsonType": "string"
+              },
+              "total": {
+                "bsonType": "int"
+              }
+            },
+            "required": [
+              "currency",
+              "total"
+            ]
+          },
+          "route": {
+            "bsonType": "object",
+            "properties": {
+              "from_location_id": {
+                "bsonType": "objectId"
+              },
+              "to_location_id": {
+                "bsonType": "objectId"
+              }
+            },
+            "required": [
+              "from_location_id",
+              "to_location_id"
+            ]
+          },
+          "status": {
+            "bsonType": "string"
+          },
+          "title": {
+            "bsonType": "string"
+          },
+          "updated_at": {
+            "bsonType": "date"
+          },
+          "user_id": {
+            "bsonType": "objectId"
+          }
+        }
+      }
+    },
+    "beckn_travel.locations": {
+      "ns": "beckn_travel.locations",
+      "jsonSchema": {
+        "bsonType": "object",
+        "required": [
+          "_id",
+          "city",
+          "coordinates",
+          "country",
+          "name",
+          "state",
+          "type"
+        ],
+        "properties": {
+          "_id": {
+            "bsonType": "objectId"
+          },
+          "city": {
+            "bsonType": "string"
+          },
+          "coordinates": {
+            "bsonType": "object",
+            "properties": {
+              "latitude": {
+                "bsonType": "double"
+              },
+              "longitude": {
+                "bsonType": "double"
+              }
+            },
+            "required": [
+              "latitude",
+              "longitude"
+            ]
+          },
+          "country": {
+            "bsonType": "string"
+          },
+          "name": {
+            "bsonType": "string"
+          },
+          "state": {
+            "bsonType": "string"
+          },
+          "type": {
+            "bsonType": "string"
+          }
+        }
+      }
+    },
+    "beckn_travel.transport_options": {
+      "ns": "beckn_travel.transport_options",
+      "jsonSchema": {
+        "bsonType": "object",
+        "required": [
+          "_id",
+          "availability",
+          "fare",
+          "provider_id",
+          "route",
+          "schedule",
+          "service",
+          "type"
+        ],
+        "properties": {
+          "_id": {
+            "bsonType": "objectId"
+          },
+          "availability": {
+            "bsonType": "object",
+            "properties": {
+              "remaining": {
+                "bsonType": "int"
+              },
+              "status": {
+                "bsonType": "string"
+              }
+            },
+            "required": [
+              "remaining",
+              "status"
+            ]
+          },
+          "fare": {
+            "bsonType": "object",
+            "properties": {
+              "amount": {
+                "bsonType": "int"
+              },
+              "currency": {
+                "bsonType": "string"
+              }
+            },
+            "required": [
+              "amount",
+              "currency"
+            ]
+          },
+          "provider_id": {
+            "bsonType": "objectId"
+          },
+          "route": {
+            "bsonType": "object",
+            "properties": {
+              "from_location_id": {
+                "bsonType": "objectId"
+              },
+              "to_location_id": {
+                "bsonType": "objectId"
+              }
+            },
+            "required": [
+              "from_location_id",
+              "to_location_id"
+            ]
+          },
+          "schedule": {
+            "bsonType": "object",
+            "properties": {
+              "arrival": {
+                "bsonType": "date"
+              },
+              "departure": {
+                "bsonType": "date"
+              },
+              "duration_minutes": {
+                "bsonType": "int"
+              }
+            },
+            "required": [
+              "arrival",
+              "departure",
+              "duration_minutes"
+            ]
+          },
+          "service": {
+            "bsonType": "object",
+            "properties": {
+              "id": {
+                "bsonType": "string"
+              },
+              "name": {
+                "bsonType": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ]
+          },
+          "type": {
+            "bsonType": "string"
+          }
+        }
+      }
+    },
+    "beckn_travel.users": {
+      "ns": "beckn_travel.users",
+      "jsonSchema": {
+        "bsonType": "object",
+        "required": [
+          "_id",
+          "created_at",
+          "email",
+          "name",
+          "preferences",
+          "profile_image",
+          "updated_at"
+        ],
+        "properties": {
+          "_id": {
+            "bsonType": "objectId"
+          },
+          "created_at": {
+            "bsonType": "date"
+          },
+          "email": {
+            "bsonType": "string"
+          },
+          "name": {
+            "bsonType": "string"
+          },
+          "preferences": {
+            "bsonType": "object",
+            "properties": {
+              "currency": {
+                "bsonType": "string"
+              },
+              "preferred_transport": {
+                "bsonType": "array",
+                "items": {
+                  "bsonType": "string"
+                }
+              }
+            },
+            "required": [
+              "currency",
+              "preferred_transport"
+            ]
+          },
+          "profile_image": {
+            "bsonType": "null"
+          },
+          "updated_at": {
+            "bsonType": "date"
+          }
+        }
+      }
+    }
+  },
+  "relationships": [
+    {
+      "id": "8cc918b2-8ffc-4a8a-a8f1-89527609d2ab",
+      "relationship": [
+        {
+          "ns": "beckn_travel.accommodations",
+          "cardinality": 1,
+          "fields": [
+            "provider_id"
+          ]
+        },
+        {
+          "ns": "beckn_travel.Providers",
+          "cardinality": 1,
+          "fields": [
+            "_id"
+          ]
+        }
+      ],
+      "isInferred": true
+    },
+    {
+      "id": "e5023895-7147-4a54-9354-035bc40e1be4",
+      "relationship": [
+        {
+          "ns": "beckn_travel.bookings",
+          "cardinality": 1,
+          "fields": [
+            "items",
+            "provider_id"
+          ]
+        },
+        {
+          "ns": "beckn_travel.Providers",
+          "cardinality": 1,
+          "fields": [
+            "_id"
+          ]
+        }
+      ],
+      "isInferred": true
+    },
+    {
+      "id": "20ccebc2-9044-40e4-a803-2d1245ca1b08",
+      "relationship": [
+        {
+          "ns": "beckn_travel.experiences",
+          "cardinality": 1,
+          "fields": [
+            "provider_id"
+          ]
+        },
+        {
+          "ns": "beckn_travel.Providers",
+          "cardinality": 1,
+          "fields": [
+            "_id"
+          ]
+        }
+      ],
+      "isInferred": true
+    },
+    {
+      "id": "b794ff98-2283-473f-b0dd-9c2ffd591403",
+      "relationship": [
+        {
+          "ns": "beckn_travel.transport_options",
+          "cardinality": 1,
+          "fields": [
+            "provider_id"
+          ]
+        },
+        {
+          "ns": "beckn_travel.Providers",
+          "cardinality": 1,
+          "fields": [
+            "_id"
+          ]
+        }
+      ],
+      "isInferred": true
+    },
+    {
+      "id": "579075b4-5cd7-461a-8ac1-2e5b1cb522ca",
+      "relationship": [
+        {
+          "ns": "beckn_travel.journeys",
+          "cardinality": 1,
+          "fields": [
+            "items",
+            "item_id"
+          ]
+        },
+        {
+          "ns": "beckn_travel.accommodations",
+          "cardinality": 1,
+          "fields": [
+            "_id"
+          ]
+        }
+      ],
+      "isInferred": true
+    },
+    {
+      "id": "9f47e12b-76d9-4bdf-8cef-f08ce43bf7ad",
+      "relationship": [
+        {
+          "ns": "beckn_travel.bookings",
+          "cardinality": 1,
+          "fields": [
+            "user_id"
+          ]
+        },
+        {
+          "ns": "beckn_travel.experiences",
+          "cardinality": 1,
+          "fields": [
+            "_id"
+          ]
+        }
+      ],
+      "isInferred": true
+    },
+    {
+      "id": "88c275d8-4024-407a-ae62-94ff4207c545",
+      "relationship": [
+        {
+          "ns": "beckn_travel.journeys",
+          "cardinality": 1,
+          "fields": [
+            "user_id"
+          ]
+        },
+        {
+          "ns": "beckn_travel.experiences",
+          "cardinality": 1,
+          "fields": [
+            "_id"
+          ]
+        }
+      ],
+      "isInferred": true
+    },
+    {
+      "id": "496a821b-16aa-4d63-8057-a0407d1972b2",
+      "relationship": [
+        {
+          "ns": "beckn_travel.bookings",
+          "cardinality": 1,
+          "fields": [
+            "journey_id"
+          ]
+        },
+        {
+          "ns": "beckn_travel.journeys",
+          "cardinality": 1,
+          "fields": [
+            "_id"
+          ]
+        }
+      ],
+      "isInferred": true
+    },
+    {
+      "id": "00e66f83-717c-4581-ac10-18e63d7732b4",
+      "relationship": [
+        {
+          "ns": "beckn_travel.accommodations",
+          "cardinality": 1,
+          "fields": [
+            "location_id"
+          ]
+        },
+        {
+          "ns": "beckn_travel.locations",
+          "cardinality": 1,
+          "fields": [
+            "_id"
+          ]
+        }
+      ],
+      "isInferred": true
+    },
+    {
+      "id": "c995d6ee-2079-44e4-94d1-c739be9d9101",
+      "relationship": [
+        {
+          "ns": "beckn_travel.experiences",
+          "cardinality": 1,
+          "fields": [
+            "location_id"
+          ]
+        },
+        {
+          "ns": "beckn_travel.locations",
+          "cardinality": 1,
+          "fields": [
+            "_id"
+          ]
+        }
+      ],
+      "isInferred": true
+    },
+    {
+      "id": "a4de0546-3f53-486a-a91e-12f63b334d2c",
+      "relationship": [
+        {
+          "ns": "beckn_travel.journeys",
+          "cardinality": 1,
+          "fields": [
+            "route",
+            "from_location_id"
+          ]
+        },
+        {
+          "ns": "beckn_travel.locations",
+          "cardinality": 1,
+          "fields": [
+            "_id"
+          ]
+        }
+      ],
+      "isInferred": true
+    },
+    {
+      "id": "283b09e9-c7cb-4c0a-ad3f-41b00fb0cec5",
+      "relationship": [
+        {
+          "ns": "beckn_travel.journeys",
+          "cardinality": 1,
+          "fields": [
+            "route",
+            "to_location_id"
+          ]
+        },
+        {
+          "ns": "beckn_travel.locations",
+          "cardinality": 1,
+          "fields": [
+            "_id"
+          ]
+        }
+      ],
+      "isInferred": true
+    },
+    {
+      "id": "a431d9f3-8a47-4d38-a588-6b1a04b16826",
+      "relationship": [
+        {
+          "ns": "beckn_travel.transport_options",
+          "cardinality": 1,
+          "fields": [
+            "route",
+            "from_location_id"
+          ]
+        },
+        {
+          "ns": "beckn_travel.locations",
+          "cardinality": 1,
+          "fields": [
+            "_id"
+          ]
+        }
+      ],
+      "isInferred": true
+    },
+    {
+      "id": "d3011aea-ee5f-4c1c-b34a-1fef67a046df",
+      "relationship": [
+        {
+          "ns": "beckn_travel.transport_options",
+          "cardinality": 1,
+          "fields": [
+            "route",
+            "to_location_id"
+          ]
+        },
+        {
+          "ns": "beckn_travel.locations",
+          "cardinality": 1,
+          "fields": [
+            "_id"
+          ]
+        }
+      ],
+      "isInferred": true
+    },
+    {
+      "id": "317a3cdd-e9e7-4d66-b796-65b0701e3868",
+      "relationship": [
+        {
+          "ns": "beckn_travel.bookings",
+          "cardinality": 1,
+          "fields": [
+            "items",
+            "item_id"
+          ]
+        },
+        {
+          "ns": "beckn_travel.transport_options",
+          "cardinality": 1,
+          "fields": [
+            "_id"
+          ]
+        }
+      ],
+      "isInferred": true
+    },
+    {
+      "id": "193df489-9172-4556-8e62-3ba0cf8dbc91",
+      "relationship": [
+        {
+          "ns": "beckn_travel.journeys",
+          "cardinality": 1,
+          "fields": [
+            "items",
+            "item_id"
+          ]
+        },
+        {
+          "ns": "beckn_travel.transport_options",
+          "cardinality": 1,
+          "fields": [
+            "_id"
+          ]
+        }
+      ],
+      "isInferred": true
+    },
+    {
+      "id": "e27b85c3-6a5c-4bd2-90ac-296e63279b43",
+      "relationship": [
+        {
+          "ns": "beckn_travel.journeys",
+          "cardinality": 1,
+          "fields": [
+            "items",
+            "item_id"
+          ]
+        },
+        {
+          "ns": "beckn_travel.users",
+          "cardinality": 1,
+          "fields": [
+            "_id"
+          ]
+        }
+      ],
+      "isInferred": true
+    }
+  ]
+}

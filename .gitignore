@@ -36,3 +36,5 @@ Thumbs.db
 # Logs
 # =========================
 *.log
+# Local Beckn signing keys and private mock-network registry
+.local/

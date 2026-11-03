@@ -1,20 +1,31 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { headers } from "next/headers";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import CategorySelectButton from "@/components/CategorySelectButton";
 import type { StayOption } from "@/lib/types";
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ transaction_id?: string; rooms?: string; guests?: string }>;
 }
 
-export default async function StayDetailPage({ params }: Props) {
+export default async function StayDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const decodedOfferId = decodeURIComponent(id);
+  const { transaction_id: transactionId = "", rooms: roomsParam, guests: guestsParam } = await searchParams;
+  const rooms = Math.max(1, Number(roomsParam ?? 1));
+  const guests = Math.max(1, Number(guestsParam ?? 1));
 
   let stay: StayOption | null = null;
   try {
+    const requestHeaders = await headers();
+    const host = requestHeaders.get("host");
+    const protocol = requestHeaders.get("x-forwarded-proto") ?? "http";
+    if (!host || !transactionId) notFound();
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE ?? ""}/api/stays/${id}`,
+      `${protocol}://${host}/api/stays/${encodeURIComponent(decodedOfferId)}?transaction_id=${encodeURIComponent(transactionId)}`,
       { cache: "no-store" },
     );
     if (res.ok) stay = (await res.json()) as StayOption;
@@ -119,15 +130,27 @@ export default async function StayDetailPage({ params }: Props) {
                   {stay.totalPrice} total · {stay.nights} nights
                 </p>
                 <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.75rem", color: "var(--ink-muted)", marginBottom: "1.75rem" }}>
-                  No booking fee · Pay provider directly
+                  Simulated quote only · No payment or inventory reservation
                 </p>
 
-                <Link
-                  href="/itinerary"
-                  style={{ display: "block", width: "100%", backgroundColor: "var(--ink)", color: "var(--white)", fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.875rem", letterSpacing: "0.06em", textTransform: "uppercase", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", marginBottom: "0.75rem" }}
-                >
-                  Select this stay
-                </Link>
+                <CategorySelectButton
+                  kind="hotel"
+                  offerId={decodedOfferId}
+                  transactionId={transactionId}
+                  quantity={rooms}
+                  peopleCount={guests}
+                  roomCount={rooms}
+                  reviewDetails={[
+                    `Provider: ${stay.provider}`,
+                    `Stay: ${stay.name}`,
+                    `Location: ${stay.location}`,
+                    `Check-in: ${stay.checkIn}`,
+                    `Check-out: ${stay.checkOut}`,
+                    `Rooms: ${rooms}`,
+                    `Guests: ${guests}`,
+                    `Published nightly rate: ${stay.pricePerNight}`,
+                  ]}
+                />
                 <Link
                   href="/results?tab=stays"
                   style={{ display: "block", width: "100%", backgroundColor: "transparent", color: "var(--ink)", fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.875rem", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", border: "1px solid var(--border)" }}
