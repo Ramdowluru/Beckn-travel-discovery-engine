@@ -162,6 +162,20 @@ class TransportSelectionRepository:
     async def get_for_user(self, selection_id: str, user_id: ObjectId) -> dict[str, Any] | None:
         return await self._collection.find_one({"selectionId": selection_id, "userId": user_id})
 
+    async def get_many_for_user(
+        self,
+        *,
+        user_id: ObjectId,
+        selection_ids: list[str],
+    ) -> list[dict[str, Any]]:
+        if not selection_ids:
+            return []
+        cursor = self._collection.find({
+            "userId": user_id,
+            "selectionId": {"$in": selection_ids},
+        })
+        return await cursor.to_list(length=len(selection_ids))
+
     async def list_for_user(self, user_id: ObjectId, limit: int = 50) -> list[dict[str, Any]]:
         cursor = self._collection.find({"userId": user_id}).sort("createdAt", DESCENDING).limit(limit)
         return await cursor.to_list(length=limit)

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import TripManagement from "@/components/TripManagement";
 import { serverApiFetch } from "@/lib/serverApi";
-import type { BookingRecord, SavedItinerary, TripRecord } from "@/lib/api";
+import type { BookingRecord, SavedItinerary, TripRecord, UserTrip } from "@/lib/api";
 
 /* ─── Sidebar nav ─────────────────────────────────────────────── */
 const sidebarNav = [
@@ -23,16 +24,24 @@ const statusStyle: Record<TripStatus, { color: string; bg: string; border: strin
 };
 
 export default async function TripsPage() {
-  let trips: TripRecord[] = [];
+  let savedItineraries: TripRecord[] = [];
   let bookings: BookingRecord[] = [];
+  let bookingsLoadError = "";
+  let userTrips: UserTrip[] = [];
+  let tripsLoadError = "";
   try {
     bookings = await serverApiFetch<BookingRecord[]>("/api/bookings");
-  } catch {
-    /* Signed-out and unavailable states share the existing empty presentation. */
+  } catch (error) {
+    bookingsLoadError = error instanceof Error ? error.message : "Bookings are temporarily unavailable.";
+  }
+  try {
+    userTrips = await serverApiFetch<UserTrip[]>("/api/trips");
+  } catch (error) {
+    tripsLoadError = error instanceof Error ? error.message : "Trips are temporarily unavailable.";
   }
   try {
     const saved = await serverApiFetch<SavedItinerary[]>("/api/itineraries");
-    trips = saved.map((item) => ({
+    savedItineraries = saved.map((item) => ({
       id: item.id,
       title: `${item.transport.provider} ${item.transport.type}`,
       status: "SAVED",
@@ -119,7 +128,7 @@ export default async function TripsPage() {
                 My trips
               </h1>
               <Link
-                href="/home"
+                href="#create-trip"
                 style={{
                   fontFamily: "var(--font-body)",
                   fontWeight: 500,
@@ -136,6 +145,12 @@ export default async function TripsPage() {
               </Link>
             </div>
 
+            <TripManagement
+              initialTrips={userTrips}
+              bookings={bookings}
+              initialError={tripsLoadError}
+            />
+
             <section aria-labelledby="bookings-heading" style={{ marginBottom: "2.5rem" }}>
               <h2
                 id="bookings-heading"
@@ -143,7 +158,11 @@ export default async function TripsPage() {
               >
                 My bookings
               </h2>
-              {bookings.length === 0 ? (
+              {bookingsLoadError ? (
+                <p role="alert" style={{ backgroundColor: "var(--white)", border: "1px solid var(--border)", padding: "1.25rem", color: "var(--ink-soft)", fontFamily: "var(--font-body)", fontSize: "0.85rem" }}>
+                  Bookings are temporarily unavailable: {bookingsLoadError}
+                </p>
+              ) : bookings.length === 0 ? (
                 <p style={{ backgroundColor: "var(--white)", border: "1px solid var(--border)", padding: "1.25rem", color: "var(--ink-soft)", fontFamily: "var(--font-body)", fontSize: "0.85rem" }}>
                   No provider bookings yet. Saved itineraries are estimates and are listed separately below.
                 </p>
@@ -191,7 +210,7 @@ export default async function TripsPage() {
             </h2>
 
             {/* Empty state */}
-            {trips.length === 0 && (
+            {savedItineraries.length === 0 && (
               <div
                 style={{
                   border: "1px solid var(--border)",
@@ -230,7 +249,7 @@ export default async function TripsPage() {
             )}
 
             {/* Trip cards */}
-            {trips.length > 0 && (
+            {savedItineraries.length > 0 && (
               <div
                 style={{
                   display: "flex",
@@ -240,7 +259,7 @@ export default async function TripsPage() {
                   border: "1px solid var(--border)",
                 }}
               >
-                {trips.map((trip) => {
+                {savedItineraries.map((trip) => {
                   const badge = statusStyle[trip.status as TripStatus] ?? statusStyle.SAVED;
                   return (
                     <div

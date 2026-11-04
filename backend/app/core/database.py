@@ -6,6 +6,7 @@ from app.repositories.sessions import SessionRepository
 from app.repositories.itineraries import ItineraryRepository
 from app.repositories.transport_snapshots import TransportSnapshotRepository
 from app.repositories.transport_selections import TransportSelectionRepository
+from app.repositories.trips import TripRepository
 from app.repositories.users import UserRepository
 
 _client: AsyncMongoClient | None = None
@@ -37,3 +38,4 @@ async def initialize_indexes() -> None:
     ).ensure_indexes()
     await ItineraryRepository(database).ensure_indexes()
     await TransportSelectionRepository(database).ensure_indexes()
+    await TripRepository(database).ensure_indexes()

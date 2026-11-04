@@ -57,6 +57,9 @@ app.include_router(itineraries_router)
 from app.api.bookings import router as bookings_router
 app.include_router(bookings_router)
 
+from app.api.trips import router as trips_router
+app.include_router(trips_router)
+
 from app.api.auth import router as auth_router
 app.include_router(auth_router)
 

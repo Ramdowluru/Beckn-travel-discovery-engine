@@ -171,6 +171,33 @@ export async function forwardItineraryRequest(
   }
 }
 
+export async function forwardTripRequest(
+  request: Request,
+  path: string,
+  method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
+): Promise<Response> {
+  try {
+    const body = method === "GET" ? undefined : await request.text();
+    const response = await fetch(`${backendUrl}${path}`, {
+      method,
+      headers: forwardedHeaders(request),
+      ...(body === undefined ? {} : { body }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    const headers = new Headers({
+      "Content-Type": response.headers.get("Content-Type") || "application/json",
+      "Cache-Control": "no-store",
+    });
+    return new Response(response.body, { status: response.status, headers });
+  } catch {
+    return Response.json(
+      { detail: "Trip service is temporarily unavailable. Please try again." },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+}
+
 export async function forwardBookingRequest(
   request: Request,
   path: string,

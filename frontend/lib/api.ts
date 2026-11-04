@@ -48,6 +48,59 @@ export interface TripRecord {
   secondaryHref: string;
 }
 
+export interface HydratedTripBooking {
+  id: string;
+  kind: "transport" | "hotel" | "experience";
+  status: "CONFIRMED" | "CANCELLED" | "PENDING_UNKNOWN" | "INITIALIZED" | "REJECTED";
+  selection_state?: string;
+  init_state?: string;
+  confirm_state?: string;
+  cancel_state?: string;
+  transaction_id?: string;
+  provider_id?: string;
+  provider_name?: string;
+  provider_order_id?: string;
+  service?: string;
+  display: Record<string, unknown>;
+  criteria: Record<string, unknown>;
+  quantity?: number;
+  quote?: {
+    price?: { currency?: string; value?: string };
+    breakup?: Array<{ title?: string; price?: { currency?: string; value?: string } }>;
+  };
+  customer_details: Record<string, unknown>;
+  order: Record<string, unknown>;
+  confirmed_response?: Record<string, unknown> | null;
+  cancelled_response?: Record<string, unknown> | null;
+  cancellation_policy: string;
+}
+
+export interface TripBookingReference {
+  booking_id: string;
+  status: HydratedTripBooking["status"] | "UNAVAILABLE";
+  booking: HydratedTripBooking | null;
+}
+
+export interface UserTrip {
+  id: string;
+  title: string;
+  destination: string;
+  start_date: string;
+  end_date: string;
+  bookings: TripBookingReference[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateTripInput {
+  title: string;
+  destination: string;
+  start_date: string;
+  end_date: string;
+}
+
+export type UpdateTripInput = Partial<CreateTripInput>;
+
 export function refreshTransportBookingStatus(
   selectionId: string,
 ): Promise<TransportSelectionResponse> {
@@ -149,8 +202,40 @@ export function fetchSearch(params: URLSearchParams, signal?: AbortSignal): Prom
   return requestJson<SearchResponse>(`/api/search?${params.toString()}`, { signal });
 }
 
-export function fetchTrips(): Promise<TripRecord[]> {
-  return requestJson<TripRecord[]>("/api/trips");
+export function fetchTrips(): Promise<UserTrip[]> {
+  return requestJson<UserTrip[]>("/api/trips");
+}
+
+export function fetchTrip(tripId: string): Promise<UserTrip> {
+  return requestJson<UserTrip>(`/api/trips/${encodeURIComponent(tripId)}`);
+}
+
+export function createTrip(input: CreateTripInput): Promise<UserTrip> {
+  return requestJson<UserTrip>("/api/trips", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateTrip(tripId: string, input: UpdateTripInput): Promise<UserTrip> {
+  return requestJson<UserTrip>(`/api/trips/${encodeURIComponent(tripId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export function addBookingToTrip(tripId: string, bookingId: string): Promise<UserTrip> {
+  return requestJson<UserTrip>(
+    `/api/trips/${encodeURIComponent(tripId)}/bookings/${encodeURIComponent(bookingId)}`,
+    { method: "PUT" },
+  );
+}
+
+export function removeBookingFromTrip(tripId: string, bookingId: string): Promise<UserTrip> {
+  return requestJson<UserTrip>(
+    `/api/trips/${encodeURIComponent(tripId)}/bookings/${encodeURIComponent(bookingId)}`,
+    { method: "DELETE" },
+  );
 }
 
 export function signInRequest(email: string, password: string): Promise<AuthResponse> {
