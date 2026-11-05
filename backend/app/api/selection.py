@@ -242,18 +242,11 @@ async def init_transport(
     attempt = await repository.get_for_user(selection_id, user["_id"])
     if attempt is None:
         raise HTTPException(status_code=404, detail="Selection was not found.")
-    if attempt.get("initState") == "INITIALIZED":
-        return {
-            "selection_id": selection_id,
-            "state": "INITIALIZED",
-            "price_changed": attempt.get("priceChanged", False),
-            "order": attempt.get("providerOrder"),
-        }
     if attempt.get("initState") == "PENDING_PROVIDER":
         return {"selection_id": selection_id, "state": "PENDING", "message": "Provider initialization is still pending; do not retry blindly."}
     if attempt.get("initState") == "INIT_FAILED":
         raise HTTPException(status_code=409, detail=attempt.get("initError") or "Provider could not initialize this order.")
-    if attempt.get("state") != "SELECTED":
+    if attempt.get("state") not in {"SELECTED", "INITIALIZED"}:
         raise HTTPException(status_code=409, detail="The transport selection is not ready to initialize.")
     quote_expires_at = attempt.get("quoteExpiresAt")
     if quote_expires_at is None or _utc_datetime(quote_expires_at) <= datetime.now(timezone.utc):
@@ -267,6 +260,15 @@ async def init_transport(
         "contact_phone": payload.contact_phone,
     }
     digest = hashlib.sha256(json.dumps(details, sort_keys=True).encode()).hexdigest()
+    if attempt.get("initState") == "INITIALIZED" and attempt.get("initDetails") == details:
+        return _selection_response(attempt)
+    if attempt.get("initState") == "INITIALIZED":
+        if attempt.get("confirmState") not in (None, "CONFIRM_FAILED"):
+            raise HTTPException(status_code=409, detail="Customer details cannot be changed after confirmation has started.")
+        reset_attempt = await repository.reset_initialized_for_reinit(selection_id, user["_id"])
+        if reset_attempt is None:
+            raise HTTPException(status_code=409, detail="Customer details cannot be changed while confirmation is in progress.")
+        attempt = reset_attempt
     business_key = f"{selection_id}:{digest}"
     message_id = str(uuid.uuid4())
     init_attempt = await repository.begin_init(
@@ -324,7 +326,14 @@ async def init_transport(
     callback_price = order.get("quote", {}).get("price", {}) if isinstance(order.get("quote"), dict) else {}
     selected_price = attempt["quote"].get("price", {}) if isinstance(attempt.get("quote"), dict) else {}
     price_changed = callback_price != selected_price
-    await repository.update_init(selection_id=selection_id, user_id=user["_id"], state="INITIALIZED", order=order, price_changed=price_changed)
+    await repository.update_init(
+        selection_id=selection_id,
+        user_id=user["_id"],
+        state="INITIALIZED",
+        order=order,
+        details=details,
+        price_changed=price_changed,
+    )
     return {"selection_id": selection_id, "state": "INITIALIZED", "price_changed": price_changed, "order": order}
 
 

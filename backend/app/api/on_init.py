@@ -143,6 +143,7 @@ async def on_init(request: Request):
         user_id=attempt["userId"],
         state="INITIALIZED",
         order=order,
+        details=attempt.get("initDetails"),
         price_changed=final_value != selected_value,
         order_expires_at=order_expires_at,
         expected_states=["INIT_REQUESTED", "PENDING_PROVIDER"],

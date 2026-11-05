@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   ApiError,
@@ -29,6 +30,7 @@ export default function TransportSelectButton({
   const [travellerNames, setTravellerNames] = useState<string[]>(() => Array(quantity).fill(""));
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [initState, setInitState] = useState<"idle" | "initializing" | "initialized" | "pending">("idle");
   const [confirmState, setConfirmState] = useState<"idle" | "confirming" | "confirmed" | "pending" | "failed">("idle");
   const [cancelState, setCancelState] = useState<"idle" | "cancelling" | "pending" | "cancelled" | "rejected">("idle");
@@ -40,12 +42,42 @@ export default function TransportSelectButton({
   const [finalQuoteAmount, setFinalQuoteAmount] = useState("");
   const [quoteBreakup, setQuoteBreakup] = useState<Array<{ title?: string; price?: { currency?: string; value?: string } }>>([]);
   const [acceptedFinalQuote, setAcceptedFinalQuote] = useState(false);
+  const [editingDetails, setEditingDetails] = useState(false);
   const [confirmedService, setConfirmedService] = useState("");
   const [confirmedSchedule, setConfirmedSchedule] = useState("");
   const [providerStatusText, setProviderStatusText] = useState("");
   const [cancellationPolicy, setCancellationPolicy] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const storageKey = `tde-transport-selection:${transactionId}:${offerId}`;
+  const draftKey = `${storageKey}:customer-draft`;
+
+  /* eslint-disable react-hooks/set-state-in-effect -- Restore a saved customer draft only when this offer mount is restored from browser history. */
+  useEffect(() => {
+    const savedDraft = window.sessionStorage.getItem(draftKey);
+    if (!savedDraft) return;
+    try {
+      const draft = JSON.parse(savedDraft) as { names?: string[]; email?: string; phone?: string };
+      if (Array.isArray(draft.names)) setTravellerNames(draft.names);
+      if (typeof draft.email === "string") setContactEmail(draft.email);
+      if (typeof draft.phone === "string") setContactPhone(draft.phone);
+    } catch {
+      window.sessionStorage.removeItem(draftKey);
+    }
+  }, [draftKey]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  function saveDraft(names: string[], email: string, phone: string) {
+    window.sessionStorage.setItem(draftKey, JSON.stringify({ names, email, phone }));
+  }
+
+  function clearFieldError(key: string) {
+    setFieldErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  }
 
   function applySelectionStatus(result: Awaited<ReturnType<typeof getTransportSelectionRequest>>) {
     setSelectionId(result.selection_id);
@@ -60,6 +92,7 @@ export default function TransportSelectButton({
     setState(["SELECTED", "INITIALIZED", "CONFIRMED", "CANCELLED"].includes(result.state) ? "selected" : "pending");
     if (result.init_state === "INITIALIZED" || result.state === "INITIALIZED") {
       setInitState("initialized");
+      setAcceptedFinalQuote(false);
       setOrderId(result.order?.id ?? "");
       const value = result.order?.quote?.price?.value;
       setFinalQuote(value
@@ -215,6 +248,14 @@ export default function TransportSelectButton({
   }
 
   async function initialize() {
+    const nextErrors: Record<string, string> = {};
+    travellerNames.forEach((name, index) => {
+      if (!name.trim()) nextErrors[`traveller-${index}`] = "Enter this passenger's name.";
+    });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) nextErrors.email = "Enter a valid email address.";
+    if (!/^\+?[0-9][0-9 ()-]{5,30}[0-9]$/.test(contactPhone)) nextErrors.phone = "Enter a valid contact phone number.";
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
     setInitState("initializing");
     setError("");
     try {
@@ -232,6 +273,8 @@ export default function TransportSelectButton({
       setFinalQuoteCurrency(finalCurrency);
       setFinalQuoteAmount(finalValue ?? "");
       setInitState(result.state === "PENDING" ? "pending" : "initialized");
+      setEditingDetails(false);
+      setAcceptedFinalQuote(false);
       if (result.price_changed) {
         setError("The provider returned a changed quote. Explicit acceptance is required before any later confirmation.");
       }
@@ -245,11 +288,12 @@ export default function TransportSelectButton({
     <div>
       <button
         type="button"
+        className={`offer-primary-action${state === "selected" ? " offer-selection-complete" : ""}`}
         onClick={select}
         disabled={state === "selecting" || state === "selected" || state === "pending"}
         style={{ display: "block", width: "100%", backgroundColor: state === "selected" ? "var(--cream-dark)" : "var(--ink)", color: state === "selected" ? "var(--ink)" : "var(--white)", fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.875rem", letterSpacing: "0.06em", textTransform: "uppercase", border: "none", padding: "0.9rem 0", cursor: state === "idle" ? "pointer" : "default" }}
       >
-        {state === "selecting" ? "Validating..." : state === "selected" ? "Selected" : state === "pending" ? "Provider response pending" : "Select and validate"}
+        {state === "selecting" ? "Checking offer..." : state === "selected" ? "Offer checked" : state === "pending" ? "Provider response pending" : "Continue"}
       </button>
       {quote && <p role="status" style={{ fontFamily: "var(--font-body)", fontSize: "0.75rem", color: "var(--ink-soft)", marginTop: "0.75rem" }}>Provider quote: {quote}</p>}
       {state === "pending" && <p role="status" style={{ fontFamily: "var(--font-body)", fontSize: "0.75rem", color: "var(--ink-soft)", marginTop: "0.75rem" }}>The provider may still be processing this selection. Do not retry blindly.</p>}
@@ -258,7 +302,7 @@ export default function TransportSelectButton({
           {refreshing ? "Checking provider outcome..." : "Refresh selection status"}
         </button>
       )}
-      {state === "selected" && initState === "idle" && (
+      {state === "selected" && (initState === "idle" || editingDetails) && (
         <div style={{ marginTop: "1rem", display: "grid", gap: "0.6rem" }}>
           <strong>Passenger details</strong>
           {travellerNames.map((name, index) => (
@@ -267,20 +311,31 @@ export default function TransportSelectButton({
               <input
                 aria-label={`Passenger ${index + 1} name`}
                 value={name}
-                onChange={(event) => setTravellerNames((current) => current.map((entry, currentIndex) => currentIndex === index ? event.target.value : entry))}
+                aria-invalid={Boolean(fieldErrors[`traveller-${index}`])}
+                onChange={(event) => {
+                  const next = travellerNames.map((entry, currentIndex) => currentIndex === index ? event.target.value : entry);
+                  setTravellerNames(next);
+                  clearFieldError(`traveller-${index}`);
+                  saveDraft(next, contactEmail, contactPhone);
+                }}
               />
+              {fieldErrors[`traveller-${index}`] && <span className="field-error" role="alert">{fieldErrors[`traveller-${index}`]}</span>}
             </label>
           ))}
           <label>
             Lead contact email
-            <input aria-label="Contact email" type="email" required value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} />
+            <input aria-label="Contact email" type="email" required value={contactEmail} aria-invalid={Boolean(fieldErrors.email)}
+              onChange={(event) => { setContactEmail(event.target.value); clearFieldError("email"); saveDraft(travellerNames, event.target.value, contactPhone); }} />
+            {fieldErrors.email && <span className="field-error" role="alert">{fieldErrors.email}</span>}
           </label>
           <label>
             Lead contact phone
-            <input aria-label="Contact phone" pattern="^\+?[0-9][0-9 ()-]{5,30}[0-9]$" title="Enter a valid contact phone number." value={contactPhone} onChange={(event) => setContactPhone(event.target.value)} />
+            <input aria-label="Contact phone" pattern="^\+?[0-9][0-9 ()-]{5,30}[0-9]$" title="Enter a valid contact phone number." value={contactPhone}
+              aria-invalid={Boolean(fieldErrors.phone)} onChange={(event) => { setContactPhone(event.target.value); clearFieldError("phone"); saveDraft(travellerNames, contactEmail, event.target.value); }} />
+            {fieldErrors.phone && <span className="field-error" role="alert">{fieldErrors.phone}</span>}
           </label>
-          <button type="button" onClick={initialize} disabled={travellerNames.some((name) => !name.trim()) || !contactEmail || !contactPhone}>
-            Review and initialize quote
+          <button type="button" className="offer-primary-action" onClick={initialize}>
+            {editingDetails ? "Update and reinitialize" : "Continue"}
           </button>
         </div>
       )}
@@ -294,7 +349,7 @@ export default function TransportSelectButton({
           </button>
         </div>
       )}
-      {initState === "initialized" && (
+      {initState === "initialized" && !editingDetails && (
         <div role="status" style={{ fontFamily: "var(--font-body)", fontSize: "0.75rem", color: "var(--ink-soft)", marginTop: "0.75rem" }}>
           <strong>Review your booking</strong>
           <ul>{reviewDetails.map((detail) => <li key={detail}>{detail}</li>)}</ul>
@@ -313,6 +368,14 @@ export default function TransportSelectButton({
             </button>
           )}
           {confirmState === "idle" && (
+            <button type="button" onClick={() => {
+              setEditingDetails(true);
+              setAcceptedFinalQuote(false);
+            }}>
+              Edit customer details
+            </button>
+          )}
+          {confirmState === "idle" && (
             <div style={{ display: "grid", gap: "0.5rem" }}>
               <label>
                 <input
@@ -328,7 +391,7 @@ export default function TransportSelectButton({
                 onClick={() => void confirm()}
                 disabled={!acceptedFinalQuote || !finalQuoteAmount || !finalQuoteCurrency}
               >
-                Confirm booking
+                Confirm simulated booking
               </button>
             </div>
           )}
@@ -348,6 +411,8 @@ export default function TransportSelectButton({
               <p>Payment status: Not paid (simulated; no payment was collected).</p>
               <p>Confirmation applies only to this provider order.</p>
               <p>{cancellationPolicy || "Mock policy: cancel before the scheduled departure; no fee; unpaid orders have no refund."}</p>
+              <p><a href="/bookings">View My Bookings</a></p>
+              <p><Link href="/trips">Add to trip</Link></p>
               {cancelState === "cancelled" && (
                 <div role="status">
                   <strong>Booking cancelled</strong>

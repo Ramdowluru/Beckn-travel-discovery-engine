@@ -222,3 +222,101 @@ test("trip browser helpers retain useful backend errors and HTTP status", async 
     }
   }
 });
+
+test("trip itinerary handles missing times, overnight dates, and activity-only overlaps", async () => {
+  const { buildTimeline } = await loadTypeScriptModule(resolve(frontendRoot, "lib/trip-itinerary.ts"));
+  const trip = {
+    id: "trip-1",
+    title: "Test trip",
+    destination: "Hyderabad",
+    start_date: "2026-11-06",
+    end_date: "2026-11-08",
+    created_at: "",
+    updated_at: "",
+    bookings: [],
+  };
+  const addBooking = (id, kind, display, start, end) => {
+    trip.bookings.push({
+      booking_id: id,
+      status: "CONFIRMED",
+      booking: {
+        id,
+        kind,
+        status: "CONFIRMED",
+        service: id,
+        provider_name: "Test provider",
+        display,
+        criteria: {},
+        customer_details: {},
+        cancellation_policy: "",
+        order: start && end ? {
+          fulfillments: [{
+            start: { time: { timestamp: start } },
+            end: { time: { timestamp: end } },
+          }],
+        } : {},
+      },
+    });
+  };
+
+  addBooking("missing-time", "transport", {
+    date: "2026-11-06",
+    departureCity: "A",
+    arrivalCity: "B",
+  });
+  addBooking("overnight", "transport", {
+    date: "2026-11-06",
+    departure: "22:00",
+    arrival: "04:15",
+  }, "2026-11-06T22:00:00+05:30", "2026-11-07T04:15:00+05:30");
+  addBooking("overlapping-activity", "experience", {
+    date: "2026-11-07",
+    time: "03:30–05:00",
+  }, "2026-11-07T00:30:00+05:30", "2026-11-07T02:00:00+05:30");
+  addBooking("multi-night-stay", "hotel", {
+    checkIn: "2026-11-06",
+    checkOut: "2026-11-08",
+  }, "2026-11-06T20:00:00+05:30", "2026-11-08T11:30:00+05:30");
+
+  const timeline = buildTimeline(trip);
+  const overnight = timeline.find((item) => item.bookingId === "overnight");
+  const missingTime = timeline.find((item) => item.bookingId === "missing-time");
+  const activity = timeline.find((item) => item.bookingId === "overlapping-activity");
+  const stay = timeline.find((item) => item.bookingId === "multi-night-stay");
+  const timedStarts = timeline
+    .filter((item) => item.startInstant !== null)
+    .map((item) => item.startInstant);
+
+  assert.equal(overnight.startDate, "2026-11-06");
+  assert.equal(overnight.endDate, "2026-11-07");
+  assert.ok(overnight.schedule.some((line) => line.includes("22:00 – 04:15")));
+  assert.equal(missingTime.startInstant, null);
+  assert.ok(missingTime.schedule.includes("6 Nov 2026"));
+  assert.ok(!missingTime.schedule.some((line) => /\d{2}:\d{2}/.test(line)));
+  assert.deepEqual(timedStarts, [...timedStarts].sort((left, right) => left - right));
+  assert.ok(overnight.warnings.some((warning) => warning.includes("overlapping-activity")));
+  assert.ok(activity.warnings.some((warning) => warning.includes("overnight")));
+  assert.deepEqual(stay.warnings, []);
+  assert.ok(stay.schedule.some((line) => line.includes("Check-in: 6 Nov 2026")));
+  assert.ok(stay.schedule.some((line) => line.includes("Check-out: 8 Nov 2026")));
+
+  const missingDateTrip = {
+    ...trip,
+    bookings: [
+      {
+        ...trip.bookings[0],
+        booking_id: "missing-later",
+        booking: { ...trip.bookings[0].booking, service: "Missing later", display: { date: "2026-11-08" } },
+      },
+      {
+        ...trip.bookings[0],
+        booking_id: "missing-earlier",
+        booking: { ...trip.bookings[0].booking, service: "Missing earlier", display: { date: "2026-11-06" } },
+      },
+    ],
+  };
+  assert.deepEqual(
+    buildTimeline(missingDateTrip).map((item) => item.bookingId),
+    ["missing-earlier", "missing-later"],
+  );
+});

@@ -8,8 +8,8 @@ import { useAuth } from "@/context/AuthContext";
 /* ─── Nav link definitions ────────────────────────────────────── */
 const navLinks = [
   { href: "/home",     label: "Explore" },
+  { href: "/bookings", label: "My Bookings" },
   { href: "/trips",    label: "Trips"   },
-  { href: "/about",    label: "About"   },
 ];
 
 /* ─── Which nav entry should be active for a given pathname ───── */
@@ -28,8 +28,8 @@ function getActiveHref(pathname: string): string {
     pathname.startsWith("/booking")
   ) return "/trips";
 
-  /* About */
-  if (pathname.startsWith("/about") || pathname.startsWith("/partners") || pathname.startsWith("/how-it-works")) return "/about";
+  /* Bookings */
+  if (pathname.startsWith("/bookings")) return "/bookings";
 
   return "";
 }
@@ -51,6 +51,7 @@ export default function Navbar() {
   const { user, loading, error: authError, signOut } = useAuth();
   const activeHref = getActiveHref(pathname);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   async function handleSignOut() {
     try {
@@ -202,19 +203,25 @@ export default function Navbar() {
           ) : user ? (
             /* ── Authenticated ─────────────────────────────── */
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              {/* Avatar */}
-              <Link
-                href="/trips"
-                onClick={() => setMenuOpen(false)}
-                style={{
+              {/* Account menu */}
+              <div className="account-menu" style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  aria-expanded={accountOpen}
+                  onClick={() => setAccountOpen((open) => !open)}
+                  style={{
                   display: "flex",
                   alignItems: "center",
                   gap: "0.6rem",
                   textDecoration: "none",
-                }}
-              >
-                <div
-                  style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 0,
+                  }}
+                >
+                  <div
+                    style={{
                     width: "30px",
                     height: "30px",
                     backgroundColor: "var(--orange)",
@@ -222,59 +229,39 @@ export default function Navbar() {
                     alignItems: "center",
                     justifyContent: "center",
                     flexShrink: 0,
-                  }}
-                >
-                  <span
-                    style={{
+                    }}
+                  >
+                    <span
+                      style={{
                       fontFamily: "var(--font-display)",
                       fontWeight: 700,
                       fontSize: "0.65rem",
                       color: "var(--white)",
                       letterSpacing: "0.04em",
-                    }}
-                  >
-                    {initials(user.name)}
-                  </span>
-                </div>
-                <span
-                  style={{
+                      }}
+                    >
+                      {initials(user.name)}
+                    </span>
+                  </div>
+                  <span
+                    style={{
                     fontFamily: "var(--font-body)",
                     fontWeight: 500,
                     fontSize: "0.8rem",
                     color: "var(--cream)",
                     letterSpacing: "0.01em",
-                  }}
-                >
-                  {user.name.split(" ")[0]}
-                </span>
-              </Link>
-
-              {/* Sign out */}
-              <button
-                onClick={handleSignOut}
-                style={{
-                  fontFamily: "var(--font-body)",
-                  fontWeight: 400,
-                  fontSize: "0.75rem",
-                  color: "rgba(242,237,228,0.45)",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 0,
-                  letterSpacing: "0.02em",
-                  transition: "color 0.15s",
-                }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLElement).style.color =
-                    "rgba(242,237,228,0.9)")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLElement).style.color =
-                    "rgba(242,237,228,0.45)")
-                }
-              >
-                Sign out
-              </button>
+                    }}
+                  >
+                    {user.name.split(" ")[0]}
+                  </span>
+                </button>
+                {accountOpen && (
+                  <div className="account-menu-popover">
+                    <span>{user.email}</span>
+                    <button type="button" onClick={handleSignOut}>Sign out</button>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             /* ── Unauthenticated ───────────────────────────── */
@@ -321,6 +308,18 @@ export default function Navbar() {
                 </Link>
               );
             })}
+            {user && (
+              <>
+                <span style={{ color: "rgba(242,237,228,0.55)", fontSize: "0.8rem", paddingTop: "0.75rem" }}>{user.email}</span>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  style={{ textAlign: "left", background: "none", border: "none", color: "var(--cream)", padding: "0.85rem 0", fontFamily: "var(--font-body)", fontSize: "0.9rem" }}
+                >
+                  Sign out
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>

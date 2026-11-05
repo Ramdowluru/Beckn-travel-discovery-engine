@@ -379,6 +379,47 @@ class TransportSelectionRepository:
             "initBusinessKey": business_key,
         })
 
+    async def reset_initialized_for_reinit(
+        self,
+        selection_id: str,
+        user_id: ObjectId,
+    ) -> dict[str, Any] | None:
+        now = datetime.now(timezone.utc)
+        previous = await self._collection.find_one({
+            "selectionId": selection_id,
+            "userId": user_id,
+            "state": "INITIALIZED",
+        })
+        if previous is None:
+            return None
+        return await self._collection.find_one_and_update(
+            {
+                "selectionId": selection_id,
+                "userId": user_id,
+                "state": "INITIALIZED",
+                "confirmState": {"$nin": ["CONFIRMED", "CONFIRM_REQUESTED", "PENDING_PROVIDER"]},
+            },
+            {
+                "$set": {"state": "SELECTED", "updatedAt": now},
+                "$unset": {
+                    "initBusinessKey": "", "initMessageId": "", "initTravellerCount": "",
+                    "initDetails": "", "initState": "", "providerOrder": "",
+                    "providerOrderExpiresAt": "", "priceChanged": "",
+                    "confirmBusinessKey": "", "confirmMessageId": "", "confirmDispatching": "",
+                    "acceptedQuote": "", "confirmState": "", "confirmError": "",
+                },
+                "$push": {
+                    "initActionHistory": {
+                        "messageId": previous.get("initMessageId"),
+                        "providerOrderId": (previous.get("providerOrder") or {}).get("id"),
+                        "state": "REPLACED",
+                        "recordedAt": now,
+                    },
+                },
+            },
+            return_document=ReturnDocument.AFTER,
+        )
+
     async def claim_init_dispatch(self, selection_id: str, user_id: ObjectId) -> dict[str, Any] | None:
         return await self._collection.find_one_and_update(
             {
@@ -398,6 +439,7 @@ class TransportSelectionRepository:
         user_id: ObjectId,
         state: str,
         order: dict[str, Any] | None = None,
+        details: dict[str, Any] | None = None,
         error: str | None = None,
         price_changed: bool = False,
         order_expires_at: datetime | None = None,
@@ -414,6 +456,8 @@ class TransportSelectionRepository:
             fields["state"] = "INITIALIZED"
             if order_expires_at is not None:
                 fields["providerOrderExpiresAt"] = order_expires_at
+        if details is not None:
+            fields["initDetails"] = details
         query: dict[str, Any] = {"selectionId": selection_id, "userId": user_id}
         if expected_states is not None:
             query["initState"] = {"$in": expected_states}

@@ -325,7 +325,10 @@ def build_hotel_on_init(data: dict[str, Any], request: dict[str, Any]) -> dict[s
             "context": context,
             "message": {"order": {
                 **selected_order,
-                "id": f"order-{request['context']['transaction_id'][:12]}-{room['room_id']}",
+                "id": (
+                    f"order-{request['context']['transaction_id'][:8]}-"
+                    f"{request['context']['message_id'][:8]}-{room['room_id']}"
+                ),
                 "state": "INITIALIZED",
                 "billing": billing,
                 "tags": order.get("tags", []),

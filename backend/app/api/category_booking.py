@@ -231,13 +231,11 @@ async def init_category_offer(
     attempt = await repository.get_for_user(selection_id, user["_id"])
     if attempt is None or attempt.get("kind") not in {"hotel", "experience"}:
         raise HTTPException(status_code=404, detail="Selection was not found.")
-    if attempt.get("initState") == "INITIALIZED":
-        return _selection_response(attempt)
     if attempt.get("initState") in {"INIT_REQUESTED", "PENDING_PROVIDER"}:
         return {"selection_id": selection_id, "state": "PENDING"}
     if attempt.get("initState") == "INIT_FAILED":
         raise HTTPException(status_code=409, detail=attempt.get("initError") or "Provider could not initialize this order.")
-    if attempt["state"] != "SELECTED":
+    if attempt["state"] not in {"SELECTED", "INITIALIZED"}:
         raise HTTPException(status_code=409, detail="The selected quote is not ready to initialize.")
     expiry = attempt.get("quoteExpiresAt")
     if not isinstance(expiry, datetime) or _utc(expiry) <= datetime.now(timezone.utc):
@@ -268,6 +266,15 @@ async def init_category_offer(
         "contact_phone": payload.contact_phone,
     }
     digest = hashlib.sha256(json.dumps(details, sort_keys=True).encode()).hexdigest()
+    if attempt.get("initState") == "INITIALIZED" and attempt.get("initDetails") == details:
+        return _selection_response(attempt)
+    if attempt.get("initState") == "INITIALIZED":
+        if attempt.get("confirmState") not in (None, "CONFIRM_FAILED"):
+            raise HTTPException(status_code=409, detail="Customer details cannot be changed after confirmation has started.")
+        reset_attempt = await repository.reset_initialized_for_reinit(selection_id, user["_id"])
+        if reset_attempt is None:
+            raise HTTPException(status_code=409, detail="Customer details cannot be changed while confirmation is in progress.")
+        attempt = reset_attempt
     init_attempt = await repository.begin_init(
         selection_id=selection_id,
         user_id=user["_id"],

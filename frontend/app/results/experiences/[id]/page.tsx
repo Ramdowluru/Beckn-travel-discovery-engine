@@ -8,14 +8,28 @@ import type { ExperienceOption } from "@/lib/types";
 
 interface Props {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ transaction_id?: string; participants?: string }>;
+  searchParams: Promise<{ transaction_id?: string; participants?: string; from?: string; to?: string; date?: string; travellers?: string; experience_date?: string; experience_category?: string }>;
 }
 
 export default async function ExperienceDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
   const decodedOfferId = decodeURIComponent(id);
-  const { transaction_id: transactionId = "", participants: participantsParam } = await searchParams;
+  const query = await searchParams;
+  const { transaction_id: transactionId = "", participants: participantsParam } = query;
   const participants = Math.max(1, Number(participantsParam ?? 1));
+  const resultsParams = new URLSearchParams({ tab: "experiences" });
+  for (const [key, value] of Object.entries({
+    from: query.from,
+    to: query.to,
+    date: query.date,
+    travellers: query.travellers,
+    experience_date: query.experience_date,
+    experience_category: query.experience_category,
+    participants: participantsParam,
+  })) {
+    if (value) resultsParams.set(key, value);
+  }
+  const resultsHref = `/results?${resultsParams.toString()}`;
 
   let exp: ExperienceOption | null = null;
   try {
@@ -41,7 +55,7 @@ export default async function ExperienceDetailPage({ params, searchParams }: Pro
         {/* ── Breadcrumb ──────────────────────────────────────── */}
         <div style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--white)" }}>
           <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", height: "44px", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Link href="/results?tab=experiences" style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-soft)", textDecoration: "none" }}>
+            <Link href={resultsHref} style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-soft)", textDecoration: "none" }}>
               Experiences
             </Link>
             <span style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}>→</span>
@@ -66,7 +80,7 @@ export default async function ExperienceDetailPage({ params, searchParams }: Pro
           )}
 
           {/* ── Two-column body ─────────────────────────────────── */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
+          <div className="detail-layout" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
 
             {/* Left */}
             <div>
@@ -110,6 +124,17 @@ export default async function ExperienceDetailPage({ params, searchParams }: Pro
                 <p style={{ fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.875rem", color: "var(--ink)" }}>{exp.meetingPoint}</p>
               </div>
 
+              <div className="offer-facts-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "1px", border: "1px solid var(--border)", marginBottom: "1.5rem" }}>
+                <div style={{ backgroundColor: "var(--white)", padding: "1rem 1.25rem" }}>
+                  <p className="tag-neutral" style={{ marginBottom: "0.3rem" }}>Availability</p>
+                  <p style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>{exp.availability} places available</p>
+                </div>
+                <div style={{ backgroundColor: "var(--white)", padding: "1rem 1.25rem" }}>
+                  <p className="tag-neutral" style={{ marginBottom: "0.3rem" }}>Quantity</p>
+                  <p style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>{participants} {participants === 1 ? "participant" : "participants"}</p>
+                </div>
+              </div>
+
               {/* Cancellation */}
               <div style={{ backgroundColor: "var(--white)", border: "1px solid var(--border)", padding: "1rem 1.25rem" }}>
                 <p className="tag-neutral" style={{ marginBottom: "0.4rem" }}>Cancellation policy</p>
@@ -145,7 +170,7 @@ export default async function ExperienceDetailPage({ params, searchParams }: Pro
                   ]}
                 />
                 <Link
-                  href="/results?tab=experiences"
+                  href={resultsHref}
                   style={{ display: "block", width: "100%", backgroundColor: "transparent", color: "var(--ink)", fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.875rem", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", border: "1px solid var(--border)" }}
                 >
                   Back to results

@@ -450,6 +450,8 @@ export interface BookingRecord {
   order: {
     payments?: Array<{ status?: string }>;
     fulfillments?: Array<{
+      state?: string;
+      status?: string;
       start?: { time?: { timestamp?: string }; location?: { address?: { name?: string } } };
       end?: { time?: { timestamp?: string }; location?: { address?: { name?: string } } };
     }>;

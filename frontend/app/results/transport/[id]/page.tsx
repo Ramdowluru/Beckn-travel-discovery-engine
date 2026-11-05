@@ -105,7 +105,7 @@ export default async function TransportDetailPage({ params, searchParams }: Prop
           </div>
         </div>
 
-        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "3rem 2rem 5rem", display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
+        <div className="detail-layout" style={{ maxWidth: "1200px", margin: "0 auto", padding: "3rem 2rem 5rem", display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
 
           {/* ── Left ──────────────────────────────────────────── */}
           <div>
@@ -147,6 +147,17 @@ export default async function TransportDetailPage({ params, searchParams }: Prop
               <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.9rem", color: "var(--ink-soft)", lineHeight: 1.7 }}>
                 {opt.description}
               </p>
+            </div>
+
+            <div className="offer-facts-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "1px", border: "1px solid var(--border)", marginBottom: "2rem" }}>
+              <div style={{ backgroundColor: "var(--white)", padding: "1rem 1.25rem" }}>
+                <p className="tag-neutral" style={{ marginBottom: "0.3rem" }}>Availability</p>
+                <p style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>Checked when you continue</p>
+              </div>
+              <div style={{ backgroundColor: "var(--white)", padding: "1rem 1.25rem" }}>
+                <p className="tag-neutral" style={{ marginBottom: "0.3rem" }}>Quantity</p>
+                <p style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>{opt.travellerCount} {opt.travellerCount === 1 ? "traveller" : "travellers"}</p>
+              </div>
             </div>
 
             {/* Amenities */}

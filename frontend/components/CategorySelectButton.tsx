@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   ApiError,
@@ -47,6 +48,7 @@ export default function CategorySelectButton({
   const [quoteBreakup, setQuoteBreakup] = useState<Array<{ title?: string; price?: { currency?: string; value?: string } }>>([]);
   const [priceChanged, setPriceChanged] = useState(false);
   const [acceptedFinalQuote, setAcceptedFinalQuote] = useState(false);
+  const [editingDetails, setEditingDetails] = useState(false);
   const [confirmedService, setConfirmedService] = useState("");
   const [confirmedSchedule, setConfirmedSchedule] = useState("");
   const [providerStatusText, setProviderStatusText] = useState("");
@@ -59,6 +61,37 @@ export default function CategorySelectButton({
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const storageKey = `tde-category-selection:${kind}:${transactionId}:${offerId}`;
+  const draftKey = `${storageKey}:customer-draft`;
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  /* eslint-disable react-hooks/set-state-in-effect -- Restore a saved customer draft only when this offer mount is restored from browser history. */
+  useEffect(() => {
+    const savedDraft = window.sessionStorage.getItem(draftKey);
+    if (!savedDraft) return;
+    try {
+      const draft = JSON.parse(savedDraft) as { names?: string[]; rooms?: number[]; email?: string; phone?: string };
+      if (Array.isArray(draft.names)) setNames(draft.names);
+      if (Array.isArray(draft.rooms)) setRoomAssignments(draft.rooms);
+      if (typeof draft.email === "string") setEmail(draft.email);
+      if (typeof draft.phone === "string") setPhone(draft.phone);
+    } catch {
+      window.sessionStorage.removeItem(draftKey);
+    }
+  }, [draftKey]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  function saveDraft(nextNames: string[], nextRooms: number[], nextEmail: string, nextPhone: string) {
+    window.sessionStorage.setItem(draftKey, JSON.stringify({ names: nextNames, rooms: nextRooms, email: nextEmail, phone: nextPhone }));
+  }
+
+  function clearFieldError(key: string) {
+    setFieldErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  }
 
   function applyStatus(result: CategorySelectionResponse) {
     setSelectionId(result.selection_id);
@@ -73,6 +106,7 @@ export default function CategorySelectButton({
     setQuote(selectedPrice?.value ? `${selectedPrice.currency ?? ""} ${selectedPrice.value}`.trim() : "");
     if (result.init_state === "INITIALIZED" || result.state === "INITIALIZED") {
       setInitState("initialized");
+      setAcceptedFinalQuote(false);
       setOrderId(result.order?.id ?? "");
       const finalPrice = result.order?.quote?.price;
       setFinalQuote(finalPrice?.value ? `${finalPrice.currency ?? ""} ${finalPrice.value}`.trim() : "");
@@ -194,6 +228,14 @@ export default function CategorySelectButton({
   }
 
   async function initialize() {
+    const nextErrors: Record<string, string> = {};
+    names.forEach((name, index) => {
+      if (!name.trim()) nextErrors[`person-${index}`] = `Enter this ${kind === "hotel" ? "guest" : "participant"}'s name.`;
+    });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) nextErrors.email = "Enter a valid email address.";
+    if (!/^[+]?[0-9][0-9 ()-]{5,30}[0-9]$/.test(phone)) nextErrors.phone = "Enter a valid contact phone number.";
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
     setInitState("initializing");
     setError("");
     try {
@@ -205,6 +247,8 @@ export default function CategorySelectButton({
         phone,
       );
       applyStatus(result);
+      setEditingDetails(false);
+      setAcceptedFinalQuote(false);
     } catch (requestError: unknown) {
       setInitState("idle");
       setError(requestError instanceof ApiError ? requestError.message : "Provider initialization could not be completed.");
@@ -240,8 +284,13 @@ export default function CategorySelectButton({
 
   return (
     <div style={{ display: "grid", gap: "0.65rem" }}>
-      <button type="button" onClick={() => void select()} disabled={selectionState !== "idle"}>
-        {selectionState === "selecting" ? "Validating with provider…" : selectionState === "selected" ? "Selected" : selectionState === "pending" ? "Provider response pending" : kind === "hotel" ? "Select this stay" : "Select this experience"}
+      <button
+        type="button"
+        className={`offer-primary-action${selectionState === "selected" ? " offer-selection-complete" : ""}`}
+        onClick={() => void select()}
+        disabled={selectionState !== "idle"}
+      >
+        {selectionState === "selecting" ? "Checking offer…" : selectionState === "selected" ? "Offer checked" : selectionState === "pending" ? "Provider response pending" : "Continue"}
       </button>
       {quote && <p role="status">Provider quote: {quote}</p>}
       {selectionState === "pending" && (
@@ -249,7 +298,7 @@ export default function CategorySelectButton({
           {refreshing ? "Checking provider outcome…" : "Refresh selection status"}
         </button>
       )}
-      {selectionState === "selected" && initState === "idle" && (
+      {selectionState === "selected" && (initState === "idle" || editingDetails) && (
         <div style={{ display: "grid", gap: "0.55rem" }}>
           <strong>{kind === "hotel" ? "Guest details" : "Participant details"}</strong>
           {names.map((name, index) => (
@@ -258,13 +307,24 @@ export default function CategorySelectButton({
               <input
                 aria-label={`${kind === "hotel" ? "Guest" : "Participant"} ${index + 1} name`}
                 value={name}
-                onChange={(event) => setNames((current) => current.map((entry, currentIndex) => currentIndex === index ? event.target.value : entry))}
+                aria-invalid={Boolean(fieldErrors[`person-${index}`])}
+                onChange={(event) => {
+                  const next = names.map((entry, currentIndex) => currentIndex === index ? event.target.value : entry);
+                  setNames(next);
+                  clearFieldError(`person-${index}`);
+                  saveDraft(next, roomAssignments, email, phone);
+                }}
               />
+              {fieldErrors[`person-${index}`] && <span className="field-error" role="alert">{fieldErrors[`person-${index}`]}</span>}
               {kind === "hotel" && (
                 <select
                   aria-label={`Guest ${index + 1} room`}
                   value={roomAssignments[index]}
-                  onChange={(event) => setRoomAssignments((current) => current.map((entry, currentIndex) => currentIndex === index ? Number(event.target.value) : entry))}
+                  onChange={(event) => {
+                    const next = roomAssignments.map((entry, currentIndex) => currentIndex === index ? Number(event.target.value) : entry);
+                    setRoomAssignments(next);
+                    saveDraft(names, next, email, phone);
+                  }}
                 >
                   {Array.from({ length: roomCount }, (_, roomIndex) => (
                     <option key={roomIndex + 1} value={roomIndex + 1}>Room {roomIndex + 1}</option>
@@ -275,14 +335,18 @@ export default function CategorySelectButton({
           ))}
           <label>
             Lead contact email
-            <input aria-label="Contact email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+            <input aria-label="Contact email" type="email" required value={email} aria-invalid={Boolean(fieldErrors.email)}
+              onChange={(event) => { setEmail(event.target.value); clearFieldError("email"); saveDraft(names, roomAssignments, event.target.value, phone); }} />
+            {fieldErrors.email && <span className="field-error" role="alert">{fieldErrors.email}</span>}
           </label>
           <label>
             Lead contact phone
-            <input aria-label="Contact phone" pattern="^\+?[0-9][0-9 ()-]{5,30}[0-9]$" title="Enter a valid contact phone number." value={phone} onChange={(event) => setPhone(event.target.value)} />
+            <input aria-label="Contact phone" pattern="^\+?[0-9][0-9 ()-]{5,30}[0-9]$" title="Enter a valid contact phone number." value={phone}
+              aria-invalid={Boolean(fieldErrors.phone)} onChange={(event) => { setPhone(event.target.value); clearFieldError("phone"); saveDraft(names, roomAssignments, email, event.target.value); }} />
+            {fieldErrors.phone && <span className="field-error" role="alert">{fieldErrors.phone}</span>}
           </label>
-          <button type="button" onClick={() => void initialize()} disabled={names.some((name) => !name.trim()) || !email || !phone}>
-            Initialize selected quote
+          <button type="button" className="offer-primary-action" onClick={() => void initialize()}>
+            {editingDetails ? "Update and reinitialize" : "Continue"}
           </button>
         </div>
       )}
@@ -296,7 +360,7 @@ export default function CategorySelectButton({
           </button>
         </div>
       )}
-      {initState === "initialized" && (
+      {initState === "initialized" && !editingDetails && (
         <div role="status">
           <strong>Review your booking</strong>
           <ul>{reviewDetails.map((detail) => <li key={detail}>{detail}</li>)}</ul>
@@ -319,6 +383,14 @@ export default function CategorySelectButton({
           )}
           {priceChanged && <p>The provider changed the price. Explicit acceptance is required before any later confirmation.</p>}
           {confirmState === "idle" && (
+            <button type="button" onClick={() => {
+              setEditingDetails(true);
+              setAcceptedFinalQuote(false);
+            }}>
+              Edit customer details
+            </button>
+          )}
+          {confirmState === "idle" && (
             <div>
               <label>
                 <input
@@ -334,7 +406,7 @@ export default function CategorySelectButton({
                 onClick={() => void confirm()}
                 disabled={!acceptedFinalQuote || !finalQuoteAmount || !finalQuoteCurrency}
               >
-                Confirm booking
+                Confirm simulated booking
               </button>
             </div>
           )}
@@ -354,6 +426,8 @@ export default function CategorySelectButton({
               <p>Payment status: Not paid (simulated; no payment was collected).</p>
               <p>Confirmation is provider-specific; other bookings are independent.</p>
               <p>{cancellationPolicy || "Mock policy: cancel before the scheduled start; no fee; unpaid orders have no refund."}</p>
+              <p><a href="/bookings">View My Bookings</a></p>
+              <p><Link href="/trips">Add to trip</Link></p>
               {cancelState === "cancelled" && (
                 <div role="status">
                   <strong>Booking cancelled</strong>

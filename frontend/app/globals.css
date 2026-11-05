@@ -88,7 +88,52 @@ h1, h2, h3, h4 {
   min-width: 0;
 }
 
-@media (max-width: 1023px) {
+.offer-primary-action {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+}
+
+.offer-primary-action + .field-error,
+.field-error {
+  display: block;
+  color: #a83a22;
+  font-size: 0.75rem;
+  margin-top: 0.3rem;
+}
+
+input[aria-invalid="true"],
+select[aria-invalid="true"] {
+  border-color: #a83a22;
+}
+
+@media (max-width: 767px) {
+  body {
+    padding-bottom: 5.25rem;
+  }
+
+  .offer-primary-action:not(.offer-selection-complete) {
+    position: fixed;
+    left: 1rem;
+    right: 1rem;
+    bottom: 0.75rem;
+    width: calc(100% - 2rem);
+    z-index: 40;
+    min-height: 48px;
+    box-shadow: 0 8px 24px rgba(26, 26, 24, 0.18);
+  }
+
+  .offer-facts-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .detail-gallery {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+  }
+}
+
+@media (max-width: 1099px) {
   .detail-layout,
   .itinerary-layout,
   .results-layout,
@@ -220,6 +265,156 @@ h1, h2, h3, h4 {
 
   .mobile-nav-drawer a:last-child {
     border-bottom: none;
+  }
+
+  .account-menu {
+    display: none !important;
+  }
+}
+
+.account-menu-popover {
+  position: absolute;
+  top: calc(100% + 0.75rem);
+  right: 0;
+  min-width: 210px;
+  display: grid;
+  gap: 0.75rem;
+  background: var(--forest);
+  border: 1px solid var(--border-dark);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+  padding: 1rem;
+  color: var(--cream);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+}
+
+.account-menu-popover button {
+  border: 0;
+  border-top: 1px solid var(--border-dark);
+  background: transparent;
+  color: var(--cream);
+  cursor: pointer;
+  text-align: left;
+  padding: 0.75rem 0 0;
+}
+
+.bookings-filter-bar {
+  display: flex;
+  gap: 2rem;
+  align-items: end;
+  background: var(--white);
+  border: 1px solid var(--border);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.filter-label {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+  margin-bottom: 0.5rem;
+}
+
+.filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.filter-option {
+  border: 1px solid var(--border);
+  padding: 0.45rem 0.75rem;
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+}
+
+.filter-option.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--white);
+}
+
+.booking-empty,
+.booking-list-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  padding: 1.25rem;
+}
+
+.booking-card-meta,
+.booking-card-price,
+.booking-status,
+.booking-card-link {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+}
+
+.booking-card-meta {
+  color: var(--ink-soft);
+  margin-top: 0.25rem;
+}
+
+.booking-card-price {
+  color: var(--ink);
+  margin-top: 0.35rem;
+}
+
+.booking-status {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+.status-confirmed {
+  color: var(--orange);
+}
+
+.status-cancelled {
+  color: var(--ink-muted);
+}
+
+.status-pending {
+  color: #8a5a00;
+}
+
+.status-rejected {
+  color: #8b1e1e;
+}
+
+.booking-card-link {
+  display: inline-block;
+  margin-top: 0.9rem;
+  color: var(--ink);
+}
+
+.booking-detail-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.booking-detail-card p {
+  min-width: 0;
+}
+
+@media (max-width: 600px) {
+  .booking-detail-shell {
+    padding: 2rem 1rem 4rem !important;
+  }
+
+  .booking-detail-card {
+    padding: 1.25rem !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .bookings-filter-bar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 1rem;
   }
 }
 
@@ -591,6 +786,14 @@ h1, h2, h3, h4 {
     grid-template-columns: 1fr !important;
   }
 
+  .stay-criteria-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .results-experiences-grid {
+    grid-template-columns: 1fr !important;
+  }
+
   .results-experience-card {
     grid-template-columns: 1fr !important;
   }
@@ -606,6 +809,14 @@ h1, h2, h3, h4 {
 
   .transport-result-side {
     align-items: flex-start !important;
+  }
+
+  .results-body {
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100%;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    overflow-x: hidden;
   }
 
   .detail-gallery {

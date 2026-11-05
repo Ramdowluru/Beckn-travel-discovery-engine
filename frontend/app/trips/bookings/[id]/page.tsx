@@ -22,6 +22,21 @@ function bookingLocation(booking: BookingRecord): string {
     || "";
 }
 
+function customerStatus(booking: BookingRecord): string {
+  if (booking.status === "CONFIRMED") return "Confirmed";
+  if (booking.status === "CANCELLED") return "Cancelled";
+  if (booking.status === "REJECTED") return "Rejected by provider";
+  if (booking.status === "INITIALIZED") return "Initialized";
+  return "Pending provider update";
+}
+
+function fulfillmentStatus(booking: BookingRecord): string {
+  const states = (booking.order.fulfillments ?? [])
+    .map((fulfillment) => fulfillment.state || fulfillment.status)
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+  return states.length ? [...new Set(states)].join(", ") : "";
+}
+
 export default async function BookingDetailPage({ params }: Props) {
   const { id } = await params;
   let booking: BookingRecord | null = null;
@@ -40,8 +55,8 @@ export default async function BookingDetailPage({ params }: Props) {
     <>
       <Navbar />
       <main style={{ flex: 1, backgroundColor: "var(--cream)" }}>
-        <div style={{ maxWidth: "900px", margin: "0 auto", padding: "3.5rem 2rem 5rem" }}>
-          <Link href="/trips" style={{ fontFamily: "var(--font-body)", fontSize: "0.8rem", color: "var(--ink-soft)" }}>
+        <div className="booking-detail-shell" style={{ maxWidth: "900px", margin: "0 auto", padding: "3.5rem 2rem 5rem" }}>
+          <Link href="/bookings" style={{ fontFamily: "var(--font-body)", fontSize: "0.8rem", color: "var(--ink-soft)" }}>
             ← My bookings
           </Link>
           {!booking ? (
@@ -50,8 +65,8 @@ export default async function BookingDetailPage({ params }: Props) {
               <p style={{ marginTop: "0.5rem", color: "var(--ink-soft)" }}>This booking was not found or is not available to this account.</p>
             </section>
           ) : (
-            <article style={{ marginTop: "2rem", padding: "2rem", background: "var(--white)", border: "1px solid var(--border)" }}>
-              <p className="tag-neutral">{booking.kind} booking · {booking.status.replaceAll("_", " ")}</p>
+            <article className="booking-detail-card" style={{ marginTop: "2rem", padding: "2rem", background: "var(--white)", border: "1px solid var(--border)" }}>
+              <p className="tag-neutral">{booking.kind} booking · {customerStatus(booking)}</p>
               <h1 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "2rem", color: "var(--ink)", marginTop: "0.4rem" }}>
                 {booking.service || "Provider booking"}
               </h1>
@@ -80,6 +95,7 @@ export default async function BookingDetailPage({ params }: Props) {
                   </p>
                 ))}
                 <p><strong>Simulated payment status:</strong> Not paid; no payment was collected.</p>
+                {fulfillmentStatus(booking) && <p><strong>Provider fulfillment status:</strong> {fulfillmentStatus(booking)}</p>}
               </div>
               {booking.status === "INITIALIZED" && <p role="status" style={{ marginTop: "1rem" }}>Initialized only. This does not confirm the booking or reserve inventory.</p>}
               {booking.status === "PENDING_UNKNOWN" && <p role="status" style={{ marginTop: "1rem" }}>Provider outcome is pending or unknown; use status refresh to reconcile safely.</p>}

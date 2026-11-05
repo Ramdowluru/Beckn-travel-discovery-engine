@@ -8,9 +8,7 @@ import type { BookingRecord, SavedItinerary, TripRecord, UserTrip } from "@/lib/
 /* ─── Sidebar nav ─────────────────────────────────────────────── */
 const sidebarNav = [
   { label: "My trips",       href: "/trips",              active: true  },
-  { label: "Saved settings", href: "/trips/settings",     active: false },
-  { label: "Preferences",    href: "/trips/preferences",  active: false },
-  { label: "Travel history", href: "/trips/history",      active: false },
+  { label: "Saved estimates", href: "/trips#saved-estimates", active: false },
   { label: "Help & support", href: "/help",               active: false },
 ];
 
@@ -26,13 +24,12 @@ const statusStyle: Record<TripStatus, { color: string; bg: string; border: strin
 export default async function TripsPage() {
   let savedItineraries: TripRecord[] = [];
   let bookings: BookingRecord[] = [];
-  let bookingsLoadError = "";
   let userTrips: UserTrip[] = [];
   let tripsLoadError = "";
   try {
     bookings = await serverApiFetch<BookingRecord[]>("/api/bookings");
-  } catch (error) {
-    bookingsLoadError = error instanceof Error ? error.message : "Bookings are temporarily unavailable.";
+  } catch {
+    /* Trip membership controls can still render without bookings loading. */
   }
   try {
     userTrips = await serverApiFetch<UserTrip[]>("/api/trips");
@@ -151,63 +148,12 @@ export default async function TripsPage() {
               initialError={tripsLoadError}
             />
 
-            <section aria-labelledby="bookings-heading" style={{ marginBottom: "2.5rem" }}>
-              <h2
-                id="bookings-heading"
-                style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "1.25rem", color: "var(--ink)", marginBottom: "1rem" }}
-              >
-                My bookings
-              </h2>
-              {bookingsLoadError ? (
-                <p role="alert" style={{ backgroundColor: "var(--white)", border: "1px solid var(--border)", padding: "1.25rem", color: "var(--ink-soft)", fontFamily: "var(--font-body)", fontSize: "0.85rem" }}>
-                  Bookings are temporarily unavailable: {bookingsLoadError}
-                </p>
-              ) : bookings.length === 0 ? (
-                <p style={{ backgroundColor: "var(--white)", border: "1px solid var(--border)", padding: "1.25rem", color: "var(--ink-soft)", fontFamily: "var(--font-body)", fontSize: "0.85rem" }}>
-                  No provider bookings yet. Saved itineraries are estimates and are listed separately below.
-                </p>
-              ) : (
-                <div style={{ display: "grid", gap: "0.75rem" }}>
-                  {bookings.map((booking) => (
-                    <article key={booking.id} style={{ backgroundColor: "var(--white)", border: "1px solid var(--border)", padding: "1.25rem" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
-                        <div>
-                          <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1rem", color: "var(--ink)" }}>
-                            {booking.service || (booking.kind === "hotel" ? "Hotel booking" : booking.kind === "experience" ? "Experience booking" : "Transport booking")}
-                          </h3>
-                          <p style={{ fontFamily: "var(--font-body)", fontSize: "0.8rem", color: "var(--ink-soft)", marginTop: "0.25rem" }}>
-                            {booking.provider_name || booking.provider_id} · {booking.kind}
-                          </p>
-                          {booking.provider_order_id && (
-                            <p style={{ fontFamily: "var(--font-body)", fontSize: "0.75rem", color: "var(--ink-muted)", marginTop: "0.25rem" }}>
-                              Provider reference: {booking.provider_order_id}
-                            </p>
-                          )}
-                        </div>
-                        <div style={{ textAlign: "right" }}>
-                          <strong style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: booking.status === "CONFIRMED" ? "var(--orange)" : "var(--ink-soft)" }}>
-                            {booking.status.replaceAll("_", " ")}
-                          </strong>
-                          <p style={{ fontFamily: "var(--font-body)", fontSize: "0.85rem", color: "var(--ink)", marginTop: "0.35rem" }}>
-                            {booking.quote?.price?.currency} {booking.quote?.price?.value}
-                          </p>
-                        </div>
-                      </div>
-                      <Link
-                        href={`/trips/bookings/${encodeURIComponent(booking.id)}`}
-                        style={{ display: "inline-block", marginTop: "0.9rem", color: "var(--ink)", fontFamily: "var(--font-body)", fontSize: "0.8rem" }}
-                      >
-                        Manage booking
-                      </Link>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "1.25rem", color: "var(--ink)", marginBottom: "1rem" }}>
-              Saved itineraries
+            <h2 id="saved-estimates" style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "1.25rem", color: "var(--ink)", marginBottom: "0.4rem" }}>
+              Saved options and estimates
             </h2>
+            <p style={{ fontFamily: "var(--font-body)", fontSize: "0.82rem", color: "var(--ink-soft)", marginBottom: "1rem" }}>
+              These saved search options are estimates, not confirmed bookings. Trips group existing bookings separately.
+            </p>
 
             {/* Empty state */}
             {savedItineraries.length === 0 && (

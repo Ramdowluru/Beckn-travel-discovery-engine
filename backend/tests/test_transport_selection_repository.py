@@ -54,6 +54,50 @@ class TransportSelectionRepositoryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(query["userId"], user_id)
         self.assertEqual(query["confirmState"], {"$in": ["CONFIRM_REQUESTED"]})
 
+    async def test_reinit_reset_archives_provider_order_and_clears_confirm_state(self):
+        repository = self._repository()
+        user_id = ObjectId()
+        previous = {
+            "selectionId": "selection-1",
+            "userId": user_id,
+            "state": "INITIALIZED",
+            "initMessageId": "init-old",
+            "providerOrder": {"id": "provider-order-old"},
+        }
+        repository._collection.find_one.return_value = previous
+        repository._collection.find_one_and_update.return_value = {
+            "selectionId": "selection-1",
+            "state": "SELECTED",
+        }
+
+        result = await repository.reset_initialized_for_reinit("selection-1", user_id)
+
+        self.assertEqual(result["state"], "SELECTED")
+        query = repository._collection.find_one_and_update.await_args.args[0]
+        update = repository._collection.find_one_and_update.await_args.args[1]
+        self.assertEqual(query["confirmState"], {
+            "$nin": ["CONFIRMED", "CONFIRM_REQUESTED", "PENDING_PROVIDER"],
+        })
+        self.assertEqual(update["$set"]["state"], "SELECTED")
+        self.assertIn("confirmBusinessKey", update["$unset"])
+        history = update["$push"]["initActionHistory"]
+        self.assertEqual(history["messageId"], "init-old")
+        self.assertEqual(history["providerOrderId"], "provider-order-old")
+        self.assertEqual(history["state"], "REPLACED")
+
+    async def test_reinit_reset_is_denied_when_confirmation_is_active(self):
+        repository = self._repository()
+        repository._collection.find_one.return_value = {
+            "selectionId": "selection-1",
+            "state": "INITIALIZED",
+            "confirmState": "CONFIRM_REQUESTED",
+        }
+        repository._collection.find_one_and_update.return_value = None
+
+        result = await repository.reset_initialized_for_reinit("selection-1", ObjectId())
+
+        self.assertIsNone(result)
+
     async def test_provider_order_identity_is_unique_within_trusted_bpp(self):
         repository = self._repository()
 

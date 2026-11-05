@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import {
   addBookingToTrip,
   createTrip,
@@ -267,17 +268,22 @@ export default function TripManagement({
                       {trip.destination} · {trip.start_date} – {trip.end_date}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    disabled={mutationsPending}
-                    onClick={() => {
-                      setFormError("");
-                      setEditingTripId(editing ? null : trip.id);
-                    }}
-                    style={secondaryButtonStyle}
-                  >
-                    {editing ? "Close editor" : "Edit trip"}
-                  </button>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                    <Link href={`/trips/${encodeURIComponent(trip.id)}/itinerary`} style={secondaryLinkStyle}>
+                      View itinerary
+                    </Link>
+                    <button
+                      type="button"
+                      disabled={mutationsPending}
+                      onClick={() => {
+                        setFormError("");
+                        setEditingTripId(editing ? null : trip.id);
+                      }}
+                      style={secondaryButtonStyle}
+                    >
+                      {editing ? "Close editor" : "Edit trip"}
+                    </button>
+                  </div>
                 </div>
 
                 {editing && (
@@ -372,4 +378,14 @@ const secondaryButtonStyle = {
   fontFamily: "var(--font-body)",
   fontSize: "0.75rem",
   cursor: "pointer",
+};
+
+const secondaryLinkStyle = {
+  border: "1px solid var(--border)",
+  backgroundColor: "transparent",
+  color: "var(--ink)",
+  padding: "0.45rem 0.7rem",
+  fontFamily: "var(--font-body)",
+  fontSize: "0.75rem",
+  textDecoration: "none",
 };

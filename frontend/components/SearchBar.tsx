@@ -414,6 +414,10 @@ function SearchBarInner() {
       travellers: String(travellers),
       tab: "travel",
     });
+    for (const key of ["check_in", "check_out", "rooms", "guests", "experience_date", "participants"]) {
+      const value = searchParams.get(key);
+      if (value) params.set(key, value);
+    }
     router.push(`/results?${params.toString()}`);
   }
 

@@ -77,3 +77,52 @@ def test_provider_init_revalidates_expiry_and_returns_changed_quote():
             tag["list"][0]["value"] = "2000-01-01T00:00:00Z"
     expired_callback = build_on_init(data, expired)
     assert expired_callback["error"]["code"] == "30005"
+
+
+def test_reinitialization_has_unique_provider_order_and_updated_customer_details():
+    data, request = _request()
+    selection = build_on_select(data, request)
+    order = selection["message"]["order"]
+    quote_expires_at = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
+    item = {"id": order["items"][0]["id"], "provider_id": order["provider"]["id"]}
+    first = build_transport_init(
+        transaction_id=request["context"]["transaction_id"],
+        message_id="33333333-3333-4333-8333-333333333333",
+        provider={"id": data["provider"]["bpp_id"], "uri": data["provider"]["bpp_uri"]},
+        item=item,
+        quantity=1,
+        quote=order["quote"],
+        fulfillment=order["items"][0]["fulfillment"],
+        details={
+            "travellers": [{"name": "Original Traveller"}],
+            "contact_email": "original@example.com",
+            "contact_phone": "1234567890",
+        },
+        quote_expires_at=quote_expires_at,
+    )
+    second = build_transport_init(
+        transaction_id=request["context"]["transaction_id"],
+        message_id="44444444-4444-4444-8444-444444444444",
+        provider={"id": data["provider"]["bpp_id"], "uri": data["provider"]["bpp_uri"]},
+        item=item,
+        quantity=1,
+        quote=order["quote"],
+        fulfillment=order["items"][0]["fulfillment"],
+        details={
+            "travellers": [{"name": "Edited Traveller"}],
+            "contact_email": "edited@example.com",
+            "contact_phone": "1234567891",
+        },
+        quote_expires_at=quote_expires_at,
+    )
+
+    first_order = build_on_init(data, first)["message"]["order"]
+    second_order = build_on_init(data, second)["message"]["order"]
+
+    assert first_order["id"] != second_order["id"]
+    assert second_order["billing"] == {
+        "name": "Edited Traveller",
+        "email": "edited@example.com",
+        "phone": "1234567891",
+    }
+    assert second_order["tags"][0]["list"][0]["value"] == "Edited Traveller"

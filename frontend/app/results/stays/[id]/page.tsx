@@ -8,15 +8,30 @@ import type { StayOption } from "@/lib/types";
 
 interface Props {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ transaction_id?: string; rooms?: string; guests?: string }>;
+  searchParams: Promise<{ transaction_id?: string; rooms?: string; guests?: string; from?: string; to?: string; date?: string; travellers?: string; check_in?: string; check_out?: string }>;
 }
 
 export default async function StayDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
   const decodedOfferId = decodeURIComponent(id);
-  const { transaction_id: transactionId = "", rooms: roomsParam, guests: guestsParam } = await searchParams;
+  const query = await searchParams;
+  const { transaction_id: transactionId = "", rooms: roomsParam, guests: guestsParam } = query;
   const rooms = Math.max(1, Number(roomsParam ?? 1));
   const guests = Math.max(1, Number(guestsParam ?? 1));
+  const resultsParams = new URLSearchParams({ tab: "stays" });
+  for (const [key, value] of Object.entries({
+    from: query.from,
+    to: query.to,
+    date: query.date,
+    travellers: query.travellers,
+    check_in: query.check_in,
+    check_out: query.check_out,
+    rooms: roomsParam,
+    guests: guestsParam,
+  })) {
+    if (value) resultsParams.set(key, value);
+  }
+  const resultsHref = `/results?${resultsParams.toString()}`;
 
   let stay: StayOption | null = null;
   try {
@@ -42,7 +57,7 @@ export default async function StayDetailPage({ params, searchParams }: Props) {
         {/* ── Breadcrumb ──────────────────────────────────────── */}
         <div style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--white)" }}>
           <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", height: "44px", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Link href="/results?tab=stays" style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-soft)", textDecoration: "none" }}>
+            <Link href={resultsHref} style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-soft)", textDecoration: "none" }}>
               Stays results
             </Link>
             <span style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}>→</span>
@@ -67,7 +82,7 @@ export default async function StayDetailPage({ params, searchParams }: Props) {
           )}
 
           {/* ── Two-column body ─────────────────────────────────── */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
+          <div className="detail-layout" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
 
             {/* Left */}
             <div>
@@ -112,6 +127,17 @@ export default async function StayDetailPage({ params, searchParams }: Props) {
                 ))}
               </div>
 
+              <div className="offer-facts-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "1px", border: "1px solid var(--border)", marginBottom: "1.5rem" }}>
+                <div style={{ backgroundColor: "var(--white)", padding: "1rem 1.25rem" }}>
+                  <p className="tag-neutral" style={{ marginBottom: "0.3rem" }}>Availability</p>
+                  <p style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>Checked when you continue</p>
+                </div>
+                <div style={{ backgroundColor: "var(--white)", padding: "1rem 1.25rem" }}>
+                  <p className="tag-neutral" style={{ marginBottom: "0.3rem" }}>Quantity</p>
+                  <p style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>{rooms} {rooms === 1 ? "room" : "rooms"} · {guests} {guests === 1 ? "guest" : "guests"}</p>
+                </div>
+              </div>
+
               {/* Cancellation */}
               <div style={{ backgroundColor: "var(--white)", border: "1px solid var(--border)", padding: "1rem 1.25rem" }}>
                 <p className="tag-neutral" style={{ marginBottom: "0.4rem" }}>Cancellation policy</p>
@@ -152,7 +178,7 @@ export default async function StayDetailPage({ params, searchParams }: Props) {
                   ]}
                 />
                 <Link
-                  href="/results?tab=stays"
+                  href={resultsHref}
                   style={{ display: "block", width: "100%", backgroundColor: "transparent", color: "var(--ink)", fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.875rem", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", border: "1px solid var(--border)" }}
                 >
                   Back to results

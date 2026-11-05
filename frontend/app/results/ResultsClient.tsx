@@ -8,9 +8,9 @@ import type { TransportOption, StayOption, ExperienceOption } from "@/lib/types"
 
 /* ─── Constants ───────────────────────────────────────────────── */
 const tabs = [
-  { key: "travel",      label: "Travel",      from: "from ₹950"          },
-  { key: "stays",       label: "Stays",       from: "from ₹2,200/night"  },
-  { key: "experiences", label: "Experiences", from: "from ₹500"          },
+  { key: "travel",      label: "Travel" },
+  { key: "stays",       label: "Stays" },
+  { key: "experiences", label: "Experiences" },
 ];
 
 const DEPARTURE_HOURS: Record<string, [number, number]> = {
@@ -35,6 +35,18 @@ function parseDurationMinutes(value: string): number | null {
   const hours = match[1] ? Number(match[1]) : 0;
   const minutes = match[2] ? Number(match[2]) : 0;
   return Number.isFinite(hours) && Number.isFinite(minutes) ? hours * 60 + minutes : null;
+}
+
+function categoryDetailUrl(
+  basePath: string,
+  searchParams: URLSearchParams,
+  tab: "stays" | "experiences",
+  values: Record<string, string | number>,
+): string {
+  const params = new URLSearchParams(searchParams.toString());
+  params.set("tab", tab);
+  Object.entries(values).forEach(([key, value]) => params.set(key, String(value)));
+  return `${basePath}?${params.toString()}`;
 }
 
 /* ─── Shared style snippets ───────────────────────────────────── */
@@ -76,6 +88,11 @@ function LoadingState() {
 export default function ResultsClient() {
   const searchParams = useSearchParams();
   const router       = useRouter();
+  const queryParamsRef = useRef(searchParams.toString());
+
+  useEffect(() => {
+    queryParamsRef.current = searchParams.toString();
+  }, [searchParams]);
 
   const activeTab  = searchParams.get("tab")        ?? "travel";
   const fromCity   = searchParams.get("from")       ?? "";
@@ -110,7 +127,7 @@ export default function ResultsClient() {
   const [experienceError, setExperienceError] = useState("");
 
   // Transport discovery starts immediately; hotel discovery has its own lifecycle below.
-  /* eslint-disable react-hooks/set-state-in-effect */
+  /* eslint-disable react-hooks/set-state-in-effect -- Transport discovery starts a cancellable provider request and publishes its lifecycle state. */
   useEffect(() => {
     const currentRequestId = ++requestId.current;
     const controller = new AbortController();
@@ -142,10 +159,10 @@ export default function ResultsClient() {
         if (currentRequestId === requestId.current) setLoading(false);
       });
     return () => controller.abort();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromCity, toCity, dateRaw, travellers]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  /* eslint-disable react-hooks/set-state-in-effect -- Hotel discovery starts a cancellable provider request and publishes its lifecycle state. */
   useEffect(() => {
     const validCriteria = Boolean(
       toCity && checkIn && checkOut && checkOut > checkIn &&
@@ -153,11 +170,6 @@ export default function ResultsClient() {
       Number.isInteger(guests) && guests >= 1 && guests <= 18,
     );
     if (!validCriteria) {
-      setHotelLoading(false);
-      setHotelError("");
-      setStayOptions([]);
-      setStayTransactionId("");
-      setCounts((current) => ({ ...current, stays: 0 }));
       return;
     }
 
@@ -173,9 +185,10 @@ export default function ResultsClient() {
       guests: String(guests),
       tab: "stays",
     });
-    const nextUrl = new URLSearchParams(searchParams.toString());
+    const nextUrl = new URLSearchParams(queryParamsRef.current);
     for (const [key, value] of params) nextUrl.set(key, value);
     nextUrl.set("tab", activeTab);
+    queryParamsRef.current = nextUrl.toString();
     router.replace(`/results?${nextUrl.toString()}`);
 
     fetchSearch(params, controller.signal)
@@ -197,18 +210,15 @@ export default function ResultsClient() {
     return () => controller.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toCity, checkIn, checkOut, rooms, guests]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
+  /* eslint-disable react-hooks/set-state-in-effect -- Experience discovery starts a cancellable provider request and publishes its lifecycle state. */
   useEffect(() => {
     const validCriteria = Boolean(
       toCity && experienceDate &&
       Number.isInteger(participants) && participants >= 1 && participants <= 18,
     );
     if (!validCriteria) {
-      setExperienceLoading(false);
-      setExperienceError("");
-      setExperienceOptions([]);
-      setExperienceTransactionId("");
-      setCounts((current) => ({ ...current, experiences: 0 }));
       return;
     }
 
@@ -224,10 +234,6 @@ export default function ResultsClient() {
       participants: String(participants),
       tab: "experiences",
     });
-    const nextUrl = new URLSearchParams(searchParams.toString());
-    nextUrl.set("experience_date", experienceDate);
-    nextUrl.set("participants", String(participants));
-    router.replace(`/results?${nextUrl.toString()}`);
 
     fetchSearch(params, controller.signal)
       .then((data) => {
@@ -246,8 +252,8 @@ export default function ResultsClient() {
         if (currentRequestId === experienceRequestId.current) setExperienceLoading(false);
       });
     return () => controller.abort();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toCity, experienceDate, participants]);
+  }, [toCity, dateRaw, travellers, experienceDate, participants]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   /* ── Derived max values ─────────────────────────────────────── */
   const TRANSPORT_MAX = useMemo(() =>
@@ -259,23 +265,31 @@ export default function ResultsClient() {
   [stayOptions]);
 
   /* ── Transport filters ─────────────────────────────────────── */
-  const [selTimes,  setSelTimes]  = useState<string[]>([]);
-  const [selTypes,  setSelTypes]  = useState<string[]>([]);
+  const [selTimes,  setSelTimes]  = useState<string[]>(searchParams.get("times")?.split(",").filter(Boolean) ?? []);
+  const [selTypes,  setSelTypes]  = useState<string[]>(searchParams.get("types")?.split(",").filter(Boolean) ?? []);
   const [maxTPrice, setMaxTPrice] = useState(TRANSPORT_MAX);
-  const [transportSort, setTransportSort] = useState<"none" | "priceAsc" | "priceDesc" | "duration">("none");
+  const [transportSort, setTransportSort] = useState<"none" | "priceAsc" | "priceDesc" | "duration">(
+    (searchParams.get("transport_sort") as "none" | "priceAsc" | "priceDesc" | "duration") ?? "none",
+  );
 
   /* ── Stay filters ──────────────────────────────────────────── */
-  const [minRating, setMinRating] = useState(0);
-  const [staySort,  setStaySort]  = useState<"none" | "asc" | "desc">("none");
-  const [selAmen,   setSelAmen]   = useState<string[]>([]);
+  const [minRating, setMinRating] = useState(Number(searchParams.get("stay_rating") ?? 0));
+  const [staySort,  setStaySort]  = useState<"none" | "asc" | "desc">(
+    (searchParams.get("stay_sort") as "none" | "asc" | "desc") ?? "none",
+  );
+  const [selAmen,   setSelAmen]   = useState<string[]>(searchParams.get("stay_amenities")?.split("|").filter(Boolean) ?? []);
   const [maxSPrice, setMaxSPrice] = useState(STAY_MAX);
 
   /* ── Experience filter ─────────────────────────────────────── */
-  const [activeCat, setActiveCat] = useState("Food");
+  const [activeCat, setActiveCat] = useState(searchParams.get("experience_category") ?? "Food");
 
   /* Sync slider maxima when data loads */
+  // Results are fetched asynchronously; keep the user-controlled slider bounds aligned with new provider data.
+  /* eslint-disable react-hooks/set-state-in-effect -- Provider data changes the numeric bounds of the controlled price sliders. */
   useEffect(() => { setMaxTPrice(TRANSPORT_MAX); }, [TRANSPORT_MAX]);
+  // Results are fetched asynchronously; keep the user-controlled slider bounds aligned with new provider data.
   useEffect(() => { setMaxSPrice(STAY_MAX); }, [STAY_MAX]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   /* ── Derived lists ─────────────────────────────────────────── */
   const filteredTransport = useMemo(() => {
@@ -338,9 +352,26 @@ export default function ResultsClient() {
 
   /* ── Tab switch ────────────────────────────────────────────── */
   function switchTab(tab: string) {
-    const p = new URLSearchParams(searchParams.toString());
+    const p = new URLSearchParams(queryParamsRef.current);
     p.set("tab", tab);
+    queryParamsRef.current = p.toString();
     router.push(`/results?${p.toString()}`);
+  }
+
+  function updateListParam(key: string, values: string[]) {
+    const p = new URLSearchParams(queryParamsRef.current);
+    if (values.length > 0) p.set(key, values.join(key === "stay_amenities" ? "|" : ","));
+    else p.delete(key);
+    queryParamsRef.current = p.toString();
+    router.replace(`/results?${p.toString()}`, { scroll: false });
+  }
+
+  function updateCategoryParam(key: string, value: string | number) {
+    const p = new URLSearchParams(queryParamsRef.current);
+    if (value === "" || value === 0) p.delete(key);
+    else p.set(key, String(value));
+    queryParamsRef.current = p.toString();
+    router.replace(`/results?${p.toString()}`, { scroll: false });
   }
 
   /* ── Price slider track fill % ─────────────────────────────── */
@@ -351,7 +382,7 @@ export default function ResultsClient() {
     <>
       {/* ── Context bar ───────────────────────────────────────── */}
       <div style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--white)" }}>
-        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", height: "44px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="results-context-inner" style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", height: "44px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
             {fromCity && toCity && (
               <span style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.85rem", color: "var(--ink)" }}>
@@ -370,7 +401,19 @@ export default function ResultsClient() {
             </span>
           </div>
           <Link
-            href={`/home?from=${encodeURIComponent(fromCity)}&to=${encodeURIComponent(toCity)}&date=${dateRaw}&travellers=${travellers}`}
+            href={`/home?${(() => {
+              const params = new URLSearchParams({
+                from: fromCity,
+                to: toCity,
+                date: dateRaw,
+                travellers,
+              });
+              for (const key of ["check_in", "check_out", "rooms", "guests", "experience_date", "participants"]) {
+                const value = searchParams.get(key);
+                if (value) params.set(key, value);
+              }
+              return params.toString();
+            })()}`}
             style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.8rem", color: "var(--orange)", textDecoration: "none" }}
           >
             Edit search
@@ -380,20 +423,20 @@ export default function ResultsClient() {
 
       {/* ── Tab bar ───────────────────────────────────────────── */}
       <div style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--white)" }}>
-        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", display: "flex" }}>
+        <div className="results-tabs-inner" style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", display: "flex" }}>
           {tabs.map((tab) => {
             const isActive = activeTab === tab.key;
             const count = tab.key === "travel" ? counts.transport : tab.key === "stays" ? counts.stays : counts.experiences;
             return (
-              <button key={tab.key} onClick={() => switchTab(tab.key)}
+              <button key={tab.key} className="results-tab" onClick={() => switchTab(tab.key)} type="button" aria-pressed={isActive}
                 style={{ background: "none", border: "none", borderBottom: isActive ? "2px solid var(--orange)" : "2px solid transparent", padding: "1rem 2rem 0.875rem", cursor: "pointer", textAlign: "left", transition: "border-color 0.15s", marginBottom: "-1px" }}>
                 <p style={{ fontFamily: "var(--font-body)", fontWeight: isActive ? 600 : 400, fontSize: "0.875rem", color: isActive ? "var(--orange)" : "var(--ink-soft)", marginBottom: "0.15rem" }}>
                   {tab.label}
                 </p>
                 <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.75rem", color: "var(--ink-muted)" }}>
-                  {tab.key === "travel" && loading || tab.key === "stays" && hotelLoading
+                  {tab.key === "travel" && loading || tab.key === "stays" && hotelLoading || tab.key === "experiences" && experienceLoading
                     ? "…"
-                    : `${count} options`}, {tab.from}
+                    : `${count} options`}
                 </p>
               </button>
             );
@@ -402,7 +445,7 @@ export default function ResultsClient() {
       </div>
 
       {/* ── Body ──────────────────────────────────────────────── */}
-      <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "2rem 2rem 4rem", display: "grid", gridTemplateColumns: activeTab === "experiences" ? "1fr" : "1fr 280px", gap: "2rem", alignItems: "start" }}>
+      <div className="results-body" style={{ maxWidth: "1200px", margin: "0 auto", padding: "2rem 2rem 4rem", display: "grid", gridTemplateColumns: activeTab === "experiences" ? "1fr" : "1fr 280px", gap: "2rem", alignItems: "start" }}>
 
         {/* ── Left: results ─────────────────────────────────── */}
         <div>
@@ -421,9 +464,13 @@ export default function ResultsClient() {
                 )}
               </div>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1rem" }}>
-                <button onClick={() => setTransportSort(transportSort === "priceAsc" ? "none" : "priceAsc")} style={PILL(transportSort === "priceAsc")}>Price: Low to High</button>
-                <button onClick={() => setTransportSort(transportSort === "priceDesc" ? "none" : "priceDesc")} style={PILL(transportSort === "priceDesc")}>Price: High to Low</button>
-                <button onClick={() => setTransportSort(transportSort === "duration" ? "none" : "duration")} style={PILL(transportSort === "duration")}>Duration: Shortest</button>
+                {[["priceAsc", "Price: Low to High"], ["priceDesc", "Price: High to Low"], ["duration", "Duration: Shortest"]].map(([value, label]) => (
+                  <button key={value} type="button" aria-pressed={transportSort === value} onClick={() => {
+                    const next = transportSort === value ? "none" : value;
+                    setTransportSort(next as typeof transportSort);
+                    updateCategoryParam("transport_sort", next === "none" ? "" : next);
+                  }} style={PILL(transportSort === value)}>{label}</button>
+                ))}
               </div>
 
               {searchError ? <EmptyState message={searchError} /> : loading ? <LoadingState /> : (
@@ -441,7 +488,7 @@ export default function ResultsClient() {
                   ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "1px", backgroundColor: "var(--border)" }}>
                   {filteredTransport.map((opt) => (
-                    <div key={opt.id} style={{ backgroundColor: "var(--white)", padding: "1.25rem 1.5rem", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: "1.5rem" }}>
+                    <div key={opt.id} className="transport-result" style={{ backgroundColor: "var(--white)", padding: "1.25rem 1.5rem", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: "1.5rem" }}>
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.75rem" }}>
                           <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "0.9rem", color: "var(--ink)" }}>{opt.provider}</span>
@@ -467,10 +514,10 @@ export default function ResultsClient() {
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.75rem" }}>
                         <div style={{ textAlign: "right" }}>
                           <span style={{ display: "block", fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.2rem", color: "var(--ink)", letterSpacing: "-0.01em" }}>
-                            {opt.currency} {opt.unitPrice.toLocaleString("en-IN", { maximumFractionDigits: 2 })} per person
+                            {opt.currency} {opt.totalPrice.toLocaleString("en-IN", { maximumFractionDigits: 2 })} total
                           </span>
                           <span style={{ display: "block", fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.7rem", color: "var(--ink-muted)", marginTop: "0.2rem" }}>
-                            {opt.currency} {opt.totalPrice.toLocaleString("en-IN", { maximumFractionDigits: 2 })} total for {opt.travellerCount} {opt.travellerCount === 1 ? "traveller" : "travellers"}
+                            {opt.currency} {opt.unitPrice.toLocaleString("en-IN", { maximumFractionDigits: 2 })} per person · {opt.travellerCount} {opt.travellerCount === 1 ? "traveller" : "travellers"}
                           </span>
                         </div>
                         <Link href={`/results/transport/${encodeURIComponent(opt.id)}?transaction_id=${encodeURIComponent(transactionId)}`}
@@ -494,22 +541,22 @@ export default function ResultsClient() {
                 <p style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.8rem", color: "var(--ink)", marginBottom: "0.75rem" }}>
                   Stay details in {toCity}
                 </p>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.75rem", alignItems: "end" }}>
+                <div className="stay-criteria-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.75rem", alignItems: "end" }}>
                   <label>
                     <span style={{ display: "block", fontFamily: "var(--font-mono)", fontSize: "0.6rem", color: "var(--ink-muted)", marginBottom: "0.3rem" }}>CHECK-IN</span>
-                    <input type="date" value={checkIn} min={dateRaw} onChange={(event) => setCheckIn(event.target.value)} style={{ width: "100%", border: "1px solid var(--border)", padding: "0.45rem", fontFamily: "var(--font-body)" }} />
+                    <input type="date" value={checkIn} min={dateRaw} onChange={(event) => { setCheckIn(event.target.value); updateCategoryParam("check_in", event.target.value); }} style={{ width: "100%", border: "1px solid var(--border)", padding: "0.45rem", fontFamily: "var(--font-body)" }} />
                   </label>
                   <label>
                     <span style={{ display: "block", fontFamily: "var(--font-mono)", fontSize: "0.6rem", color: "var(--ink-muted)", marginBottom: "0.3rem" }}>CHECK-OUT</span>
-                    <input type="date" value={checkOut} min={checkIn || dateRaw} onChange={(event) => setCheckOut(event.target.value)} style={{ width: "100%", border: "1px solid var(--border)", padding: "0.45rem", fontFamily: "var(--font-body)" }} />
+                    <input type="date" value={checkOut} min={checkIn || dateRaw} onChange={(event) => { setCheckOut(event.target.value); updateCategoryParam("check_out", event.target.value); }} style={{ width: "100%", border: "1px solid var(--border)", padding: "0.45rem", fontFamily: "var(--font-body)" }} />
                   </label>
                   <label>
                     <span style={{ display: "block", fontFamily: "var(--font-mono)", fontSize: "0.6rem", color: "var(--ink-muted)", marginBottom: "0.3rem" }}>ROOMS</span>
-                    <input type="number" min={1} max={9} value={rooms} onChange={(event) => setRooms(Number(event.target.value))} style={{ width: "100%", border: "1px solid var(--border)", padding: "0.45rem", fontFamily: "var(--font-body)" }} />
+                    <input type="number" min={1} max={9} value={rooms} onChange={(event) => { setRooms(Number(event.target.value)); updateCategoryParam("rooms", Number(event.target.value)); }} style={{ width: "100%", border: "1px solid var(--border)", padding: "0.45rem", fontFamily: "var(--font-body)" }} />
                   </label>
                   <label>
                     <span style={{ display: "block", fontFamily: "var(--font-mono)", fontSize: "0.6rem", color: "var(--ink-muted)", marginBottom: "0.3rem" }}>GUESTS</span>
-                    <input type="number" min={1} max={18} value={guests} onChange={(event) => setGuests(Number(event.target.value))} style={{ width: "100%", border: "1px solid var(--border)", padding: "0.45rem", fontFamily: "var(--font-body)" }} />
+                    <input type="number" min={1} max={18} value={guests} onChange={(event) => { setGuests(Number(event.target.value)); updateCategoryParam("guests", Number(event.target.value)); }} style={{ width: "100%", border: "1px solid var(--border)", padding: "0.45rem", fontFamily: "var(--font-body)" }} />
                   </label>
                 </div>
                 {!checkOut || checkOut <= checkIn ? (
@@ -529,9 +576,21 @@ export default function ResultsClient() {
 
               {/* Filter pills */}
               <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.75rem", flexWrap: "wrap" }}>
-                <button onClick={() => setMinRating(minRating === 4 ? 0 : 4)} style={PILL(minRating === 4)}>Rating 4+</button>
-                <button onClick={() => setStaySort(staySort === "asc" ? "none" : "asc")} style={PILL(staySort === "asc")}>Price: low to high</button>
-                <button onClick={() => setSelAmen(toggle(selAmen, "Free cancellation"))} style={PILL(selAmen.includes("Free cancellation"))}>Free cancellation</button>
+                <button type="button" aria-pressed={minRating === 4} onClick={() => {
+                  const next = minRating === 4 ? 0 : 4;
+                  setMinRating(next);
+                  updateCategoryParam("stay_rating", next);
+                }} style={PILL(minRating === 4)}>Rating 4+</button>
+                <button type="button" aria-pressed={staySort === "asc"} onClick={() => {
+                  const next = staySort === "asc" ? "none" : "asc";
+                  setStaySort(next);
+                  updateCategoryParam("stay_sort", next === "none" ? "" : next);
+                }} style={PILL(staySort === "asc")}>Price: low to high</button>
+                <button type="button" aria-pressed={selAmen.includes("Free cancellation")} onClick={() => {
+                  const next = toggle(selAmen, "Free cancellation");
+                  setSelAmen(next);
+                  updateListParam("stay_amenities", next);
+                }} style={PILL(selAmen.includes("Free cancellation"))}>Free cancellation</button>
               </div>
 
               {hotelError ? <EmptyState message={hotelError} /> : hotelLoading ? <LoadingState /> : filteredStays.length === 0 ? (
@@ -540,7 +599,7 @@ export default function ResultsClient() {
                   : "No stays match your filters. Try adjusting the options on the right."
                 } />
               ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1px", backgroundColor: "var(--border)", border: "1px solid var(--border)" }}>
+                <div className="results-stays-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1px", backgroundColor: "var(--border)", border: "1px solid var(--border)" }}>
                   {filteredStays.map((stay) => (
                     <div key={stay.id} style={{ backgroundColor: "var(--white)" }}>
                       <div style={{ width: "100%", aspectRatio: "4/3", overflow: "hidden", backgroundColor: "var(--cream-dark)" }}>
@@ -564,12 +623,17 @@ export default function ResultsClient() {
                         <div style={{ borderTop: "1px solid var(--border)", paddingTop: "0.875rem", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                           <div>
                             <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.05rem", color: "var(--ink)", letterSpacing: "-0.01em" }}>
-                              {stay.pricePerNight}
-                              <span style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.72rem", color: "var(--ink-muted)", marginLeft: "0.25rem" }}>/ night</span>
+                                          {stay.totalPrice}
+                                          <span style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.72rem", color: "var(--ink-muted)", marginLeft: "0.25rem" }}>total</span>
                             </p>
-                            <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.7rem", color: "var(--ink-muted)" }}>{stay.totalPrice} total · {stay.nights} nights</p>
+                                        <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.7rem", color: "var(--ink-muted)" }}>{stay.pricePerNight} per night · {stay.nights} nights · {rooms} {rooms === 1 ? "room" : "rooms"}</p>
                           </div>
-                          <Link href={`/results/stays/${encodeURIComponent(stay.id)}?transaction_id=${encodeURIComponent(stayTransactionId)}&rooms=${rooms}&guests=${guests}`}
+                          <Link href={categoryDetailUrl(
+                            `/results/stays/${encodeURIComponent(stay.id)}`,
+                            new URLSearchParams(searchParams.toString()),
+                            "stays",
+                            { transaction_id: stayTransactionId, rooms, guests, check_in: checkIn, check_out: checkOut },
+                          )}
                             style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.75rem", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--white)", backgroundColor: "var(--ink)", padding: "0.5rem 1rem", textDecoration: "none", whiteSpace: "nowrap" }}>
                             View stay
                           </Link>
@@ -594,18 +658,18 @@ export default function ResultsClient() {
                 </span>
               </div>
               <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.825rem", color: "var(--ink-soft)", marginBottom: "1.5rem" }}>
-                Per-person pricing is multiplied by participants. You can validate and initialize a provider quote; this does not reserve a place or collect payment.
+                Prices are shown per person and for the selected number of participants. Booking does not reserve a place or collect payment.
               </p>
 
               <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
                 <label style={{ fontFamily: "var(--font-body)", fontSize: "0.75rem", color: "var(--ink-soft)" }}>
                   Date
-                  <input type="date" value={experienceDate} onChange={(event) => setExperienceDate(event.target.value)}
+                  <input type="date" value={experienceDate} onChange={(event) => { setExperienceDate(event.target.value); updateCategoryParam("experience_date", event.target.value); }}
                     style={{ display: "block", marginTop: "0.35rem", padding: "0.45rem", border: "1px solid var(--border)" }} />
                 </label>
                 <label style={{ fontFamily: "var(--font-body)", fontSize: "0.75rem", color: "var(--ink-soft)" }}>
                   Participants
-                  <input type="number" min={1} max={18} value={participants} onChange={(event) => setParticipants(Number(event.target.value))}
+                  <input type="number" min={1} max={18} value={participants} onChange={(event) => { setParticipants(Number(event.target.value)); updateCategoryParam("participants", Number(event.target.value)); }}
                     style={{ display: "block", marginTop: "0.35rem", padding: "0.45rem", border: "1px solid var(--border)", width: "7rem" }} />
                 </label>
               </div>
@@ -613,7 +677,10 @@ export default function ResultsClient() {
               {/* Category pills */}
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "2rem" }}>
                 {EXP_CATEGORIES.map((cat) => (
-                  <button key={cat} onClick={() => setActiveCat(cat)} style={PILL(activeCat === cat)}>
+                  <button key={cat} onClick={() => {
+                    setActiveCat(cat);
+                    updateCategoryParam("experience_category", cat);
+                  }} style={PILL(activeCat === cat)}>
                     {cat}
                   </button>
                 ))}
@@ -625,9 +692,9 @@ export default function ResultsClient() {
                   : "No experiences in this category yet."
                 } />
               ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1px", backgroundColor: "var(--border)", border: "1px solid var(--border)" }}>
+                <div className="results-experiences-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1px", backgroundColor: "var(--border)", border: "1px solid var(--border)" }}>
                   {filteredExp.map((exp) => (
-                    <div key={exp.id} style={{ backgroundColor: "var(--white)", display: "grid", gridTemplateColumns: "200px 1fr" }}>
+                    <div key={exp.id} className="results-experience-card" style={{ backgroundColor: "var(--white)", display: "grid", gridTemplateColumns: "200px 1fr" }}>
                       <div style={{ overflow: "hidden", backgroundColor: "var(--cream-dark)" }}>
                         {exp.image && (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -650,10 +717,15 @@ export default function ResultsClient() {
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.1rem", color: "var(--ink)", letterSpacing: "-0.01em" }}>
-                            {exp.price}
-                            <small style={{ display: "block", fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.7rem", color: "var(--ink-muted)" }}>{exp.totalPrice} total</small>
+                            {exp.totalPrice} total
+                            <small style={{ display: "block", fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.7rem", color: "var(--ink-muted)" }}>{exp.price} · {participants} {participants === 1 ? "participant" : "participants"}</small>
                           </span>
-                          <Link href={`/results/experiences/${encodeURIComponent(exp.id)}?transaction_id=${encodeURIComponent(experienceTransactionId)}&participants=${participants}`}
+                          <Link href={categoryDetailUrl(
+                            `/results/experiences/${encodeURIComponent(exp.id)}`,
+                            new URLSearchParams(searchParams.toString()),
+                            "experiences",
+                            { transaction_id: experienceTransactionId, participants, experience_date: experienceDate },
+                          )}
                             style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.75rem", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--white)", backgroundColor: "var(--ink)", padding: "0.5rem 1rem", textDecoration: "none", whiteSpace: "nowrap" }}>
                             View
                           </Link>
@@ -707,7 +779,7 @@ export default function ResultsClient() {
                     <p className="tag-neutral" style={{ marginBottom: "0.75rem" }}>Departure time</p>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
                       {["Morning", "Afternoon", "Evening"].map((t) => (
-                        <button key={t} onClick={() => setSelTimes(toggle(selTimes, t))} style={PILL(selTimes.includes(t))}>
+                        <button key={t} onClick={() => { const next = toggle(selTimes, t); setSelTimes(next); updateListParam("times", next); }} style={PILL(selTimes.includes(t))}>
                           {t}
                         </button>
                       ))}
@@ -717,7 +789,7 @@ export default function ResultsClient() {
                     <p className="tag-neutral" style={{ marginBottom: "0.75rem" }}>Type</p>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
                       {["Flight", "Train", "Bus"].map((t) => (
-                        <button key={t} onClick={() => setSelTypes(toggle(selTypes, TYPE_MAP[t]))} style={PILL(selTypes.includes(TYPE_MAP[t]))}>
+                        <button key={t} onClick={() => { const next = toggle(selTypes, TYPE_MAP[t]); setSelTypes(next); updateListParam("types", next); }} style={PILL(selTypes.includes(TYPE_MAP[t]))}>
                           {t}
                         </button>
                       ))}
@@ -733,7 +805,7 @@ export default function ResultsClient() {
                     <p className="tag-neutral" style={{ marginBottom: "0.75rem" }}>Rating</p>
                     <div style={{ display: "flex", gap: "0.5rem" }}>
                       {[3, 4, 4.5].map((r) => (
-                        <button key={r} onClick={() => setMinRating(minRating === r ? 0 : r)} style={PILL(minRating === r)}>
+                        <button key={r} onClick={() => { const next = minRating === r ? 0 : r; setMinRating(next); updateCategoryParam("stay_rating", next); }} style={PILL(minRating === r)}>
                           ★ {r}+
                         </button>
                       ))}
@@ -746,7 +818,7 @@ export default function ResultsClient() {
                         const on = selAmen.includes(a);
                         return (
                           <label key={a} style={{ display: "flex", alignItems: "center", gap: "0.6rem", cursor: "pointer" }}
-                            onClick={() => setSelAmen(toggle(selAmen, a))}>
+                            onClick={() => { const next = toggle(selAmen, a); setSelAmen(next); updateListParam("stay_amenities", next); }}>
                             <div style={{ width: "14px", height: "14px", border: "1px solid var(--border)", backgroundColor: on ? "var(--ink)" : "transparent", flexShrink: 0, transition: "background-color 0.15s" }} />
                             <span style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: on ? "var(--ink)" : "var(--ink-soft)" }}>{a}</span>
                           </label>
@@ -760,8 +832,8 @@ export default function ResultsClient() {
               {/* ── Trust note ────────────────────────────────── */}
               <div style={{ borderTop: "1px solid var(--border)", paddingTop: "1.25rem" }}>
                 <p style={{ fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.775rem", color: "var(--ink-soft)", lineHeight: 1.6 }}>
-                  <strong style={{ color: "var(--ink)" }}>Book direct, save more.</strong>{" "}
-                  No markup or hidden platform fees — the price you see is what the provider charges.
+                  <strong style={{ color: "var(--ink)" }}>Provider prices.</strong>{" "}
+                  Totals are shown for your selected quantity. Availability and final terms are confirmed during booking.
                 </p>
               </div>
             </div>

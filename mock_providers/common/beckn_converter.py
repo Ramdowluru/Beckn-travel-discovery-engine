@@ -291,7 +291,10 @@ def build_on_init(data: dict, request: dict) -> dict:
     return {
         "context": context,
         "message": {"order": {
-            "id": f"order-{request['context']['transaction_id'][:12]}-{item_id}",
+            "id": (
+                f"order-{request['context']['transaction_id'][:8]}-"
+                f"{request['context']['message_id'][:8]}-{item_id}"
+            ),
             "state": "INITIALIZED",
             "provider": {"id": provider["id"], "descriptor": {"name": provider["name"]}},
             "billing": billing,
