@@ -15,8 +15,10 @@ import {
 export default function BookingManagement({ booking: initialBooking }: { booking: BookingRecord }) {
   const router = useRouter();
   const [booking, setBooking] = useState(initialBooking);
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState("Booked by mistake");
+  const [otherReason, setOtherReason] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [showCancellation, setShowCancellation] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [refreshCooldown, setRefreshCooldown] = useState(false);
@@ -53,14 +55,15 @@ export default function BookingManagement({ booking: initialBooking }: { booking
   }
 
   async function cancelBooking() {
-    if (!confirmed || reason.trim().length < 3) return;
+    const cancellationReason = reason === "Other" ? otherReason.trim() : reason;
+    if (!confirmed || cancellationReason.length < 3) return;
     setBusy(true);
     setError("");
     try {
       if (booking.kind === "transport") {
-        await cancelTransportRequest(booking.id, reason.trim());
+        await cancelTransportRequest(booking.id, cancellationReason);
       } else {
-        await cancelCategoryRequest(booking.id, reason.trim());
+        await cancelCategoryRequest(booking.id, cancellationReason);
       }
       await reload();
       router.refresh();
@@ -88,22 +91,47 @@ export default function BookingManagement({ booking: initialBooking }: { booking
         <p role="alert">The provider rejected the cancellation request. The booking remains confirmed.</p>
       )}
       {booking.status === "CONFIRMED" && !cancellationPending && booking.cancel_state !== "CANCEL_REJECTED" && (
-        <div style={{ display: "grid", gap: "0.6rem" }}>
-          <strong>Cancel this booking</strong>
-          <p><strong>Cancellation eligibility:</strong> {booking.cancellation_policy}</p>
-          <label>
-            Cancellation reason
-            <input aria-label="Cancellation reason" value={reason} onChange={(event) => setReason(event.target.value)} />
-          </label>
-          <label>
-            <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
-            Cancel this whole provider booking.
-          </label>
-          <p>Unpaid simulated bookings have no refund.</p>
-          <button type="button" onClick={() => void cancelBooking()} disabled={busy || !confirmed || reason.trim().length < 3}>
-            {busy ? "Requesting cancellation…" : "Cancel booking"}
-          </button>
-        </div>
+        <>
+          {!showCancellation ? (
+            <button type="button" className="booking-cancel-trigger" onClick={() => setShowCancellation(true)}>Cancel Booking</button>
+          ) : (
+            <div className="booking-cancellation-panel">
+              <h2>⚠ Cancel this booking</h2>
+              <p>{booking.cancellation_policy || "Cancellation is subject to provider approval."} This cancels the whole provider booking.</p>
+              <label htmlFor="booking-cancel-reason">Reason for cancellation</label>
+              <select id="booking-cancel-reason" value={reason} onChange={(event) => setReason(event.target.value)}>
+                <option>Booked by mistake</option>
+                <option>Change of plans</option>
+                <option>Found an alternative</option>
+                <option>Other</option>
+              </select>
+              {reason === "Other" && (
+                <input
+                  aria-label="Other cancellation reason"
+                  placeholder="Tell us why you are cancelling"
+                  value={otherReason}
+                  onChange={(event) => setOtherReason(event.target.value)}
+                />
+              )}
+              <label className="booking-cancel-confirm">
+                <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
+                I understand this cancels the entire provider booking and cannot be undone.
+              </label>
+              <p className="booking-cancel-footnote">This simulated booking is unpaid; no refund will be issued.</p>
+              <div className="booking-cancel-actions">
+                <button type="button" className="booking-keep-button" onClick={() => setShowCancellation(false)} disabled={busy}>Keep Booking</button>
+                <button
+                  type="button"
+                  className="booking-confirm-cancel"
+                  onClick={() => void cancelBooking()}
+                  disabled={busy || !confirmed || (reason === "Other" && otherReason.trim().length < 3)}
+                >
+                  {busy ? "Requesting…" : "Confirm Cancellation"}
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
       {booking.status === "CANCELLED" && (
         <p role="status">Booking cancelled. Refund is not applicable because this simulated booking was unpaid.</p>

@@ -260,7 +260,7 @@ async def init_category_offer(
         raise HTTPException(status_code=422, detail="Room assignments apply to hotel stays only.")
 
     details = {
-        "people": [person.model_dump() for person in payload.people],
+        "people": [person.model_dump(exclude_none=True) for person in payload.people],
         "room_assignments": assignments or [],
         "contact_email": str(payload.contact_email),
         "contact_phone": payload.contact_phone,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -54,6 +55,25 @@ def serialize_booking(attempt: dict[str, Any]) -> dict[str, Any]:
         display.setdefault("departureCity", criteria.get("from"))
         display.setdefault("arrivalCity", criteria.get("to"))
         display.setdefault("date", criteria.get("date"))
+        fulfillment = (order.get("fulfillments") or [{}])[0]
+        for edge, date_key, time_key in (
+            ("start", "departureDate", "departure"),
+            ("end", "arrivalDate", "arrival"),
+        ):
+            point = fulfillment.get(edge) if isinstance(fulfillment, dict) else None
+            time = point.get("time") if isinstance(point, dict) else None
+            timestamp = time.get("timestamp") if isinstance(time, dict) else None
+            if not isinstance(timestamp, str):
+                continue
+            try:
+                parsed = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                if parsed.tzinfo is None:
+                    continue
+                local_time = parsed.astimezone(timezone(timedelta(hours=5, minutes=30)))
+            except ValueError:
+                continue
+            display[date_key] = local_time.strftime("%Y-%m-%d")
+            display[time_key] = local_time.strftime("%H:%M")
     elif attempt.get("kind") == "hotel":
         display.setdefault("location", criteria.get("to"))
         display.setdefault("checkIn", criteria.get("check_in"))
@@ -131,13 +151,16 @@ async def download_mock_ticket(
     user: dict[str, Any] = Depends(get_current_user),
 ) -> Response:
     attempt = await _owned_attempt(booking_id, user)
+    is_stay = attempt.get("kind") == "hotel"
+    is_experience = attempt.get("kind") == "experience"
+    document_label = "voucher" if is_stay or is_experience else "ticket"
     if (
         attempt.get("confirmState") != "CONFIRMED"
         or attempt.get("cancelState") in {"CANCELLED", "CANCEL_REQUESTED", "PENDING_PROVIDER"}
     ):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="A mock ticket is available only for a currently confirmed booking.",
+            detail=f"A mock {document_label} is available only for a currently confirmed booking.",
         )
 
     booking = serialize_booking(attempt)
@@ -152,14 +175,17 @@ async def download_mock_ticket(
     price = quote.get("price") or {}
     display = booking["display"]
     lines = [
-        "Academic prototype — not valid for travel.",
+        "Academic prototype — simulated stay voucher; not a real reservation."
+        if is_stay else
+        "Academic prototype — simulated experience voucher; not a real activity booking."
+        if is_experience else "Academic prototype — not valid for travel.",
         f"Provider reference: {booking.get('provider_order_id') or 'not supplied'}",
         f"Provider: {booking.get('provider_name') or booking.get('provider_id') or 'Mock provider'}",
         f"Service: {booking.get('service') or 'Provider service'}",
         f"Status: {booking['status']}",
-        f"Quantity: {booking.get('quantity') or 0}",
+        f"{'Rooms' if is_stay else 'Participants' if is_experience else 'Quantity'}: {booking.get('quantity') or 0}",
         f"Final price: {price.get('currency', '')} {price.get('value', '')}".strip(),
-        f"Customers: {', '.join(f'{name} (Room {rooms[index]})' if index < len(rooms) else name for index, name in enumerate(names))}",
+        f"{'Guests' if is_stay else 'Participants' if is_experience else 'Customers'}: {', '.join(f'{name} (Room {rooms[index]})' if is_stay and index < len(rooms) else name for index, name in enumerate(names))}",
         f"Email: {details.get('contact_email', '')}",
         f"Phone: {details.get('contact_phone', '')}",
     ]
@@ -169,9 +195,10 @@ async def download_mock_ticket(
         ("Check-in", "checkIn"),
         ("Check-out", "checkOut"),
         ("Date", "date"),
-        ("Departure", "departure"),
-        ("Arrival", "arrival"),
-        ("Time", "time"),
+        ("Departure date", "departureDate"),
+        ("Departure (IST)" if booking["kind"] == "transport" else "Departure", "departure"),
+        ("Arrival date", "arrivalDate"),
+        ("Arrival (IST)" if booking["kind"] == "transport" else "Arrival", "arrival"),
     ):
         value = display.get(key)
         if value:
@@ -179,5 +206,5 @@ async def download_mock_ticket(
     return Response(
         content="\r\n".join(lines) + "\r\n",
         media_type="text/plain; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="mock-ticket-{booking_id}.txt"'},
+        headers={"Content-Disposition": f'attachment; filename="mock-{document_label}-{booking_id}.txt"'},
     )

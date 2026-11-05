@@ -1,7 +1,7 @@
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
-from common.booking_details import valid_lead_contact, valid_person_names
+from common.booking_details import valid_lead_contact, valid_person_ages, valid_person_genders, valid_person_names
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -252,10 +252,26 @@ def build_experience_on_init(data: dict, request: dict) -> dict:
         for entry in participant_tag
         if entry.get("descriptor", {}).get("code") == "NAME"
     ]
+    genders = [
+        entry.get("value")
+        for entry in participant_tag
+        if isinstance(entry, dict)
+        and isinstance(entry.get("descriptor"), dict)
+        and entry["descriptor"].get("code") == "GENDER"
+    ]
+    ages = [
+        entry.get("value")
+        for entry in participant_tag
+        if isinstance(entry, dict)
+        and isinstance(entry.get("descriptor"), dict)
+        and entry["descriptor"].get("code") == "AGE"
+    ]
     quantity = selected_order["items"][0]["quantity"]["selected"]["count"]
     billing = order.get("billing", {})
     if (
         not valid_person_names(names, quantity)
+        or not valid_person_genders(genders, quantity)
+        or not valid_person_ages(ages, quantity)
         or not valid_lead_contact(billing)
     ):
         return {"context": context, "error": {"code": "30005", "message": "Participant or contact details are invalid."}}

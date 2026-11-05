@@ -21,6 +21,7 @@ const footerLinks = {
 export default function Footer() {
   return (
     <footer
+      aria-label="Footer"
       style={{
         backgroundColor: "var(--forest)",
         borderTop: "1px solid var(--border-dark)",
@@ -131,7 +132,7 @@ export default function Footer() {
               color: "rgba(242,237,228,0.3)",
             }}
           >
-            © 2026 TDE. All bookings made directly with partners.
+            © 2026 TDE. Academic prototype — bookings are simulated; no payment is collected.
           </p>
           <div style={{ display: "flex", gap: "1.5rem" }}>
             <Link

@@ -1,6 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
+import { providerDateInIndia } from "@/lib/booking-dates";
 import Link from "next/link";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { ApiError, fetchSearch } from "@/lib/api";
@@ -19,22 +20,45 @@ const DEPARTURE_HOURS: Record<string, [number, number]> = {
   Evening:   [17, 24],
 };
 const TYPE_MAP: Record<string, string> = { Flight: "Flight", Train: "Train", Bus: "Bus" };
-const EXP_CATEGORIES = ["Food", "Culture", "Adventure", "History", "Nature", "Local"];
+const EXP_CATEGORIES = ["All", "Food", "Culture", "Adventure", "History", "Nature", "Local"];
 const AMENITY_OPTIONS = ["WiFi", "AC", "Free cancellation", "Parking", "Restaurant"];
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 function formatDate(iso: string): string {
   if (!iso) return "";
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+  const d = new Date(dateOnly ? `${iso}T00:00:00Z` : iso);
+  return isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    ...(dateOnly ? { timeZone: "UTC" } : {}),
+  });
 }
 function parsePriceStr(s: string): number { return parseInt(s.replace(/[^\d]/g, ""), 10) || 0; }
+function parseMaximumPrice(value: string | null, fallback: number): number {
+  if (value === null) return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
+}
 function parseDurationMinutes(value: string): number | null {
   const match = value.trim().match(/^(?:(\d+)\s*h)?(?:\s*(\d+)\s*m)?$/i);
   if (!match || (!match[1] && !match[2])) return null;
   const hours = match[1] ? Number(match[1]) : 0;
   const minutes = match[2] ? Number(match[2]) : 0;
   return Number.isFinite(hours) && Number.isFinite(minutes) ? hours * 60 + minutes : null;
+}
+
+function transportArrivalDate(option: TransportOption): string {
+  const timestamp = option._beckn?.fulfillment?.end?.time?.timestamp
+    || option._beckn?.fulfillment?.end?.time?.range?.start;
+  return option.arrivalDate || (timestamp ? providerDateInIndia(timestamp) : "");
+}
+
+function transportDepartureDate(option: TransportOption): string {
+  const timestamp = option._beckn?.fulfillment?.start?.time?.timestamp
+    || option._beckn?.fulfillment?.start?.time?.range?.start;
+  return option.departureDate || (timestamp ? providerDateInIndia(timestamp) : "");
 }
 
 function categoryDetailUrl(
@@ -125,10 +149,33 @@ export default function ResultsClient() {
   const experienceRequestId = useRef(0);
   const [experienceLoading, setExperienceLoading] = useState(false);
   const [experienceError, setExperienceError] = useState("");
+  const [experienceSort, setExperienceSort] = useState<"none" | "priceAsc" | "priceDesc" | "duration">(
+    (searchParams.get("experience_sort") as "none" | "priceAsc" | "priceDesc" | "duration") ?? "none",
+  );
+  const [maxExperiencePrice, setMaxExperiencePrice] = useState(parseMaximumPrice(searchParams.get("max_experience_price"), 10000));
 
   // Transport discovery starts immediately; hotel discovery has its own lifecycle below.
   /* eslint-disable react-hooks/set-state-in-effect -- Transport discovery starts a cancellable provider request and publishes its lifecycle state. */
   useEffect(() => {
+    const validCriteria = Boolean(
+      fromCity.trim()
+      && toCity.trim()
+      && dateRaw
+      && Number.isInteger(Number(travellers))
+      && Number(travellers) >= 1
+      && Number(travellers) <= 9,
+    );
+    if (!validCriteria) {
+      ++requestId.current;
+      setLoading(false);
+      setSearchError("");
+      setTransportOptions([]);
+      setCounts((current) => ({ ...current, transport: 0 }));
+      setPartialResults(false);
+      setTransactionId("");
+      return;
+    }
+
     const currentRequestId = ++requestId.current;
     const controller = new AbortController();
     setLoading(true);
@@ -170,6 +217,11 @@ export default function ResultsClient() {
       Number.isInteger(guests) && guests >= 1 && guests <= 18,
     );
     if (!validCriteria) {
+      ++hotelRequestId.current;
+      setStayOptions([]);
+      setStayTransactionId("");
+      setCounts((current) => ({ ...current, stays: 0 }));
+      setHotelLoading(false);
       return;
     }
 
@@ -219,6 +271,11 @@ export default function ResultsClient() {
       Number.isInteger(participants) && participants >= 1 && participants <= 18,
     );
     if (!validCriteria) {
+      ++experienceRequestId.current;
+      setExperienceOptions([]);
+      setExperienceTransactionId("");
+      setCounts((current) => ({ ...current, experiences: 0 }));
+      setExperienceLoading(false);
       return;
     }
 
@@ -267,7 +324,7 @@ export default function ResultsClient() {
   /* ── Transport filters ─────────────────────────────────────── */
   const [selTimes,  setSelTimes]  = useState<string[]>(searchParams.get("times")?.split(",").filter(Boolean) ?? []);
   const [selTypes,  setSelTypes]  = useState<string[]>(searchParams.get("types")?.split(",").filter(Boolean) ?? []);
-  const [maxTPrice, setMaxTPrice] = useState(TRANSPORT_MAX);
+  const [maxTPrice, setMaxTPrice] = useState(parseMaximumPrice(searchParams.get("max_transport_price"), 10000));
   const [transportSort, setTransportSort] = useState<"none" | "priceAsc" | "priceDesc" | "duration">(
     (searchParams.get("transport_sort") as "none" | "priceAsc" | "priceDesc" | "duration") ?? "none",
   );
@@ -278,17 +335,30 @@ export default function ResultsClient() {
     (searchParams.get("stay_sort") as "none" | "asc" | "desc") ?? "none",
   );
   const [selAmen,   setSelAmen]   = useState<string[]>(searchParams.get("stay_amenities")?.split("|").filter(Boolean) ?? []);
-  const [maxSPrice, setMaxSPrice] = useState(STAY_MAX);
+  const [maxSPrice, setMaxSPrice] = useState(parseMaximumPrice(searchParams.get("max_stay_price"), 10000));
 
   /* ── Experience filter ─────────────────────────────────────── */
-  const [activeCat, setActiveCat] = useState(searchParams.get("experience_category") ?? "Food");
+  const [activeCat, setActiveCat] = useState(searchParams.get("experience_category") ?? "All");
 
   /* Sync slider maxima when data loads */
   // Results are fetched asynchronously; keep the user-controlled slider bounds aligned with new provider data.
   /* eslint-disable react-hooks/set-state-in-effect -- Provider data changes the numeric bounds of the controlled price sliders. */
-  useEffect(() => { setMaxTPrice(TRANSPORT_MAX); }, [TRANSPORT_MAX]);
+  useEffect(() => {
+    const saved = searchParams.get("max_transport_price");
+    setMaxTPrice(Math.min(parseMaximumPrice(saved, TRANSPORT_MAX), TRANSPORT_MAX));
+  }, [TRANSPORT_MAX, searchParams]);
   // Results are fetched asynchronously; keep the user-controlled slider bounds aligned with new provider data.
-  useEffect(() => { setMaxSPrice(STAY_MAX); }, [STAY_MAX]);
+  useEffect(() => {
+    const saved = searchParams.get("max_stay_price");
+    setMaxSPrice(Math.min(parseMaximumPrice(saved, STAY_MAX), STAY_MAX));
+  }, [STAY_MAX, searchParams]);
+  const EXPERIENCE_MAX = useMemo(() =>
+    experienceOptions.length > 0 ? Math.max(...experienceOptions.map((option) => option.priceNum)) : 10000,
+  [experienceOptions]);
+  useEffect(() => {
+    const saved = searchParams.get("max_experience_price");
+    setMaxExperiencePrice(Math.min(parseMaximumPrice(saved, EXPERIENCE_MAX), EXPERIENCE_MAX));
+  }, [EXPERIENCE_MAX, searchParams]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /* ── Derived lists ─────────────────────────────────────────── */
@@ -342,9 +412,29 @@ export default function ResultsClient() {
     return list;
   }, [stayOptions, minRating, staySort, selAmen, maxSPrice]);
 
-  const filteredExp = useMemo(() =>
-    experienceOptions.filter((e) => e.category === activeCat),
-  [experienceOptions, activeCat]);
+  const filteredExp = useMemo(() => {
+    const filtered = experienceOptions.filter((option) =>
+      (activeCat === "All" || option.category === activeCat) && option.priceNum <= maxExperiencePrice,
+    );
+    if (experienceSort === "none") return filtered;
+    return filtered
+      .map((option, index) => ({ option, index }))
+      .sort((a, b) => {
+        if (experienceSort === "duration") {
+          const aDuration = parseDurationMinutes(a.option.duration);
+          const bDuration = parseDurationMinutes(b.option.duration);
+          if (aDuration === null && bDuration !== null) return 1;
+          if (aDuration !== null && bDuration === null) return -1;
+          if (aDuration !== null && bDuration !== null && aDuration !== bDuration) return aDuration - bDuration;
+        } else if (a.option.priceNum !== b.option.priceNum) {
+          return experienceSort === "priceAsc"
+            ? a.option.priceNum - b.option.priceNum
+            : b.option.priceNum - a.option.priceNum;
+        }
+        return a.index - b.index;
+      })
+      .map(({ option }) => option);
+  }, [experienceOptions, activeCat, maxExperiencePrice, experienceSort]);
 
   /* ── Toggle helpers ────────────────────────────────────────── */
   const toggle = <T,>(arr: T[], item: T) =>
@@ -353,6 +443,28 @@ export default function ResultsClient() {
   /* ── Tab switch ────────────────────────────────────────────── */
   function switchTab(tab: string) {
     const p = new URLSearchParams(queryParamsRef.current);
+    if (tab === "stays" && !p.has("check_in")) {
+      const availableArrivalDates = [...new Set(transportOptions.map(transportArrivalDate).filter(Boolean))];
+      const arrivalDate = activeTab === "travel"
+        ? availableArrivalDates.length === 1 ? availableArrivalDates[0] : ""
+        : activeTab === "experiences"
+          ? experienceDate
+          : "";
+      setCheckIn(arrivalDate);
+      if (arrivalDate) p.set("check_in", arrivalDate);
+    }
+    if (tab === "experiences") {
+      if (!p.has("experience_date")) {
+        const sharedDate = activeTab === "stays" ? checkIn : dateRaw;
+        setExperienceDate(sharedDate);
+        if (sharedDate) p.set("experience_date", sharedDate);
+      }
+      if (!p.has("participants")) {
+        const sharedCount = activeTab === "stays" ? guests : Number(travellers);
+        setParticipants(sharedCount);
+        p.set("participants", String(sharedCount));
+      }
+    }
     p.set("tab", tab);
     queryParamsRef.current = p.toString();
     router.push(`/results?${p.toString()}`);
@@ -381,7 +493,7 @@ export default function ResultsClient() {
   return (
     <>
       {/* ── Context bar ───────────────────────────────────────── */}
-      <div style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--white)" }}>
+      <div aria-label="Current search" role="region" style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--white)" }}>
         <div className="results-context-inner" style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", height: "44px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
             {fromCity && toCity && (
@@ -422,13 +534,14 @@ export default function ResultsClient() {
       </div>
 
       {/* ── Tab bar ───────────────────────────────────────────── */}
-      <div style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--white)" }}>
+      <div aria-label="Search categories" role="group" style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--white)" }}>
         <div className="results-tabs-inner" style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", display: "flex" }}>
           {tabs.map((tab) => {
             const isActive = activeTab === tab.key;
             const count = tab.key === "travel" ? counts.transport : tab.key === "stays" ? counts.stays : counts.experiences;
             return (
               <button key={tab.key} className="results-tab" onClick={() => switchTab(tab.key)} type="button" aria-pressed={isActive}
+                aria-label={`${tab.label}${count ? `, ${count} options` : ""}`}
                 style={{ background: "none", border: "none", borderBottom: isActive ? "2px solid var(--orange)" : "2px solid transparent", padding: "1rem 2rem 0.875rem", cursor: "pointer", textAlign: "left", transition: "border-color 0.15s", marginBottom: "-1px" }}>
                 <p style={{ fontFamily: "var(--font-body)", fontWeight: isActive ? 600 : 400, fontSize: "0.875rem", color: isActive ? "var(--orange)" : "var(--ink-soft)", marginBottom: "0.15rem" }}>
                   {tab.label}
@@ -445,7 +558,7 @@ export default function ResultsClient() {
       </div>
 
       {/* ── Body ──────────────────────────────────────────────── */}
-      <div className="results-body" style={{ maxWidth: "1200px", margin: "0 auto", padding: "2rem 2rem 4rem", display: "grid", gridTemplateColumns: activeTab === "experiences" ? "1fr" : "1fr 280px", gap: "2rem", alignItems: "start" }}>
+      <div className="results-body" style={{ maxWidth: "1200px", margin: "0 auto", padding: "2rem 2rem 4rem", display: "grid", gridTemplateColumns: "minmax(0, 1fr) 280px", gap: "2rem", alignItems: "start" }}>
 
         {/* ── Left: results ─────────────────────────────────── */}
         <div>
@@ -454,9 +567,9 @@ export default function ResultsClient() {
           {activeTab === "travel" && (
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "1.25rem" }}>
-                <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "1.4rem", color: "var(--ink)", letterSpacing: "-0.02em" }}>
+                <h1 className="results-title" style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "1.4rem", color: "var(--ink)", letterSpacing: "-0.02em" }}>
                   Available transport
-                </h2>
+                </h1>
                 {!loading && (
                   <span className="tag-neutral" style={{ fontSize: "0.65rem" }}>
                     {filteredTransport.length} of {transportOptions.length} options
@@ -486,9 +599,9 @@ export default function ResultsClient() {
                   : "No transport options match your filters. Try adjusting the filters on the right."
                 } />
                   ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "1px", backgroundColor: "var(--border)" }}>
+                <div className="results-card-list" style={{ display: "flex", flexDirection: "column", gap: "1px", backgroundColor: "var(--border)" }}>
                   {filteredTransport.map((opt) => (
-                    <div key={opt.id} className="transport-result" style={{ backgroundColor: "var(--white)", padding: "1.25rem 1.5rem", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: "1.5rem" }}>
+                    <article key={opt.id} className="transport-result" style={{ backgroundColor: "var(--white)", padding: "1.25rem 1.5rem", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: "1.5rem" }}>
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.75rem" }}>
                           <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "0.9rem", color: "var(--ink)" }}>{opt.provider}</span>
@@ -496,8 +609,8 @@ export default function ResultsClient() {
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                           <div>
-                            <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.1rem", color: "var(--ink)", letterSpacing: "-0.01em" }}>{opt.departure}</p>
-                            <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.725rem", color: "var(--ink-muted)" }}>{opt.departureCity}</p>
+                            <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.1rem", color: "var(--ink)", letterSpacing: "-0.01em" }}>{opt.departure} IST</p>
+                            <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.725rem", color: "var(--ink-muted)" }}>{opt.departureCity}{transportDepartureDate(opt) ? ` · ${formatDate(transportDepartureDate(opt))}` : ""}</p>
                           </div>
                           <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem" }}>
                             <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--ink-muted)" }}>{opt.duration} · {opt.stops}</span>
@@ -506,12 +619,12 @@ export default function ResultsClient() {
                             </div>
                           </div>
                           <div style={{ textAlign: "right" }}>
-                            <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.1rem", color: "var(--ink)", letterSpacing: "-0.01em" }}>{opt.arrival}</p>
-                            <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.725rem", color: "var(--ink-muted)" }}>{opt.arrivalCity}</p>
+                            <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.1rem", color: "var(--ink)", letterSpacing: "-0.01em" }}>{opt.arrival} IST</p>
+                            <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.725rem", color: "var(--ink-muted)" }}>{opt.arrivalCity}{transportArrivalDate(opt) ? ` · ${formatDate(transportArrivalDate(opt))}` : ""}</p>
                           </div>
                         </div>
                       </div>
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.75rem" }}>
+                      <div className="transport-result-side" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.75rem" }}>
                         <div style={{ textAlign: "right" }}>
                           <span style={{ display: "block", fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.2rem", color: "var(--ink)", letterSpacing: "-0.01em" }}>
                             {opt.currency} {opt.totalPrice.toLocaleString("en-IN", { maximumFractionDigits: 2 })} total
@@ -521,11 +634,12 @@ export default function ResultsClient() {
                           </span>
                         </div>
                         <Link href={`/results/transport/${encodeURIComponent(opt.id)}?transaction_id=${encodeURIComponent(transactionId)}`}
+                          aria-label={`View ${opt.provider} ${opt.type} option`}
                           style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.775rem", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--white)", backgroundColor: "var(--ink)", padding: "0.55rem 1.25rem", textDecoration: "none", whiteSpace: "nowrap" }}>
                           Choose
                         </Link>
                       </div>
-                    </div>
+                    </article>
                   ))}
                 </div>
                   )}
@@ -561,14 +675,16 @@ export default function ResultsClient() {
                 </div>
                 {!checkOut || checkOut <= checkIn ? (
                   <p style={{ marginTop: "0.75rem", fontFamily: "var(--font-body)", fontSize: "0.75rem", color: "var(--ink-muted)" }}>
-                    Enter a check-out date after check-in to search stays.
+                    {checkIn
+                      ? "Enter a check-out date after check-in to search stays."
+                      : "Choose the destination arrival date, then enter a check-out date to search stays."}
                   </p>
                 ) : null}
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "1rem" }}>
-                <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "1.4rem", color: "var(--ink)", letterSpacing: "-0.02em" }}>
+              <div className="stay-results-heading" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "1rem" }}>
+                <h1 className="results-title" style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "1.4rem", color: "var(--ink)", letterSpacing: "-0.02em" }}>
                   {loading ? "Stays" : `${filteredStays.length} stays${toCity ? ` in ${toCity}` : ""}`}
-                </h2>
+                </h1>
                 <span style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-muted)", fontStyle: "italic" }}>
                   Handpicked hotels and homes
                 </span>
@@ -599,47 +715,43 @@ export default function ResultsClient() {
                   : "No stays match your filters. Try adjusting the options on the right."
                 } />
               ) : (
-                <div className="results-stays-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1px", backgroundColor: "var(--border)", border: "1px solid var(--border)" }}>
+                <div className="results-stays-grid">
                   {filteredStays.map((stay) => (
-                    <div key={stay.id} style={{ backgroundColor: "var(--white)" }}>
-                      <div style={{ width: "100%", aspectRatio: "4/3", overflow: "hidden", backgroundColor: "var(--cream-dark)" }}>
-                        {stay.image && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={stay.image} alt={stay.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    <article key={stay.id} className="stay-result-row">
+                      <div className="stay-result-image">
+                        {stay.image ? (
+                          <img src={stay.image} alt={stay.name} />
+                        ) : (
+                          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #e0e0e0 0%, #f5f5f5 100%)", color: "#999", fontSize: "0.8rem" }}>
+                            No image
+                          </div>
                         )}
                       </div>
-                      <div style={{ padding: "1rem 1.1rem 1.25rem" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.3rem" }}>
-                          <span style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.7rem", color: "var(--ink-muted)" }}>{stay.provider}</span>
-                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: "var(--orange)", fontWeight: 500 }}>★ {stay.rating}</span>
+                      <div className="stay-result-copy">
+                        <div className="stay-result-heading">
+                          <span className="stay-result-icon" aria-hidden="true">⌂</span>
+                          <h2>{stay.name}</h2>
+                          <span className="stay-result-provider">{stay.provider}</span>
                         </div>
-                        <p style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "1rem", color: "var(--ink)", letterSpacing: "-0.01em", marginBottom: "0.2rem" }}>{stay.name}</p>
-                        <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.75rem", color: "var(--ink-muted)", marginBottom: "0.75rem" }}>{stay.location}</p>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginBottom: "1rem" }}>
-                          {stay.amenities.map((a) => (
-                            <span key={a} style={{ fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.68rem", color: "var(--ink-soft)", backgroundColor: "var(--cream)", border: "1px solid var(--border)", padding: "0.15rem 0.5rem" }}>{a}</span>
-                          ))}
+                        <div className="stay-result-meta">
+                          <span className="stay-result-rating">★ {stay.rating}</span>
+                          <span>{stay.location} · {checkIn || "Check-in date"} – {checkOut || "Check-out date"}</span>
                         </div>
-                        <div style={{ borderTop: "1px solid var(--border)", paddingTop: "0.875rem", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-                          <div>
-                            <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.05rem", color: "var(--ink)", letterSpacing: "-0.01em" }}>
-                                          {stay.totalPrice}
-                                          <span style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.72rem", color: "var(--ink-muted)", marginLeft: "0.25rem" }}>total</span>
-                            </p>
-                                        <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.7rem", color: "var(--ink-muted)" }}>{stay.pricePerNight} per night · {stay.nights} nights · {rooms} {rooms === 1 ? "room" : "rooms"}</p>
-                          </div>
-                          <Link href={categoryDetailUrl(
-                            `/results/stays/${encodeURIComponent(stay.id)}`,
-                            new URLSearchParams(searchParams.toString()),
-                            "stays",
-                            { transaction_id: stayTransactionId, rooms, guests, check_in: checkIn, check_out: checkOut },
-                          )}
-                            style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.75rem", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--white)", backgroundColor: "var(--ink)", padding: "0.5rem 1rem", textDecoration: "none", whiteSpace: "nowrap" }}>
-                            View stay
-                          </Link>
-                        </div>
+                        <p className="stay-result-amenities">{stay.amenities.join(" · ")}</p>
                       </div>
-                    </div>
+                      <div className="stay-result-price">
+                        <p><strong>{stay.totalPrice}</strong> <span>total</span></p>
+                        <small>{stay.pricePerNight} per room per night · {rooms} {rooms === 1 ? "room" : "rooms"} · {stay.nights} nights</small>
+                        <Link href={categoryDetailUrl(
+                          `/results/stays/${encodeURIComponent(stay.id)}`,
+                          new URLSearchParams(searchParams.toString()),
+                          "stays",
+                          { transaction_id: stayTransactionId, rooms, guests, check_in: checkIn, check_out: checkOut },
+                        )}>
+                          Choose
+                        </Link>
+                      </div>
+                    </article>
                   ))}
                 </div>
               )}
@@ -650,9 +762,9 @@ export default function ResultsClient() {
           {activeTab === "experiences" && (
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "1rem" }}>
-                <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "1.4rem", color: "var(--ink)", letterSpacing: "-0.02em" }}>
+                <h1 className="results-title" style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "1.4rem", color: "var(--ink)", letterSpacing: "-0.02em" }}>
                   {experienceLoading ? "Searching experiences…" : `${counts.experiences} experiences`}
-                </h2>
+                </h1>
                 <span style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-muted)", fontStyle: "italic" }}>
                   {toCity}
                 </span>
@@ -677,7 +789,7 @@ export default function ResultsClient() {
               {/* Category pills */}
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "2rem" }}>
                 {EXP_CATEGORIES.map((cat) => (
-                  <button key={cat} onClick={() => {
+                  <button key={cat} type="button" aria-pressed={activeCat === cat} onClick={() => {
                     setActiveCat(cat);
                     updateCategoryParam("experience_category", cat);
                   }} style={PILL(activeCat === cat)}>
@@ -686,52 +798,65 @@ export default function ResultsClient() {
                 ))}
               </div>
 
+              <div className="experience-sort-controls" aria-label="Sort experiences">
+                <button type="button" aria-pressed={experienceSort === "priceDesc"} onClick={() => {
+                  const next = experienceSort === "priceDesc" ? "none" : "priceDesc";
+                  setExperienceSort(next);
+                  updateCategoryParam("experience_sort", next);
+                }} style={PILL(experienceSort === "priceDesc")}>Price: high to low</button>
+                <button type="button" aria-pressed={experienceSort === "priceAsc"} onClick={() => {
+                  const next = experienceSort === "priceAsc" ? "none" : "priceAsc";
+                  setExperienceSort(next);
+                  updateCategoryParam("experience_sort", next);
+                }} style={PILL(experienceSort === "priceAsc")}>Price: low to high</button>
+                <button type="button" aria-pressed={experienceSort === "duration"} onClick={() => {
+                  const next = experienceSort === "duration" ? "none" : "duration";
+                  setExperienceSort(next);
+                  updateCategoryParam("experience_sort", next);
+                }} style={PILL(experienceSort === "duration")}>Duration: shortest</button>
+              </div>
+
               {experienceError ? <EmptyState message={experienceError} /> : experienceLoading ? <LoadingState /> : filteredExp.length === 0 ? (
                 <EmptyState message={experienceOptions.length === 0
                   ? "No experiences found for this destination."
-                  : "No experiences in this category yet."
+                  : "No experiences match your filters. Try another category or price range."
                 } />
               ) : (
-                <div className="results-experiences-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1px", backgroundColor: "var(--border)", border: "1px solid var(--border)" }}>
+                <div className="results-experiences-grid">
                   {filteredExp.map((exp) => (
-                    <div key={exp.id} className="results-experience-card" style={{ backgroundColor: "var(--white)", display: "grid", gridTemplateColumns: "200px 1fr" }}>
-                      <div style={{ overflow: "hidden", backgroundColor: "var(--cream-dark)" }}>
-                        {exp.image && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={exp.image} alt={exp.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    <article key={exp.id} className="experience-result-row">
+                      <div className="experience-result-image">
+                        {exp.image ? (
+                          <img src={exp.image} alt={exp.name} />
+                        ) : (
+                          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #e0e0e0 0%, #f5f5f5 100%)", color: "#999", fontSize: "0.8rem" }}>
+                            No image
+                          </div>
                         )}
                       </div>
-                      <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                        <div>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
-                            <span style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.7rem", color: "var(--ink-muted)" }}>Hosted by {exp.provider}</span>
-                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: "var(--orange)", fontWeight: 500 }}>★ {exp.rating}</span>
-                          </div>
-                          <p style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "1rem", color: "var(--ink)", letterSpacing: "-0.01em", marginBottom: "0.25rem", lineHeight: 1.2 }}>{exp.name}</p>
-                          <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.75rem", color: "var(--ink-muted)", marginBottom: "0.35rem" }}>
-                            {formatDate(exp.date)} · {exp.time} · {exp.duration}
-                          </p>
-                          <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.75rem", color: "var(--ink-muted)", marginBottom: "1rem" }}>
-                            {exp.meetingPoint} · {exp.availability} places available
-                          </p>
+                      <div className="experience-result-copy">
+                        <div className="experience-result-heading">
+                          <span className="experience-result-icon" aria-hidden="true">✣</span>
+                          <h2>{exp.name}</h2>
+                          <span className="experience-result-category">{exp.category} experience</span>
                         </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.1rem", color: "var(--ink)", letterSpacing: "-0.01em" }}>
-                            {exp.totalPrice} total
-                            <small style={{ display: "block", fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.7rem", color: "var(--ink-muted)" }}>{exp.price} · {participants} {participants === 1 ? "participant" : "participants"}</small>
-                          </span>
-                          <Link href={categoryDetailUrl(
-                            `/results/experiences/${encodeURIComponent(exp.id)}`,
-                            new URLSearchParams(searchParams.toString()),
-                            "experiences",
-                            { transaction_id: experienceTransactionId, participants, experience_date: experienceDate },
-                          )}
-                            style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.75rem", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--white)", backgroundColor: "var(--ink)", padding: "0.5rem 1rem", textDecoration: "none", whiteSpace: "nowrap" }}>
-                            View
-                          </Link>
+                        <div className="experience-result-meta">
+                          <span className="experience-result-rating">★ {exp.rating}</span>
+                          <span>{formatDate(exp.date)} · {exp.time} · {exp.duration}</span>
                         </div>
+                        <p className="experience-result-location">{exp.meetingPoint} · {exp.availability} places available</p>
                       </div>
-                    </div>
+                      <div className="experience-result-price">
+                        <p><strong>{exp.totalPrice}</strong> <span>total</span></p>
+                        <small>{exp.price} per participant · {participants} {participants === 1 ? "participant" : "participants"}</small>
+                        <Link href={categoryDetailUrl(
+                          `/results/experiences/${encodeURIComponent(exp.id)}`,
+                          new URLSearchParams(searchParams.toString()),
+                          "experiences",
+                          { transaction_id: experienceTransactionId, participants, experience_date: experienceDate },
+                        )}>Choose</Link>
+                      </div>
+                    </article>
                   ))}
                 </div>
               )}
@@ -740,7 +865,7 @@ export default function ResultsClient() {
         </div>
 
         {/* ── Right: filter panel (travel + stays only) ─────────── */}
-        {(activeTab === "travel" || activeTab === "stays") && (
+        {(activeTab === "travel" || activeTab === "stays" || activeTab === "experiences") && (
           <aside>
             <div style={{ border: "1px solid var(--border)", backgroundColor: "var(--white)", padding: "1.5rem" }}>
               <h3 style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "0.875rem", color: "var(--ink)", letterSpacing: "0.02em", marginBottom: "1.5rem" }}>
@@ -750,9 +875,9 @@ export default function ResultsClient() {
               {/* ── Price range ──────────────────────────────── */}
               <div style={{ marginBottom: "1.5rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.6rem" }}>
-                  <p className="tag-neutral">{activeTab === "travel" ? "Price per person" : "Price"}</p>
+                  <p className="tag-neutral">{activeTab === "travel" ? "Price per person" : activeTab === "stays" ? "Price per night" : "Price per participant"}</p>
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.65rem", color: "var(--ink-soft)" }}>
-                    up to ₹{(activeTab === "travel" ? maxTPrice : maxSPrice).toLocaleString("en-IN")}
+                    up to ₹{(activeTab === "travel" ? maxTPrice : activeTab === "stays" ? maxSPrice : maxExperiencePrice).toLocaleString("en-IN")}
                   </span>
                 </div>
                 <div style={{ position: "relative", height: "2px", backgroundColor: "var(--border)", marginBottom: "0.5rem" }}>
@@ -761,13 +886,17 @@ export default function ResultsClient() {
                 <input
                   type="range"
                   min={activeTab === "travel" ? 0 : 0}
-                  max={activeTab === "travel" ? TRANSPORT_MAX : STAY_MAX}
+                  max={activeTab === "travel" ? TRANSPORT_MAX : activeTab === "stays" ? STAY_MAX : EXPERIENCE_MAX}
                   step={activeTab === "travel" ? 100 : 200}
-                  value={activeTab === "travel" ? maxTPrice : maxSPrice}
+                  value={activeTab === "travel" ? maxTPrice : activeTab === "stays" ? maxSPrice : maxExperiencePrice}
                   onChange={(e) => activeTab === "travel"
-                    ? setMaxTPrice(Number(e.target.value))
-                    : setMaxSPrice(Number(e.target.value))
+                    ? (setMaxTPrice(Number(e.target.value)), updateCategoryParam("max_transport_price", Number(e.target.value)))
+                    : activeTab === "stays"
+                      ? (setMaxSPrice(Number(e.target.value)), updateCategoryParam("max_stay_price", Number(e.target.value)))
+                      : (setMaxExperiencePrice(Number(e.target.value)), updateCategoryParam("max_experience_price", Number(e.target.value)))
                   }
+                  aria-label={activeTab === "travel" ? "Maximum transport price per person" : activeTab === "stays" ? "Maximum stay price per night" : "Maximum experience price per participant"}
+                  aria-valuetext={`Up to ₹${(activeTab === "travel" ? maxTPrice : activeTab === "stays" ? maxSPrice : maxExperiencePrice).toLocaleString("en-IN")}`}
                   style={{ width: "100%", accentColor: "var(--orange)", cursor: "pointer", margin: 0 }}
                 />
               </div>

@@ -306,7 +306,7 @@ export function selectTransportRequest(
 
 export function initTransportRequest(
   selectionId: string,
-  travellers: Array<{ name: string }>,
+  travellers: Array<{ name: string; gender?: TravellerGender }>,
   contactEmail: string,
   contactPhone: string,
 ): Promise<TransportSelectionResponse> {
@@ -346,6 +346,8 @@ export function cancelTransportRequest(
   });
 }
 
+export type TravellerGender = "female" | "male" | "non_binary" | "prefer_not_to_say";
+
 export interface CategorySelectionResponse {
   selection_id: string;
   state: string;
@@ -357,8 +359,8 @@ export interface CategorySelectionResponse {
   init_state?: string;
   price_changed?: boolean;
   customer_details?: {
-    travellers?: Array<{ name: string }>;
-    people?: Array<{ name: string }>;
+    travellers?: Array<{ name: string; gender?: TravellerGender | null }>;
+    people?: Array<{ name: string; gender?: TravellerGender | null; age?: number | null }>;
     room_assignments?: number[];
     contact_email?: string;
     contact_phone?: string;
@@ -441,8 +443,8 @@ export interface BookingRecord {
     breakup?: Array<{ title?: string; price?: { currency?: string; value?: string } }>;
   };
   customer_details: {
-    travellers?: Array<{ name: string }>;
-    people?: Array<{ name: string }>;
+    travellers?: Array<{ name: string; gender?: TravellerGender | null }>;
+    people?: Array<{ name: string; gender?: TravellerGender | null; age?: number | null }>;
     room_assignments?: number[];
     contact_email?: string;
     contact_phone?: string;
@@ -488,7 +490,7 @@ export function getCategorySelectionRequest(
 
 export function initCategoryRequest(
   selectionId: string,
-  people: Array<{ name: string }>,
+  people: Array<{ name: string; gender?: TravellerGender; age?: number }>,
   roomAssignments: number[] | undefined,
   contactEmail: string,
   contactPhone: string,

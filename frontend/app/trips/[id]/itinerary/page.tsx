@@ -3,22 +3,191 @@ import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import { serverApiFetch } from "@/lib/serverApi";
 import { buildTimeline, displayDate } from "@/lib/trip-itinerary";
-import type { UserTrip } from "@/lib/api";
+import type { HydratedTripBooking, UserTrip } from "@/lib/api";
 
 interface Props {
   params: Promise<{ id: string }>;
+}
+
+interface ItineraryEntry {
+  key: string;
+  bookingId: string;
+  kind: "transport" | "hotel" | "experience" | "booking";
+  title: string;
+  meta: string;
+  status: string;
+  price: string;
+  showBookingLink: boolean;
+  hasBooking: boolean;
+  warnings: string[];
+}
+
+function text(value: unknown): string {
+  return typeof value === "string" || typeof value === "number" ? String(value).trim() : "";
+}
+
+function formatPrice(booking: HydratedTripBooking | null): string {
+  const price = booking?.quote?.price;
+  if (!price?.value) return "";
+  const amount = Number(price.value);
+  if (price.currency === "INR" && Number.isFinite(amount)) {
+    return `₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(amount)}`;
+  }
+  return `${price.currency ?? ""} ${price.value}`.trim();
+}
+
+function tripTotal(trip: UserTrip): string {
+  const prices = trip.bookings.flatMap(({ booking, status }) => {
+    if (status !== "CONFIRMED") return [];
+    const currency = booking?.quote?.price?.currency;
+    const value = Number(booking?.quote?.price?.value);
+    return currency && Number.isFinite(value) ? [{ currency, value }] : [];
+  });
+  if (!prices.length) return "";
+  const currencies = new Set(prices.map((price) => price.currency));
+  if (currencies.size !== 1) return "Multiple currencies";
+  const [currency] = currencies;
+  const formatted = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 })
+    .format(prices.reduce((sum, price) => sum + price.value, 0));
+  return currency === "INR" ? `₹${formatted}` : `${currency} ${formatted}`;
+}
+
+function addEntry(
+  entries: Map<string, ItineraryEntry[]>,
+  date: string,
+  entry: ItineraryEntry,
+) {
+  if (!date) return;
+  const existing = entries.get(date) ?? [];
+  existing.push(entry);
+  entries.set(date, existing);
+}
+
+function itineraryEntries(trip: UserTrip): Map<string, ItineraryEntry[]> {
+  const entries = new Map<string, ItineraryEntry[]>();
+  const timeline = buildTimeline(trip);
+
+  for (const item of timeline) {
+    const booking = item.booking;
+    const display = booking?.display ?? {};
+    if (item.kind === "hotel" && booking) {
+      const checkIn = text(display.checkIn) || item.startDate;
+      const checkOut = text(display.checkOut) || item.endDate;
+      const start = Date.parse(`${checkIn}T00:00:00Z`);
+      const end = Date.parse(`${checkOut}T00:00:00Z`);
+      const roomCount = text(booking.quantity) || "1";
+      const customerDetails = booking.customer_details;
+      const guests = Array.isArray(customerDetails.travellers)
+        ? customerDetails.travellers
+        : Array.isArray(customerDetails.people) ? customerDetails.people : [];
+      const guestCount = String(guests.length || booking.criteria.guests || booking.quantity || 1);
+      const hotelName = item.title;
+      const common = {
+        bookingId: item.bookingId,
+        kind: "hotel" as const,
+        hasBooking: Boolean(item.booking),
+        status: statusLabel(item.status),
+        warnings: item.warnings,
+      };
+      addEntry(entries, checkIn, {
+        ...common,
+        key: `${item.bookingId}-check-in`,
+        title: `Check-in · ${hotelName}`,
+        meta: `Check-in date · ${roomCount} room${roomCount === "1" ? "" : "s"} · ${guestCount} guest${guestCount === "1" ? "" : "s"}`,
+        price: "",
+        showBookingLink: false,
+      });
+      if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
+        for (let day = start + 86_400_000; day < end; day += 86_400_000) {
+          const date = new Date(day).toISOString().slice(0, 10);
+          addEntry(entries, date, {
+            ...common,
+            key: `${item.bookingId}-stay-${date}`,
+            title: `Hotel stay continues · ${hotelName}`,
+            meta: item.location,
+            price: "",
+            showBookingLink: false,
+          });
+        }
+      }
+      addEntry(entries, checkOut, {
+        ...common,
+        key: `${item.bookingId}-check-out`,
+        title: `Check-out · ${hotelName}`,
+        meta: "Check-out date",
+        price: formatPrice(booking),
+        showBookingLink: true,
+      });
+      continue;
+    }
+
+    const date = item.startDate || trip.start_date;
+    const isTransport = item.kind === "transport";
+    const time = text(display.time);
+    const schedule = isTransport ? item.schedule.join(" · ") : time;
+    const quantity = booking?.quantity;
+    const unitLabel = item.kind === "experience" ? "participant" : "traveller";
+    const people = quantity
+      ? `${quantity} ${unitLabel}${quantity === 1 ? "" : "s"}`
+      : "";
+    const meta = [schedule, people, item.location].filter(Boolean).join(" · ")
+      || (item.booking ? "Schedule details unavailable" : "Booking details unavailable");
+    addEntry(entries, date, {
+      key: item.bookingId,
+      bookingId: item.bookingId,
+      kind: item.kind === "transport" || item.kind === "experience" ? item.kind : "booking",
+      title: item.title,
+      meta,
+      status: statusLabel(item.status),
+      price: formatPrice(booking),
+      showBookingLink: true,
+      hasBooking: Boolean(item.booking),
+      warnings: item.warnings,
+    });
+  }
+
+  for (const dayEntries of entries.values()) {
+    dayEntries.sort((first, second) => {
+      const typeOrder = { transport: 0, hotel: 1, experience: 2, booking: 3 };
+      return typeOrder[first.kind] - typeOrder[second.kind];
+    });
+  }
+  return entries;
+}
+
+function categoryLabel(entries: ItineraryEntry[]): string {
+  const kinds = new Set(entries.map((entry) => entry.kind));
+  if (kinds.has("transport")) return "Travel";
+  if (kinds.has("experience") && kinds.has("hotel")) return "Stay & experience";
+  if (kinds.has("experience")) return "Experience";
+  if (kinds.has("hotel")) return "Stay";
+  return "Itinerary";
+}
+
+function formatDay(value: string): string {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return displayDate(value);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return `${date.toLocaleDateString("en-IN", { weekday: "short", timeZone: "UTC" })}, ${displayDate(value)}`;
 }
 
 function statusLabel(status: string): string {
   switch (status) {
     case "CONFIRMED": return "Confirmed";
     case "CANCELLED": return "Cancelled";
-    case "PENDING_UNKNOWN": return "Waiting for provider update";
-    case "INITIALIZED": return "Not yet confirmed";
+    case "PENDING_UNKNOWN": return "Pending";
+    case "INITIALIZED": return "Initialized";
     case "REJECTED": return "Not completed";
-    case "UNAVAILABLE": return "Booking unavailable";
+    case "UNAVAILABLE": return "Unavailable";
     default: return "Status unavailable";
   }
+}
+
+function iconFor(kind: ItineraryEntry["kind"]): string {
+  if (kind === "hotel") return "▥";
+  if (kind === "experience") return "✧";
+  if (kind === "transport") return "▰";
+  return "•";
 }
 
 export default async function TripItineraryPage({ params }: Props) {
@@ -31,88 +200,71 @@ export default async function TripItineraryPage({ params }: Props) {
     unavailable = true;
   }
 
-  const timeline = trip ? buildTimeline(trip) : [];
+  const days = trip ? itineraryEntries(trip) : new Map<string, ItineraryEntry[]>();
+  const total = trip ? tripTotal(trip) : "";
   return (
     <>
       <Navbar />
-      <main style={{ flex: 1, backgroundColor: "var(--cream)" }}>
-        <div style={{ maxWidth: "960px", margin: "0 auto", padding: "3.5rem 1.25rem 5rem" }}>
-          <Link href="/trips" style={{ color: "var(--ink-soft)", fontFamily: "var(--font-body)", fontSize: "0.82rem" }}>
-            ← My trips
-          </Link>
+      <main className="trip-itinerary-main">
+        <div className="trip-itinerary-shell">
           {!trip ? (
-            <section style={{ marginTop: "1.5rem", padding: "2rem", background: "var(--white)", border: "1px solid var(--border)" }}>
-              <h1 style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
-                {unavailable ? "Trip itinerary unavailable" : "Trip not found"}
-              </h1>
-              <p style={{ marginTop: "0.75rem", color: "var(--ink-soft)", fontFamily: "var(--font-body)" }}>
-                {unavailable
-                  ? "Sign in and try again. Your bookings have not been changed."
-                  : "This trip may have been removed or may belong to another account."}
-              </p>
+            <section className="trip-itinerary-unavailable">
+              <Link href="/trips">← Trips</Link>
+              <h1>{unavailable ? "Trip itinerary unavailable" : "Trip not found"}</h1>
+              <p>{unavailable
+                ? "Sign in and try again. Your bookings have not been changed."
+                : "This trip may have been removed or may belong to another account."}</p>
             </section>
           ) : (
             <>
-              <header style={{ marginTop: "1.5rem", marginBottom: "1.5rem" }}>
-                <p className="tag-neutral">Trip itinerary · separate provider bookings</p>
-                <h1 style={{ marginTop: "0.55rem", fontFamily: "var(--font-display)", fontSize: "clamp(1.7rem, 5vw, 2.5rem)", color: "var(--ink)" }}>
-                  {trip.title}
-                </h1>
-                <p style={{ marginTop: "0.45rem", color: "var(--ink-soft)", fontFamily: "var(--font-body)" }}>
-                  {trip.destination} · {displayDate(trip.start_date)} – {displayDate(trip.end_date)}
-                </p>
-                <p style={{ marginTop: "0.75rem", maxWidth: "700px", color: "var(--ink-soft)", fontFamily: "var(--font-body)", fontSize: "0.85rem", lineHeight: 1.6 }}>
-                  This itinerary groups bookings from independent providers. It is not a combined order or checkout. Removing a booking here does not cancel it.
-                </p>
+              <Link href="/trips" className="trip-itinerary-back">← Trips</Link>
+              <header className="trip-itinerary-heading">
+                <div>
+                  <h1>{trip.title}</h1>
+                  <p>{trip.destination} · {displayDate(trip.start_date)} – {displayDate(trip.end_date)} · {trip.bookings.length} booking{trip.bookings.length === 1 ? "" : "s"}{total ? ` · ${total}` : ""}</p>
+                </div>
+                <Link
+                  className="trip-itinerary-manage"
+                  href={`/trips?manage=${encodeURIComponent(trip.id)}#trip-${encodeURIComponent(trip.id)}`}
+                >
+                  Manage Trip
+                </Link>
               </header>
-              {timeline.length === 0 ? (
-                <p style={{ padding: "1.5rem", background: "var(--white)", border: "1px solid var(--border)", color: "var(--ink-soft)", fontFamily: "var(--font-body)" }}>
-                  No bookings have been added to this trip yet. Add an existing booking from My trips.
-                </p>
+              <p className="trip-itinerary-notice">Each provider reservation is managed individually. Removing a booking from this trip does not cancel it.</p>
+
+              {days.size === 0 ? (
+                <p className="trip-itinerary-empty">No bookings have been added to this trip yet. Use Manage Trip to add an existing booking.</p>
               ) : (
-                <ol aria-label="Chronological itinerary" style={{ listStyle: "none", display: "grid", gap: "0.85rem", padding: 0 }}>
-                  {timeline.map((item) => (
-                    <li key={item.bookingId}>
-                      <article style={{ minWidth: 0, padding: "1.1rem", background: "var(--white)", border: "1px solid var(--border)" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
-                          <div style={{ minWidth: 0, flex: "1 1 260px" }}>
-                            <p className="tag-neutral">{item.kind === "hotel" ? "Stay" : item.kind}</p>
-                            <h2 style={{ marginTop: "0.3rem", fontFamily: "var(--font-display)", fontSize: "1.2rem", color: "var(--ink)", overflowWrap: "anywhere" }}>
-                              {item.title}
-                            </h2>
-                            <p style={{ marginTop: "0.25rem", fontFamily: "var(--font-body)", color: "var(--ink-soft)", fontSize: "0.85rem" }}>
-                              {item.provider}{item.location ? ` · ${item.location}` : ""}
-                            </p>
-                          </div>
-                          <span style={{ padding: "0.3rem 0.55rem", border: "1px solid var(--border)", color: "var(--ink-soft)", fontFamily: "var(--font-body)", fontSize: "0.75rem" }}>
-                            {statusLabel(item.status)}
-                          </span>
-                        </div>
-                        <div style={{ display: "grid", gap: "0.25rem", marginTop: "0.85rem", fontFamily: "var(--font-body)", color: "var(--ink)", fontSize: "0.82rem", overflowWrap: "anywhere" }}>
-                          {item.schedule.map((line) => <p key={line}>{line}</p>)}
-                        </div>
-                        {item.warnings.length > 0 && (
-                          <ul aria-label="Schedule advisories" style={{ marginTop: "0.75rem", paddingLeft: "1.2rem", color: "#8a4b13", fontFamily: "var(--font-body)", fontSize: "0.78rem" }}>
-                            {item.warnings.map((warning) => <li key={warning}>{warning}</li>)}
-                          </ul>
-                        )}
-                        {item.booking ? (
-                          <Link href={`/trips/bookings/${encodeURIComponent(item.bookingId)}`} style={{ display: "inline-block", marginTop: "0.9rem", color: "var(--ink)", fontFamily: "var(--font-body)", fontSize: "0.8rem", textUnderlineOffset: "3px" }}>
-                            View booking details
-                          </Link>
-                        ) : (
-                          <p style={{ marginTop: "0.9rem", color: "var(--ink-muted)", fontFamily: "var(--font-body)", fontSize: "0.8rem" }}>
-                            Booking details are unavailable.
-                          </p>
-                        )}
-                      </article>
+                <ol className="trip-timeline" aria-label="Chronological itinerary">
+                  {[...days.entries()].sort(([first], [second]) => first.localeCompare(second)).map(([date, entries]) => (
+                    <li key={date} className="trip-timeline-day">
+                      <span className="trip-timeline-marker" aria-hidden="true" />
+                      <h2>{formatDay(date)}</h2>
+                      <p className="trip-timeline-category">{categoryLabel(entries)}</p>
+                      <div className="trip-timeline-events">
+                        {entries.map((entry) => (
+                          <article key={entry.key} className="trip-timeline-event">
+                            <span className="trip-timeline-icon" aria-hidden="true">{iconFor(entry.kind)}</span>
+                            <div className="trip-timeline-event-info">
+                              <h3>{entry.title}</h3>
+                              <p>{entry.meta}</p>
+                              {entry.status !== "Confirmed" && <span className="trip-event-status">{entry.status}</span>}
+                              {!entry.hasBooking && <span className="trip-event-status">Booking details unavailable</span>}
+                              {entry.warnings.map((warning) => <span className="trip-event-warning" key={warning}>{warning}</span>)}
+                            </div>
+                            {entry.price && <strong className="trip-timeline-price">{entry.price}</strong>}
+                            {entry.showBookingLink && entry.hasBooking && (
+                              <Link className="trip-timeline-booking-link" href={`/trips/bookings/${encodeURIComponent(entry.bookingId)}`}>
+                                View Booking
+                              </Link>
+                            )}
+                          </article>
+                        ))}
+                      </div>
                     </li>
                   ))}
                 </ol>
               )}
-              <Link href="/trips" style={{ display: "inline-block", marginTop: "1rem", padding: "0.65rem 0.9rem", background: "var(--ink)", color: "var(--white)", fontFamily: "var(--font-body)", fontSize: "0.8rem", textDecoration: "none" }}>
-                Manage trip bookings
-              </Link>
             </>
           )}
         </div>

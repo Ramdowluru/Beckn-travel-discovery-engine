@@ -73,15 +73,19 @@ def build_category_init(
     }
     if kind == "hotel":
         for index, person in enumerate(details["people"]):
-            person_tag["list"].extend([
-                {"descriptor": {"code": "NAME"}, "value": person["name"]},
-                {"descriptor": {"code": "ROOM"}, "value": str(details["room_assignments"][index])},
-            ])
+            person_tag["list"].append({"descriptor": {"code": "NAME"}, "value": person["name"]})
+            if person.get("gender"):
+                person_tag["list"].append({"descriptor": {"code": "GENDER"}, "value": person["gender"]})
+            person_tag["list"].append(
+                {"descriptor": {"code": "ROOM"}, "value": str(details["room_assignments"][index])}
+            )
     else:
-        person_tag["list"] = [
-            {"descriptor": {"code": "NAME"}, "value": person["name"]}
-            for person in details["people"]
-        ]
+        for person in details["people"]:
+            person_tag["list"].append({"descriptor": {"code": "NAME"}, "value": person["name"]})
+            if person.get("gender"):
+                person_tag["list"].append({"descriptor": {"code": "GENDER"}, "value": person["gender"]})
+            if person.get("age") is not None:
+                person_tag["list"].append({"descriptor": {"code": "AGE"}, "value": str(person["age"])})
     tags = [
         booking_tag,
         person_tag,

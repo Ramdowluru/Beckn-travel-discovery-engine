@@ -1,4 +1,9 @@
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr, Field, field_validator
+
+
+Gender = Literal["female", "male", "non_binary", "prefer_not_to_say"]
 
 
 class CategorySelectRequest(BaseModel):
@@ -7,6 +12,8 @@ class CategorySelectRequest(BaseModel):
 
 class NamedPerson(BaseModel):
     name: str = Field(min_length=1, max_length=120)
+    gender: Gender | None = None
+    age: int | None = Field(default=None, ge=0, le=120)
 
     @field_validator("name")
     @classmethod

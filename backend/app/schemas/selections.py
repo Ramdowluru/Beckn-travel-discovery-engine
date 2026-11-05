@@ -1,8 +1,14 @@
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr, Field, field_validator
+
+
+Gender = Literal["female", "male", "non_binary", "prefer_not_to_say"]
 
 
 class TravellerDetails(BaseModel):
     name: str = Field(min_length=1, max_length=120)
+    gender: Gender | None = None
 
     @field_validator("name")
     @classmethod

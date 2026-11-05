@@ -56,6 +56,12 @@ def build_transport_init(
     details: dict,
     quote_expires_at: str,
 ) -> dict:
+    traveller_entries = []
+    for traveller in details["travellers"]:
+        traveller_entries.append({"descriptor": {"code": "NAME"}, "value": traveller["name"]})
+        if traveller.get("gender"):
+            traveller_entries.append({"descriptor": {"code": "GENDER"}, "value": traveller["gender"]})
+
     return {
         "context": {
             "domain": DOMAIN,
@@ -86,10 +92,7 @@ def build_transport_init(
                 },
                 "tags": [{
                     "descriptor": {"code": "TRAVELLERS"},
-                    "list": [
-                        {"descriptor": {"code": "NAME"}, "value": traveller["name"]}
-                        for traveller in details["travellers"]
-                    ],
+                    "list": traveller_entries,
                 }, {
                     "descriptor": {"code": "TDE_QUOTE"},
                     "list": [{

@@ -126,6 +126,8 @@ class TransportNormalizerTests(unittest.TestCase):
 
         self.assertEqual(offer["departure"], "05:00")
         self.assertEqual(offer["arrival"], "06:45")
+        self.assertEqual(offer["departureDate"], "2026-10-25")
+        self.assertEqual(offer["arrivalDate"], "2026-10-25")
         self.assertEqual(offer["duration"], "1h 45m")
 
         fulfillment["stops"][1]["time"]["timestamp"] = "2026-10-26T01:15:00+00:00"

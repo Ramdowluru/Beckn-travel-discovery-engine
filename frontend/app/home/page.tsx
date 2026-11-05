@@ -28,11 +28,7 @@ export default async function LandingPage() {
       <main style={{ flex: 1, backgroundColor: "var(--cream)" }}>
         {/* ── Hero ─────────────────────────────────────────────── */}
         <section
-          style={{
-            maxWidth: "1200px",
-            margin: "0 auto",
-            padding: "5rem 2rem 3rem",
-          }}
+          className="home-hero"
         >
           <p className="tag" style={{ marginBottom: "1.25rem" }}>
             Plan your trip
@@ -41,13 +37,13 @@ export default async function LandingPage() {
           <h1
             style={{
               fontFamily: "var(--font-display)",
-              fontWeight: 700,
-              fontSize: "clamp(2.5rem, 5vw, 4rem)",
+              fontWeight: 400,
+              fontSize: "clamp(3rem, 7vw, 5.75rem)",
               color: "var(--ink)",
-              lineHeight: 1.05,
-              letterSpacing: "-0.03em",
+              lineHeight: 0.98,
+              letterSpacing: "-0.02em",
               marginBottom: "1.25rem",
-              maxWidth: "520px",
+              maxWidth: "700px",
             }}
           >
             One search.
@@ -59,11 +55,11 @@ export default async function LandingPage() {
             style={{
               fontFamily: "var(--font-body)",
               fontWeight: 300,
-              fontSize: "1rem",
+              fontSize: "1.125rem",
               color: "var(--ink-soft)",
               lineHeight: 1.7,
-              maxWidth: "420px",
-              marginBottom: "2.5rem",
+              maxWidth: "560px",
+              marginBottom: "3rem",
             }}
           >
             Compare flights, trains, buses, hotels and local experiences
@@ -76,20 +72,17 @@ export default async function LandingPage() {
         {/* ── Stats bar ─────────────────────────────────────────── */}
         {stats.length > 0 && (
           <section
-            style={{
-              maxWidth: "1200px",
-              margin: "0 auto",
-              padding: "0 2rem 3rem",
-            }}
+            className="home-stats-section"
           >
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: `repeat(${stats.length}, 1fr)`,
+                gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))`,
                 border: "1px solid var(--border)",
                 backgroundColor: "var(--white)",
                 maxWidth: "800px",
               }}
+              className="home-stats-grid"
             >
               {stats.map((stat, i) => (
                 <div
@@ -133,11 +126,7 @@ export default async function LandingPage() {
         {/* ── Popular this week ─────────────────────────────────── */}
         {popularOptions.length > 0 && (
           <section
-            style={{
-              maxWidth: "1200px",
-              margin: "0 auto",
-              padding: "0 2rem 5rem",
-            }}
+            className="home-popular-section"
           >
             <div style={{ marginBottom: "1.25rem" }}>
               <h2
@@ -165,14 +154,7 @@ export default async function LandingPage() {
             </div>
 
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: `repeat(${Math.min(popularOptions.length, 3)}, 1fr)`,
-                gap: "1px",
-                backgroundColor: "var(--border)",
-                border: "1px solid var(--border)",
-                maxWidth: "900px",
-              }}
+              className="home-popular-grid"
             >
               {popularOptions.map((option) => (
                 <div
@@ -262,6 +244,7 @@ export default async function LandingPage() {
                     </span>
                     <Link
                       href={`/results/transport/${option.id}`}
+                      aria-label={`View ${option.provider} option from ${option.departure} to ${option.arrival}`}
                       style={{
                         fontFamily: "var(--font-body)",
                         fontWeight: 500,

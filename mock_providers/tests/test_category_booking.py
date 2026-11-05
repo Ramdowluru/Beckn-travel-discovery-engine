@@ -105,6 +105,7 @@ def init_request(kind, provider, selected, transaction_id, expiry=None, people_c
     count = people_count if people_count is not None else (quantity if kind == "experience" else 2)
     for index in range(count):
         people.append({"descriptor": {"code": "NAME"}, "value": f"Guest {index + 1}"})
+        people.append({"descriptor": {"code": "GENDER"}, "value": "female"})
         if kind == "hotel":
             people.append({"descriptor": {"code": "ROOM"}, "value": "1"})
     tags = [
@@ -162,6 +163,19 @@ class CategoryBookingConverterTests(unittest.TestCase):
         self.assertEqual(initialized["context"]["message_id"], init["context"]["message_id"])
         self.assertEqual(initialized["message"]["order"]["state"], "INITIALIZED")
         self.assertTrue(initialized["message"]["order"]["id"])
+        returned_guests = next(
+            tag for tag in initialized["message"]["order"]["tags"]
+            if tag["descriptor"]["code"] == "TDE_GUESTS"
+        )
+        self.assertIn({"descriptor": {"code": "GENDER"}, "value": "female"}, returned_guests["list"])
+
+        invalid_gender = json.loads(json.dumps(init))
+        guest_tag = next(
+            tag for tag in invalid_gender["message"]["order"]["tags"]
+            if tag["descriptor"]["code"] == "TDE_GUESTS"
+        )
+        next(entry for entry in guest_tag["list"] if entry["descriptor"]["code"] == "GENDER")["value"] = "unknown"
+        self.assertIn("error", build_hotel_on_init(HOTEL, invalid_gender))
 
     def test_hotel_init_rejects_expired_quote(self):
         tx = str(uuid4())
@@ -268,6 +282,11 @@ class CategoryBookingConverterTests(unittest.TestCase):
         selected = build_experience_on_select(EXPERIENCE, select)
         validate_message(selected, "on_select")
         init = init_request("experience", provider, selected, tx)
+        participant_tag = next(
+            tag for tag in init["message"]["order"]["tags"]
+            if tag["descriptor"]["code"] == "TDE_PARTICIPANTS"
+        )
+        participant_tag["list"].append({"descriptor": {"code": "AGE"}, "value": "21"})
         validate_message(init, "init")
         initialized = build_experience_on_init(EXPERIENCE, init)
         validate_message(initialized, "on_init")
@@ -275,6 +294,28 @@ class CategoryBookingConverterTests(unittest.TestCase):
         self.assertEqual(initialized["context"]["message_id"], init["context"]["message_id"])
         self.assertEqual(initialized["message"]["order"]["state"], "INITIALIZED")
         self.assertTrue(initialized["message"]["order"]["id"])
+        returned_participants = next(
+            tag for tag in initialized["message"]["order"]["tags"]
+            if tag["descriptor"]["code"] == "TDE_PARTICIPANTS"
+        )
+        self.assertIn({"descriptor": {"code": "GENDER"}, "value": "female"}, returned_participants["list"])
+        self.assertIn({"descriptor": {"code": "AGE"}, "value": "21"}, returned_participants["list"])
+
+        invalid_gender = json.loads(json.dumps(init))
+        participant_tag = next(
+            tag for tag in invalid_gender["message"]["order"]["tags"]
+            if tag["descriptor"]["code"] == "TDE_PARTICIPANTS"
+        )
+        next(entry for entry in participant_tag["list"] if entry["descriptor"]["code"] == "GENDER")["value"] = "unknown"
+        self.assertIn("error", build_experience_on_init(EXPERIENCE, invalid_gender))
+
+        invalid_age = json.loads(json.dumps(init))
+        participant_tag = next(
+            tag for tag in invalid_age["message"]["order"]["tags"]
+            if tag["descriptor"]["code"] == "TDE_PARTICIPANTS"
+        )
+        next(entry for entry in participant_tag["list"] if entry["descriptor"]["code"] == "AGE")["value"] = "121"
+        self.assertIn("error", build_experience_on_init(EXPERIENCE, invalid_age))
 
     def test_experience_init_returns_changed_provider_quote(self):
         tx = str(uuid4())

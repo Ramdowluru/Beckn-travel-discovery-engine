@@ -70,94 +70,67 @@ export default async function StayDetailPage({ params, searchParams }: Props) {
         <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "3rem 2rem 5rem" }}>
 
           {/* ── Hero images ─────────────────────────────────────── */}
-          {stay.images.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "2px", marginBottom: "2.5rem", height: "320px" }}>
-              {stay.images.slice(0, 3).map((img, i) => (
-                <div key={i} style={{ overflow: "hidden", backgroundColor: "var(--cream-dark)" }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={img} alt={stay!.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                </div>
-              ))}
-            </div>
-          )}
-
           {/* ── Two-column body ─────────────────────────────────── */}
-          <div className="detail-layout" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
+          <div className="detail-layout stay-detail-layout" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
 
             {/* Left */}
             <div>
-              <div style={{ marginBottom: "0.35rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.75rem", color: "var(--ink-muted)" }}>{stay.provider}</span>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: "var(--orange)", fontWeight: 500 }}>★ {stay.rating}</span>
+              <div className="stay-detail-provider">
+                <span className="stay-detail-category">Stay</span>
+                <span>{stay.provider}</span>
+                <span className="stay-result-rating">★ {stay.rating}</span>
               </div>
-              <h1 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "2rem", color: "var(--ink)", letterSpacing: "-0.03em", marginBottom: "0.25rem" }}>
+              <h1 className="stay-detail-title">
                 {stay.name}
               </h1>
-              <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.875rem", color: "var(--ink-soft)", marginBottom: "2rem" }}>
+              <p className="stay-detail-location">
                 {stay.location}
               </p>
 
               {/* Description */}
-              <div style={{ marginBottom: "2rem" }}>
-                <p className="tag-neutral" style={{ marginBottom: "0.75rem" }}>About this stay</p>
-                <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.9rem", color: "var(--ink-soft)", lineHeight: 1.7 }}>
+              <div className="stay-detail-section">
+                <h2>About this stay</h2>
+                <p>
                   {stay.description}
                 </p>
               </div>
 
               {/* Amenities */}
-              <div style={{ marginBottom: "2rem" }}>
-                <p className="tag-neutral" style={{ marginBottom: "0.75rem" }}>Amenities</p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+              <div className="stay-detail-section">
+                <h2>What this place offers</h2>
+                <ul className="stay-detail-amenities">
                   {stay.amenities.map((a) => (
-                    <span key={a} style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-soft)", backgroundColor: "var(--white)", border: "1px solid var(--border)", padding: "0.3rem 0.75rem" }}>
-                      {a}
-                    </span>
+                    <li key={a}><span aria-hidden="true">✓</span>{a}</li>
                   ))}
-                </div>
+                </ul>
               </div>
 
               {/* Check-in / out */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1px", border: "1px solid var(--border)", marginBottom: "2rem" }}>
+              <div className="stay-detail-dates">
                 {[{ label: "Check-in", value: stay.checkIn }, { label: "Check-out", value: stay.checkOut }].map((item) => (
-                  <div key={item.label} style={{ backgroundColor: "var(--white)", padding: "1rem 1.25rem" }}>
-                    <p className="tag-neutral" style={{ marginBottom: "0.3rem" }}>{item.label}</p>
-                    <p style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "1rem", color: "var(--ink)" }}>{item.value}</p>
+                  <div key={item.label}>
+                    <p>{item.label}</p>
+                    <strong>{item.value}</strong>
                   </div>
                 ))}
               </div>
 
-              <div className="offer-facts-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "1px", border: "1px solid var(--border)", marginBottom: "1.5rem" }}>
-                <div style={{ backgroundColor: "var(--white)", padding: "1rem 1.25rem" }}>
-                  <p className="tag-neutral" style={{ marginBottom: "0.3rem" }}>Availability</p>
-                  <p style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>Checked when you continue</p>
-                </div>
-                <div style={{ backgroundColor: "var(--white)", padding: "1rem 1.25rem" }}>
-                  <p className="tag-neutral" style={{ marginBottom: "0.3rem" }}>Quantity</p>
-                  <p style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>{rooms} {rooms === 1 ? "room" : "rooms"} · {guests} {guests === 1 ? "guest" : "guests"}</p>
-                </div>
-              </div>
-
-              {/* Cancellation */}
-              <div style={{ backgroundColor: "var(--white)", border: "1px solid var(--border)", padding: "1rem 1.25rem" }}>
-                <p className="tag-neutral" style={{ marginBottom: "0.4rem" }}>Cancellation policy</p>
-                <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.85rem", color: "var(--ink-soft)" }}>{stay.cancellation}</p>
+              <div className="stay-detail-section stay-cancellation">
+                <h2>Cancellation policy</h2>
+                <p>{stay.cancellation}</p>
               </div>
             </div>
 
             {/* Right: booking panel */}
             <aside>
-              <div style={{ border: "1px solid var(--border)", backgroundColor: "var(--white)", padding: "1.75rem" }}>
-                <p className="tag-neutral" style={{ marginBottom: "0.5rem" }}>Price per night</p>
-                <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "2.25rem", color: "var(--ink)", letterSpacing: "-0.03em", marginBottom: "0.25rem" }}>
+              <div className="stay-booking-card">
+                <p className="tag-neutral">Price per room per night</p>
+                <p className="stay-booking-nightly">
                   {stay.pricePerNight}
                 </p>
-                <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.75rem", color: "var(--ink-muted)", marginBottom: "0.5rem" }}>
-                  {stay.totalPrice} total · {stay.nights} nights
-                </p>
-                <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.75rem", color: "var(--ink-muted)", marginBottom: "1.75rem" }}>
-                  Simulated quote only · No payment or inventory reservation
-                </p>
+                <div className="stay-booking-total"><span>{rooms} {rooms === 1 ? "room" : "rooms"} · {stay.nights} nights</span><strong>{stay.totalPrice}</strong></div>
+                <p className="stay-booking-dates">{stay.checkIn} – {stay.checkOut} · {guests} {guests === 1 ? "guest" : "guests"}</p>
+                <p className="stay-booking-note">Availability and price are rechecked with the provider. Initialization does not reserve inventory.</p>
 
                 <CategorySelectButton
                   kind="hotel"
@@ -166,6 +139,11 @@ export default async function StayDetailPage({ params, searchParams }: Props) {
                   quantity={rooms}
                   peopleCount={guests}
                   roomCount={rooms}
+                  priceLabel="Price per room per night"
+                  unitPrice={stay.pricePerNight}
+                  totalPrice={stay.totalPrice}
+                  summaryQuantity={rooms * stay.nights}
+                  quantityLabel={rooms * stay.nights === 1 ? "room-night" : "room-nights"}
                   reviewDetails={[
                     `Provider: ${stay.provider}`,
                     `Stay: ${stay.name}`,

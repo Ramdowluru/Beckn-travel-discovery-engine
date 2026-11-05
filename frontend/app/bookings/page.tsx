@@ -3,23 +3,17 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { serverApiFetch } from "@/lib/serverApi";
 import type { BookingRecord } from "@/lib/api";
+import { formatBookingDate, transportSchedule } from "@/lib/booking-dates";
 
 interface Props {
-  searchParams: Promise<{ date?: string; status?: string }>;
+  searchParams: Promise<{ kind?: string }>;
 }
 
-const dateFilters = [
+const bookingKinds = [
   { value: "all", label: "All" },
-  { value: "upcoming", label: "Upcoming" },
-  { value: "past", label: "Past" },
-];
-
-const statusFilters = [
-  { value: "all", label: "All" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "pending", label: "Pending" },
-  { value: "cancelled", label: "Cancelled" },
-  { value: "rejected", label: "Rejected" },
+  { value: "transport", label: "Travel" },
+  { value: "hotel", label: "Stay" },
+  { value: "experience", label: "Experience" },
 ];
 
 function bookingStatus(status: BookingRecord["status"]): string {
@@ -50,30 +44,33 @@ function formattedQuote(booking: BookingRecord): string {
 }
 
 function scheduledAt(booking: BookingRecord): string {
-  return String(
+  if (booking.kind === "transport") return transportSchedule(booking);
+  const rawDate = String(
     booking.display.date
     || booking.display.checkIn
     || booking.display.departure
     || booking.order.fulfillments?.[0]?.start?.time?.timestamp
     || "",
   );
+  if (!rawDate) return "";
+  const date = formatBookingDate(rawDate);
+  const time = String(booking.display.time || booking.display.departure || "");
+  return [date, time].filter(Boolean).join(", ");
 }
 
-function isPast(booking: BookingRecord): boolean {
-  const scheduled = scheduledAt(booking);
-  if (!scheduled) return false;
-  const timestamp = Date.parse(scheduled);
-  return Number.isFinite(timestamp) && timestamp < Date.now();
+function filterHref(kind: string) {
+  return kind === "all" ? "/bookings" : `/bookings?kind=${encodeURIComponent(kind)}`;
 }
 
-function filterHref(date: string, status: string) {
-  return `/bookings?date=${encodeURIComponent(date)}&status=${encodeURIComponent(status)}`;
+function kindIcon(kind: BookingRecord["kind"]): string {
+  if (kind === "hotel") return "▥";
+  if (kind === "experience") return "✧";
+  return "♧";
 }
 
 export default async function BookingsPage({ searchParams }: Props) {
   const params = await searchParams;
-  const dateFilter = dateFilters.some((filter) => filter.value === params.date) ? params.date! : "all";
-  const statusFilter = statusFilters.some((filter) => filter.value === params.status) ? params.status! : "all";
+  const activeKind = bookingKinds.some((filter) => filter.value === params.kind) ? params.kind! : "all";
 
   let bookings: BookingRecord[] = [];
   let loadError = "";
@@ -83,87 +80,59 @@ export default async function BookingsPage({ searchParams }: Props) {
     loadError = error instanceof Error ? error.message : "Bookings are temporarily unavailable.";
   }
 
-  const filteredBookings = bookings.filter((booking) => {
-    const statusMatches = statusFilter === "all" || bookingStatus(booking.status) === statusFilter;
-    const dateMatches = dateFilter === "all"
-      || (dateFilter === "past" ? isPast(booking) : !isPast(booking));
-    return statusMatches && dateMatches;
-  });
+  const filteredBookings = activeKind === "all"
+    ? bookings
+    : bookings.filter((booking) => booking.kind === activeKind);
 
   return (
     <>
       <Navbar />
       <main style={{ flex: 1, backgroundColor: "var(--cream)" }}>
-        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "3.5rem 2rem 5rem" }}>
-          <p className="tag" style={{ color: "var(--orange)", marginBottom: "0.75rem" }}>Your account</p>
-          <h1 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "clamp(2rem, 4vw, 3rem)", color: "var(--ink)", marginBottom: "0.5rem" }}>
-            My bookings
-          </h1>
-          <p style={{ fontFamily: "var(--font-body)", color: "var(--ink-soft)", marginBottom: "2rem" }}>
-            Confirmed and pending provider bookings, kept separately from saved estimates.
-          </p>
+        <div className="my-bookings-shell">
+          <p className="tag booking-eyebrow">Your account</p>
+          <h1 className="my-bookings-title">My Bookings</h1>
+          <p className="my-bookings-subtitle">Each provider reservation is managed individually.</p>
 
-          <div className="bookings-filter-bar" aria-label="Booking filters">
-            <div>
-              <span className="filter-label">Date</span>
-              <div className="filter-options">
-                {dateFilters.map((filter) => (
-                  <Link
-                    key={filter.value}
-                    href={filterHref(filter.value, statusFilter)}
-                    aria-current={dateFilter === filter.value ? "page" : undefined}
-                    className={dateFilter === filter.value ? "filter-option active" : "filter-option"}
-                  >
-                    {filter.label}
-                  </Link>
-                ))}
-              </div>
-            </div>
-            <div>
-              <span className="filter-label">Status</span>
-              <div className="filter-options">
-                {statusFilters.map((filter) => (
-                  <Link
-                    key={filter.value}
-                    href={filterHref(dateFilter, filter.value)}
-                    aria-current={statusFilter === filter.value ? "page" : undefined}
-                    className={statusFilter === filter.value ? "filter-option active" : "filter-option"}
-                  >
-                    {filter.label}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
+          <nav className="booking-kind-tabs" aria-label="Filter bookings by type">
+            {bookingKinds.map((filter) => {
+              const count = filter.value === "all"
+                ? bookings.length
+                : bookings.filter((booking) => booking.kind === filter.value).length;
+              return (
+                <Link
+                  key={filter.value}
+                  href={filterHref(filter.value)}
+                  aria-current={activeKind === filter.value ? "page" : undefined}
+                  className={activeKind === filter.value ? "booking-kind-tab active" : "booking-kind-tab"}
+                >
+                  {filter.label} <span>{count}</span>
+                </Link>
+              );
+            })}
+          </nav>
 
           {loadError ? (
             <p role="alert" className="booking-empty">Bookings are temporarily unavailable: {loadError}</p>
           ) : filteredBookings.length === 0 ? (
-            <p className="booking-empty">No bookings match these filters.</p>
+            <p className="booking-empty">{bookings.length ? "No bookings in this category yet." : "Your confirmed bookings will appear here."}</p>
           ) : (
-            <div style={{ display: "grid", gap: "0.75rem" }}>
+            <div className="booking-list">
               {filteredBookings.map((booking) => (
                 <article key={booking.id} className="booking-list-card">
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
-                    <div>
-                      <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.15rem", color: "var(--ink)" }}>
-                        {booking.service || (booking.kind === "hotel" ? "Hotel booking" : booking.kind === "experience" ? "Experience booking" : "Transport booking")}
-                      </h2>
-                      <p className="booking-card-meta">{booking.provider_name || booking.provider_id} · {booking.kind}</p>
-                      {scheduledAt(booking) && <p className="booking-card-meta">{scheduledAt(booking)}</p>}
-                      {bookingLocation(booking) && <p className="booking-card-meta">{bookingLocation(booking)}</p>}
-                      {booking.provider_order_id && <p className="booking-card-meta">Provider reference: {booking.provider_order_id}</p>}
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                      <strong className={`booking-status status-${bookingStatus(booking.status)}`}>
-                        {customerStatus(booking.status)}
-                      </strong>
-                      <p className="booking-card-price">{formattedQuote(booking)} <span style={{ display: "block", fontSize: "0.68rem", color: "var(--ink-muted)" }}>total</span></p>
-                    </div>
+                  <span className="booking-kind-icon" aria-hidden="true">{kindIcon(booking.kind)}</span>
+                  <div className="booking-list-info">
+                    <h2>{booking.service || (booking.kind === "hotel" ? "Stay booking" : booking.kind === "experience" ? "Experience booking" : "Travel booking")}</h2>
+                    <span className={`booking-status status-${bookingStatus(booking.status)}`}>{customerStatus(booking.status)}</span>
+                    <p className="booking-card-meta">
+                      {bookingLocation(booking)}{bookingLocation(booking) && scheduledAt(booking) ? " · " : ""}{scheduledAt(booking)}
+                    </p>
+                    <p className="booking-card-meta">
+                      {booking.kind === "hotel" ? `${booking.quantity ?? 1} room${booking.quantity === 1 ? "" : "s"}` : `${booking.quantity ?? 1} ${booking.kind === "experience" ? "participant" : "traveller"}${booking.quantity === 1 ? "" : "s"}`}
+                      {booking.id ? ` · Ref ${booking.id.slice(0, 8).toUpperCase()}` : ""}
+                    </p>
                   </div>
-                  <Link className="booking-card-link" href={`/trips/bookings/${encodeURIComponent(booking.id)}`}>
-                    View booking
-                  </Link>
+                  <strong className="booking-card-price">{formattedQuote(booking)}</strong>
+                  <Link className="booking-card-link" href={`/trips/bookings/${encodeURIComponent(booking.id)}`}>View Booking</Link>
                 </article>
               ))}
             </div>

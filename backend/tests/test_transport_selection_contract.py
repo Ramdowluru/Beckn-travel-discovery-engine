@@ -56,7 +56,7 @@ def test_provider_init_revalidates_expiry_and_returns_changed_quote():
         quote=order["quote"],
         fulfillment=order["items"][0]["fulfillment"],
         details={
-            "travellers": [{"name": "A Traveller"}],
+            "travellers": [{"name": "A Traveller", "gender": "female"}],
             "contact_email": "traveller@example.com",
             "contact_phone": "1234567890",
         },
@@ -68,6 +68,10 @@ def test_provider_init_revalidates_expiry_and_returns_changed_quote():
     validate_message(callback, "on_init", fresh=False)
     initialized = callback["message"]["order"]
     assert initialized["state"] == "INITIALIZED"
+    returned_travellers = next(tag for tag in initialized["tags"] if tag["descriptor"]["code"] == "TRAVELLERS")
+    assert {"descriptor": {"code": "GENDER"}, "value": "female"} in returned_travellers["list"]
+    traveller_tag = next(tag for tag in init_request["message"]["order"]["tags"] if tag["descriptor"]["code"] == "TRAVELLERS")
+    assert {"descriptor": {"code": "GENDER"}, "value": "female"} in traveller_tag["list"]
     assert initialized["quote"]["price"]["value"] != order["quote"]["price"]["value"]
     assert initialized["payments"][0]["status"] == "NOT-PAID"
 
@@ -77,6 +81,11 @@ def test_provider_init_revalidates_expiry_and_returns_changed_quote():
             tag["list"][0]["value"] = "2000-01-01T00:00:00Z"
     expired_callback = build_on_init(data, expired)
     assert expired_callback["error"]["code"] == "30005"
+
+    invalid_gender = json.loads(json.dumps(init_request))
+    traveller_tag = next(tag for tag in invalid_gender["message"]["order"]["tags"] if tag["descriptor"]["code"] == "TRAVELLERS")
+    next(entry for entry in traveller_tag["list"] if entry["descriptor"]["code"] == "GENDER")["value"] = "unknown"
+    assert build_on_init(data, invalid_gender)["error"]["code"] == "30005"
 
 
 def test_reinitialization_has_unique_provider_order_and_updated_customer_details():

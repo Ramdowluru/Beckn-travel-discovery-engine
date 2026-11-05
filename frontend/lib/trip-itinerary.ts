@@ -1,4 +1,5 @@
 import type { HydratedTripBooking, UserTrip } from "./api";
+import { formatProviderDateTime, providerDateInIndia } from "./booking-dates";
 
 export interface TimelineItem {
   bookingId: string;
@@ -48,9 +49,7 @@ export function displayDate(value: string): string {
 }
 
 function instantDate(value: string): string {
-  if (!value) return "";
-  const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
-  return match?.[1] ?? "";
+  return providerDateInIndia(value);
 }
 
 function makeTimelineItem(
@@ -63,7 +62,8 @@ function makeTimelineItem(
   const kind = booking?.kind ?? "booking";
   const startTimestamp = providerTimestamp(booking, "start");
   const endTimestamp = providerTimestamp(booking, "end");
-  const startDate = text(display.date)
+  const startDate = text(display.departureDate)
+    || text(display.date)
     || text(display.checkIn)
     || text(criteria.date)
     || text(criteria.experience_date)
@@ -71,25 +71,40 @@ function makeTimelineItem(
     || instantDate(startTimestamp);
   const endDate = kind === "hotel"
     ? text(display.checkOut) || text(criteria.check_out) || instantDate(endTimestamp)
-    : instantDate(endTimestamp) || startDate;
+    : kind === "transport"
+      ? text(display.arrivalDate) || instantDate(endTimestamp)
+      : instantDate(endTimestamp) || startDate;
   const departure = text(display.departure);
   const arrival = text(display.arrival);
   const checkIn = text(display.checkIn) || text(criteria.check_in);
   const checkOut = text(display.checkOut) || text(criteria.check_out);
   const experienceTime = text(display.time);
+  const providerSchedule = [startTimestamp, endTimestamp]
+    .map(formatProviderDateTime)
+    .filter(Boolean);
+  const transportSchedule = providerSchedule.length === 2
+    ? providerSchedule.join(" – ")
+    : [
+        startDate ? displayDate(startDate) : "Date not supplied",
+        departure ? `${departure} IST` : "",
+      ].filter(Boolean).join(" · ")
+      + " – "
+      + [
+        endDate ? displayDate(endDate) : "Date not supplied",
+        arrival ? `${arrival} IST` : "",
+      ].filter(Boolean).join(" · ");
   const schedule = kind === "hotel"
     ? [
         checkIn && `Check-in: ${displayDate(checkIn)}`,
         checkOut && `Check-out: ${displayDate(checkOut)}`,
       ].filter((value): value is string => Boolean(value))
-    : [
-        startDate && displayDate(startDate),
-        kind === "transport" && (departure || arrival)
-          ? [departure, arrival].filter(Boolean).join(" – ") + " (times as supplied)"
-          : experienceTime ? `${experienceTime} (time as supplied)` : "",
-        startTimestamp && `Provider start time: ${startTimestamp}`,
-        endTimestamp && `Provider end time: ${endTimestamp}`,
-      ].filter((value): value is string => Boolean(value));
+    : kind === "transport"
+      ? [transportSchedule]
+      : [
+          startDate && displayDate(startDate),
+          experienceTime ? `${experienceTime} (provider time)` : "",
+          providerSchedule[0] || "",
+        ].filter((value): value is string => Boolean(value));
   const warnings: string[] = [];
   const effectiveEndDate = kind === "hotel" && endDate
     ? (() => {

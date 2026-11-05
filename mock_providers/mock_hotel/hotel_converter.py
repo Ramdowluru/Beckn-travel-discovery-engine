@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any
 
-from common.booking_details import valid_lead_contact, valid_person_names
+from common.booking_details import valid_lead_contact, valid_person_genders, valid_person_names
 
 
 def parse_hotel_search(request: dict[str, Any]) -> tuple[str, str, str, int, int]:
@@ -291,6 +291,13 @@ def build_hotel_on_init(data: dict[str, Any], request: dict[str, Any]) -> dict[s
              if tag.get("descriptor", {}).get("code") == "TDE_GUESTS"),
             [],
         )
+        genders = [
+            entry.get("value")
+            for entry in guest_entries
+            if isinstance(entry, dict)
+            and isinstance(entry.get("descriptor"), dict)
+            and entry["descriptor"].get("code") == "GENDER"
+        ]
         people: list[tuple[str, int]] = []
         pending_name = None
         for entry in guest_entries:
@@ -306,12 +313,14 @@ def build_hotel_on_init(data: dict[str, Any], request: dict[str, Any]) -> dict[s
         item_id = order.get("items", [{}])[0].get("id")
         room_data = _room(data, str(item_id))
         quantity = selected_order["items"][0]["quantity"]["selected"]["count"]
+        expected_guests = int(_tag_map(order.get("tags", []), "TDE_HOTEL_BOOKING").get("GUESTS", 0))
         if (
             room_data is None
             or not valid_person_names(
                 [name for name, _room in people],
-                int(_tag_map(order.get("tags", []), "TDE_HOTEL_BOOKING").get("GUESTS", 0)),
+                expected_guests,
             )
+            or not valid_person_genders(genders, expected_guests)
             or any(room < 1 or room > quantity for _name, room in people)
         ):
             return {"context": context, "error": {"code": "30005", "message": "Guest details or room allocation are invalid."}}

@@ -14,6 +14,13 @@ const navLinks = [
 
 /* ─── Which nav entry should be active for a given pathname ───── */
 function getActiveHref(pathname: string): string {
+  /* Booking list and details (details are nested under /trips). */
+  if (
+    pathname.startsWith("/bookings") ||
+    pathname.startsWith("/trips/bookings") ||
+    pathname.startsWith("/booking")
+  ) return "/bookings";
+
   /* Explore — landing + all results + auth flows */
   if (
     pathname === "/home" ||
@@ -24,12 +31,8 @@ function getActiveHref(pathname: string): string {
   /* Trips — profile, itinerary, booking */
   if (
     pathname.startsWith("/trips") ||
-    pathname.startsWith("/itinerary") ||
-    pathname.startsWith("/booking")
+    pathname.startsWith("/itinerary")
   ) return "/trips";
-
-  /* Bookings */
-  if (pathname.startsWith("/bookings")) return "/bookings";
 
   return "";
 }
@@ -64,6 +67,7 @@ export default function Navbar() {
 
   return (
     <nav
+      aria-label="Primary navigation"
       style={{
         backgroundColor: "var(--forest)",
         borderBottom: "1px solid var(--border-dark)",
@@ -79,7 +83,7 @@ export default function Navbar() {
           padding: "0 2rem",
           display: "flex",
           alignItems: "center",
-          height: "56px",
+          height: "72px",
           gap: "3rem",
         }}
         className="navbar-inner"
@@ -154,6 +158,7 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
+                aria-current={isActive ? "page" : undefined}
                 style={{
                   fontFamily: "var(--font-body)",
                   fontWeight: 400,
@@ -189,6 +194,7 @@ export default function Navbar() {
             className="mobile-menu-button"
             aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
             aria-expanded={menuOpen}
+            aria-controls={menuOpen ? "mobile-navigation" : undefined}
             onClick={() => setMenuOpen((open) => !open)}
           >
             <span />
@@ -207,6 +213,7 @@ export default function Navbar() {
               <div className="account-menu" style={{ position: "relative" }}>
                 <button
                   type="button"
+                  aria-label={`Account menu for ${user.name}`}
                   aria-expanded={accountOpen}
                   onClick={() => setAccountOpen((open) => !open)}
                   style={{
@@ -294,13 +301,14 @@ export default function Navbar() {
         </div>
 
         {menuOpen && (
-          <div className="mobile-nav-drawer">
+          <div id="mobile-navigation" className="mobile-nav-drawer" role="region" aria-label="Mobile navigation">
             {navLinks.map((link) => {
               const isActive = activeHref === link.href;
               return (
                 <Link
                   key={link.href}
                   href={link.href}
+                  aria-current={isActive ? "page" : undefined}
                   onClick={() => setMenuOpen(false)}
                   style={{ color: isActive ? "var(--orange)" : "var(--cream)" }}
                 >

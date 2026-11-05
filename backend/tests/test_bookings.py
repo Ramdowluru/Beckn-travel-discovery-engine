@@ -53,6 +53,36 @@ class BookingApiTests(unittest.TestCase):
         self.assertEqual(booking["display"]["location"], "Hyderabad")
         self.assertEqual(booking["display"]["date"], "2026-11-04")
 
+    def test_confirmed_transport_dates_and_times_use_provider_instants_in_ist(self):
+        response = {
+            "message": {
+                "order": {
+                    "id": "provider-order",
+                    "items": [],
+                    "fulfillments": [{
+                        "start": {"time": {"timestamp": "2026-11-12T18:30:00Z"}},
+                        "end": {"time": {"timestamp": "2026-11-12T20:30:00Z"}},
+                    }],
+                },
+            },
+        }
+        booking = bookings.serialize_booking({
+            "selectionId": "local-booking-id",
+            "kind": "transport",
+            "provider": {"id": "mock-bus.example"},
+            "providerOrder": {},
+            "confirmedProviderResponse": response,
+            "bookingDisplay": {"date": "2026-11-12"},
+            "criteria": {"date": "2026-11-12"},
+            "requestedQuantity": 1,
+        })
+
+        self.assertEqual(booking["display"]["departureDate"], "2026-11-13")
+        self.assertEqual(booking["display"]["departure"], "00:00")
+        self.assertEqual(booking["display"]["arrivalDate"], "2026-11-13")
+        self.assertEqual(booking["display"]["arrival"], "02:00")
+        self.assertNotIn("timestamp", str(booking["display"]))
+
     def test_ticket_is_only_returned_for_a_currently_confirmed_order(self):
         async def scenario():
             user = {"_id": ObjectId()}
@@ -100,6 +130,99 @@ class BookingApiTests(unittest.TestCase):
                 with self.assertRaises(HTTPException) as raised:
                     await bookings.download_mock_ticket("local-booking-id", user)
             self.assertEqual(raised.exception.status_code, 409)
+
+        asyncio.run(scenario())
+
+    def test_confirmed_hotel_download_uses_stay_voucher_details(self):
+        async def scenario():
+            user = {"_id": ObjectId()}
+            attempt = {
+                "selectionId": "local-stay-id",
+                "kind": "hotel",
+                "state": "CONFIRMED",
+                "initState": "INITIALIZED",
+                "confirmState": "CONFIRMED",
+                "provider": {"id": "mock-hotel.example"},
+                "providerOrder": {
+                    "id": "mock-hotel-reference",
+                    "provider": {"descriptor": {"name": "Mock Hotel"}},
+                    "items": [{"descriptor": {"name": "Mock stay"}}],
+                    "quote": {"price": {"currency": "INR", "value": "7200"}},
+                },
+                "confirmedProviderResponse": {},
+                "bookingDisplay": {
+                    "location": "Hyderabad",
+                    "checkIn": "2026-11-12",
+                    "checkOut": "2026-11-14",
+                },
+                "requestedQuantity": 2,
+                "initDetails": {
+                    "people": [{"name": "Example Guest"}, {"name": "Second Guest"}],
+                    "room_assignments": [1, 2],
+                    "contact_email": "guest@example.com",
+                    "contact_phone": "9000000000",
+                },
+            }
+            repository = type("Repository", (), {})()
+            repository.get_for_user = AsyncMock(return_value=attempt)
+            with patch.object(bookings, "get_db", return_value=object()), patch.object(
+                bookings, "TransportSelectionRepository", return_value=repository
+            ):
+                voucher = await bookings.download_mock_ticket("local-stay-id", user)
+
+            body = voucher.body.decode()
+            self.assertIn("simulated stay voucher", body)
+            self.assertIn("Rooms: 2", body)
+            self.assertIn("Guests: Example Guest (Room 1), Second Guest (Room 2)", body)
+            self.assertIn("Check-in: 2026-11-12", body)
+            self.assertIn("Check-out: 2026-11-14", body)
+            self.assertIn('filename="mock-voucher-local-stay-id.txt"', voucher.headers["Content-Disposition"])
+
+        asyncio.run(scenario())
+
+    def test_confirmed_experience_download_is_a_participant_voucher(self):
+        async def scenario():
+            user = {"_id": ObjectId()}
+            attempt = {
+                "selectionId": "local-experience-id",
+                "kind": "experience",
+                "state": "CONFIRMED",
+                "initState": "INITIALIZED",
+                "confirmState": "CONFIRMED",
+                "provider": {"id": "mock-experience.example"},
+                "providerOrder": {
+                    "id": "mock-experience-reference",
+                    "provider": {"descriptor": {"name": "Mock Experiences"}},
+                    "items": [{"descriptor": {"name": "Heritage Walk"}}],
+                    "quote": {"price": {"currency": "INR", "value": "1600"}},
+                },
+                "confirmedProviderResponse": {},
+                "bookingDisplay": {
+                    "location": "Hyderabad",
+                    "date": "2026-11-12",
+                    "time": "16:00–18:00",
+                },
+                "criteria": {"experience_date": "2026-11-12"},
+                "requestedQuantity": 2,
+                "initDetails": {
+                    "people": [{"name": "Example Guest"}, {"name": "Second Guest", "age": 21}],
+                    "contact_email": "guest@example.com",
+                    "contact_phone": "9000000000",
+                },
+            }
+            repository = type("Repository", (), {})()
+            repository.get_for_user = AsyncMock(return_value=attempt)
+            with patch.object(bookings, "get_db", return_value=object()), patch.object(
+                bookings, "TransportSelectionRepository", return_value=repository
+            ):
+                voucher = await bookings.download_mock_ticket("local-experience-id", user)
+
+            body = voucher.body.decode()
+            self.assertIn("simulated experience voucher", body)
+            self.assertIn("Participants: 2", body)
+            self.assertIn("Participants: Example Guest, Second Guest", body)
+            self.assertIn("Date: 2026-11-12", body)
+            self.assertIn('filename="mock-voucher-local-experience-id.txt"', voucher.headers["Content-Disposition"])
 
         asyncio.run(scenario())
 

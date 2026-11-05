@@ -255,7 +255,7 @@ async def init_transport(
     if len(payload.travellers) != quantity:
         raise HTTPException(status_code=422, detail="Traveller count must match the selected quantity.")
     details = {
-        "travellers": [traveller.model_dump() for traveller in payload.travellers],
+        "travellers": [traveller.model_dump(exclude_none=True) for traveller in payload.travellers],
         "contact_email": payload.contact_email,
         "contact_phone": payload.contact_phone,
     }

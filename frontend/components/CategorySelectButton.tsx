@@ -1,16 +1,18 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import CustomerFormScreen from "@/components/CustomerFormScreen";
+import { useAuth } from "@/context/AuthContext";
 import {
   ApiError,
-  cancelCategoryRequest,
   confirmCategoryRequest,
   getCategorySelectionRequest,
   initCategoryRequest,
   refreshCategoryBookingStatus,
   selectCategoryRequest,
   type CategorySelectionResponse,
+  type TravellerGender,
 } from "@/lib/api";
 
 type Category = "hotel" | "experience";
@@ -23,6 +25,11 @@ export default function CategorySelectButton({
   peopleCount,
   roomCount = 0,
   reviewDetails,
+  priceLabel,
+  unitPrice,
+  totalPrice,
+  summaryQuantity = peopleCount,
+  quantityLabel,
 }: {
   kind: Category;
   offerId: string;
@@ -31,13 +38,17 @@ export default function CategorySelectButton({
   peopleCount: number;
   roomCount?: number;
   reviewDetails: string[];
+  priceLabel: string;
+  unitPrice: string;
+  totalPrice: string;
+  summaryQuantity?: number;
+  quantityLabel: string;
 }) {
+  const router = useRouter();
+  const { user } = useAuth();
   const [selectionState, setSelectionState] = useState<"idle" | "selecting" | "selected" | "pending">("idle");
   const [initState, setInitState] = useState<"idle" | "initializing" | "initialized" | "pending">("idle");
   const [confirmState, setConfirmState] = useState<"idle" | "confirming" | "confirmed" | "pending" | "failed">("idle");
-  const [cancelState, setCancelState] = useState<"idle" | "cancelling" | "pending" | "cancelled" | "rejected">("idle");
-  const [cancellationReason, setCancellationReason] = useState("");
-  const [confirmCancellation, setConfirmCancellation] = useState(false);
   const [cancellationPolicy, setCancellationPolicy] = useState("");
   const [selectionId, setSelectionId] = useState("");
   const [quote, setQuote] = useState("");
@@ -49,10 +60,11 @@ export default function CategorySelectButton({
   const [priceChanged, setPriceChanged] = useState(false);
   const [acceptedFinalQuote, setAcceptedFinalQuote] = useState(false);
   const [editingDetails, setEditingDetails] = useState(false);
-  const [confirmedService, setConfirmedService] = useState("");
-  const [confirmedSchedule, setConfirmedSchedule] = useState("");
+  const [customerFormOpen, setCustomerFormOpen] = useState(false);
   const [providerStatusText, setProviderStatusText] = useState("");
   const [names, setNames] = useState<string[]>(() => Array(peopleCount).fill(""));
+  const [genders, setGenders] = useState<Array<TravellerGender | "">>(() => Array(peopleCount).fill(""));
+  const [ages, setAges] = useState<string[]>(() => Array(peopleCount).fill(""));
   const [roomAssignments, setRoomAssignments] = useState<number[]>(
     () => Array.from({ length: peopleCount }, (_, index) => (index % Math.max(roomCount, 1)) + 1),
   );
@@ -60,28 +72,48 @@ export default function CategorySelectButton({
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
-  const storageKey = `tde-category-selection:${kind}:${transactionId}:${offerId}`;
-  const draftKey = `${storageKey}:customer-draft`;
+  const storageKey = `tde-category-selection:${user?.id ?? "anonymous"}:${kind}:${transactionId}:${offerId}`;
+  const draftKey = user ? `${storageKey}:customer-draft` : "";
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const confirmationNavigatedRef = useRef(false);
+  const reviewDialogRef = useRef<HTMLElement>(null);
 
   /* eslint-disable react-hooks/set-state-in-effect -- Restore a saved customer draft only when this offer mount is restored from browser history. */
   useEffect(() => {
+    if (!draftKey) {
+      setNames(Array(peopleCount).fill(""));
+      setGenders(Array(peopleCount).fill(""));
+      setAges(Array(peopleCount).fill(""));
+      setRoomAssignments(Array.from({ length: peopleCount }, (_, index) => (index % Math.max(roomCount, 1)) + 1));
+      setEmail("");
+      setPhone("");
+      return;
+    }
+    setNames(Array(peopleCount).fill(""));
+    setGenders(Array(peopleCount).fill(""));
+    setAges(Array(peopleCount).fill(""));
+    setRoomAssignments(Array.from({ length: peopleCount }, (_, index) => (index % Math.max(roomCount, 1)) + 1));
+    setEmail("");
+    setPhone("");
     const savedDraft = window.sessionStorage.getItem(draftKey);
     if (!savedDraft) return;
     try {
-      const draft = JSON.parse(savedDraft) as { names?: string[]; rooms?: number[]; email?: string; phone?: string };
+      const draft = JSON.parse(savedDraft) as { names?: string[]; genders?: Array<TravellerGender | "">; ages?: string[]; rooms?: number[]; email?: string; phone?: string };
       if (Array.isArray(draft.names)) setNames(draft.names);
+      if (Array.isArray(draft.genders)) setGenders(draft.genders);
+      if (Array.isArray(draft.ages)) setAges(draft.ages);
       if (Array.isArray(draft.rooms)) setRoomAssignments(draft.rooms);
       if (typeof draft.email === "string") setEmail(draft.email);
       if (typeof draft.phone === "string") setPhone(draft.phone);
     } catch {
       window.sessionStorage.removeItem(draftKey);
     }
-  }, [draftKey]);
+  }, [draftKey, peopleCount, roomCount]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  function saveDraft(nextNames: string[], nextRooms: number[], nextEmail: string, nextPhone: string) {
-    window.sessionStorage.setItem(draftKey, JSON.stringify({ names: nextNames, rooms: nextRooms, email: nextEmail, phone: nextPhone }));
+  function saveDraft(nextNames: string[], nextGenders: Array<TravellerGender | "">, nextRooms: number[], nextEmail: string, nextPhone: string, nextAges = ages) {
+    if (!draftKey) return;
+    window.sessionStorage.setItem(draftKey, JSON.stringify({ names: nextNames, genders: nextGenders, ages: nextAges, rooms: nextRooms, email: nextEmail, phone: nextPhone }));
   }
 
   function clearFieldError(key: string) {
@@ -95,8 +127,15 @@ export default function CategorySelectButton({
 
   function applyStatus(result: CategorySelectionResponse) {
     setSelectionId(result.selection_id);
+    if (result.state === "SELECTED" && !["INITIALIZED", "INIT_REQUESTED", "PENDING_PROVIDER"].includes(result.init_state ?? "")) {
+      setCustomerFormOpen(true);
+    }
     const savedDetails = result.customer_details;
-    if (savedDetails?.people?.length) setNames(savedDetails.people.map((person) => person.name));
+    if (savedDetails?.people?.length) {
+      setNames(savedDetails.people.map((person) => person.name));
+      setGenders(savedDetails.people.map((person) => person.gender ?? ""));
+      setAges(savedDetails.people.map((person) => person.age === undefined || person.age === null ? "" : String(person.age)));
+    }
     if (savedDetails?.room_assignments?.length) setRoomAssignments(savedDetails.room_assignments);
     if (savedDetails?.contact_email) setEmail(savedDetails.contact_email);
     if (savedDetails?.contact_phone) setPhone(savedDetails.contact_phone);
@@ -119,34 +158,11 @@ export default function CategorySelectButton({
     }
     if (result.confirm_state === "CONFIRMED") {
       setConfirmState("confirmed");
-      const confirmedOrder = result.confirmed_order?.message?.order;
-      const itemName = confirmedOrder?.items?.[0]?.descriptor?.name;
-      if (itemName) setConfirmedService(itemName);
-      const fulfillment = confirmedOrder?.fulfillments?.[0];
-      const start = fulfillment?.start?.time?.timestamp
-        ?? fulfillment?.stops?.find((stop) => stop.type === "START")?.time?.timestamp;
-      const end = fulfillment?.end?.time?.timestamp
-        ?? fulfillment?.stops?.find((stop) => stop.type === "END")?.time?.timestamp;
-      if (start) {
-        const startDate = new Date(start).toLocaleString();
-        const endDate = end ? ` – ${new Date(end).toLocaleString()}` : "";
-        setConfirmedSchedule(`${startDate}${endDate}`);
-      }
     } else if (result.confirm_state === "PENDING_PROVIDER" || result.confirm_state === "CONFIRM_REQUESTED") {
       setConfirmState("pending");
     } else if (result.confirm_state === "CONFIRM_FAILED") {
       setConfirmState("failed");
       setError(result.confirm_error || "The provider could not confirm this order.");
-    }
-    if (result.cancel_state === "CANCELLED") {
-      setCancelState("cancelled");
-      const reason = result.cancelled_order?.message?.order?.cancellation?.reason?.descriptor?.short_desc;
-      if (reason) setCancellationReason(reason);
-    } else if (["CANCEL_REQUESTED", "PENDING_PROVIDER"].includes(result.cancel_state ?? "")) {
-      setCancelState("pending");
-    } else if (result.cancel_state === "CANCEL_REJECTED") {
-      setCancelState("rejected");
-      setError(result.cancel_error || "The provider rejected cancellation.");
     }
     if (result.provider_status) {
       const providerOrder = result.provider_status.message?.order;
@@ -154,8 +170,6 @@ export default function CategorySelectButton({
         setProviderStatusText("Provider could not locate the order. The booking outcome remains unchanged and unknown.");
       } else if (providerOrder?.state === "CONFIRMED" && result.confirm_state === "CONFIRMED") {
         setProviderStatusText("Provider confirmation verified.");
-      } else if (providerOrder?.state === "CANCELLED" && result.cancel_state === "CANCELLED") {
-        setProviderStatusText("Provider cancellation verified.");
       } else if (providerOrder?.state === "CONFIRMED") {
         setProviderStatusText("Provider reports confirmed, but the BAP booking remains unresolved.");
       } else if (providerOrder?.state === "INITIALIZED" && ["CONFIRM_REQUESTED", "PENDING_PROVIDER"].includes(result.confirm_state ?? "")) {
@@ -198,6 +212,7 @@ export default function CategorySelectButton({
   }
 
   useEffect(() => {
+    if (!user) return;
     const savedId = window.localStorage.getItem(storageKey);
     if (!savedId) return;
     const persistedId = savedId;
@@ -212,7 +227,47 @@ export default function CategorySelectButton({
     return () => {
       active = false;
     };
-  }, [storageKey]);
+  }, [storageKey, user]);
+
+  useEffect(() => {
+    if (confirmState !== "confirmed" || !selectionId || confirmationNavigatedRef.current) return;
+    confirmationNavigatedRef.current = true;
+    router.replace(`/booking/confirmation/${encodeURIComponent(selectionId)}`);
+  }, [confirmState, router, selectionId]);
+
+  useEffect(() => {
+    if (initState !== "initialized" || editingDetails) return;
+    const dialog = reviewDialogRef.current;
+    const firstFocusable = dialog?.querySelector<HTMLElement>("input, button:not([disabled])");
+    firstFocusable?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setEditingDetails(true);
+        setCustomerFormOpen(true);
+        setAcceptedFinalQuote(false);
+        return;
+      }
+      if (event.key !== "Tab" || !dialog) return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ));
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [editingDetails, initState, kind]);
 
   async function select() {
     setSelectionState("selecting");
@@ -221,6 +276,7 @@ export default function CategorySelectButton({
       const result = await selectCategoryRequest(kind, offerId, transactionId, quantity);
       applyStatus(result);
       window.localStorage.setItem(storageKey, result.selection_id);
+      if (result.state !== "PENDING") setCustomerFormOpen(true);
     } catch (requestError: unknown) {
       setSelectionState("idle");
       setError(requestError instanceof ApiError ? requestError.message : "Offer selection could not be completed.");
@@ -231,6 +287,12 @@ export default function CategorySelectButton({
     const nextErrors: Record<string, string> = {};
     names.forEach((name, index) => {
       if (!name.trim()) nextErrors[`person-${index}`] = `Enter this ${kind === "hotel" ? "guest" : "participant"}'s name.`;
+      if (kind === "experience" && ages[index]) {
+        const age = Number(ages[index]);
+        if (!Number.isInteger(age) || age < 0 || age > 120) {
+          nextErrors[`age-${index}`] = "Enter an age from 0 to 120.";
+        }
+      }
     });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) nextErrors.email = "Enter a valid email address.";
     if (!/^[+]?[0-9][0-9 ()-]{5,30}[0-9]$/.test(phone)) nextErrors.phone = "Enter a valid contact phone number.";
@@ -241,13 +303,18 @@ export default function CategorySelectButton({
     try {
       const result = await initCategoryRequest(
         selectionId,
-        names.map((name) => ({ name })),
+        names.map((name, index) => ({
+          name,
+          ...(genders[index] ? { gender: genders[index] as TravellerGender } : {}),
+          ...(kind === "experience" && ages[index] ? { age: Number(ages[index]) } : {}),
+        })),
         kind === "hotel" ? roomAssignments : undefined,
         email,
         phone,
       );
       applyStatus(result);
       setEditingDetails(false);
+      setCustomerFormOpen(false);
       setAcceptedFinalQuote(false);
     } catch (requestError: unknown) {
       setInitState("idle");
@@ -270,15 +337,11 @@ export default function CategorySelectButton({
     }
   }
 
-  async function cancelBooking() {
-    if (!confirmCancellation || cancellationReason.trim().length < 3) return;
-    setCancelState("cancelling");
-    setError("");
-    try {
-      applyStatus(await cancelCategoryRequest(selectionId, cancellationReason.trim()));
-    } catch (requestError: unknown) {
-      setCancelState("idle");
-      setError(requestError instanceof ApiError ? requestError.message : "Cancellation could not be completed.");
+  function closeCustomerForm() {
+    setCustomerFormOpen(false);
+    if (initState === "initialized") {
+      setEditingDetails(false);
+      setAcceptedFinalQuote(false);
     }
   }
 
@@ -287,10 +350,10 @@ export default function CategorySelectButton({
       <button
         type="button"
         className={`offer-primary-action${selectionState === "selected" ? " offer-selection-complete" : ""}`}
-        onClick={() => void select()}
-        disabled={selectionState !== "idle"}
+        onClick={() => selectionState === "selected" ? setCustomerFormOpen(true) : void select()}
+        disabled={selectionState === "selecting" || selectionState === "pending"}
       >
-        {selectionState === "selecting" ? "Checking offer…" : selectionState === "selected" ? "Offer checked" : selectionState === "pending" ? "Provider response pending" : "Continue"}
+        {selectionState === "selecting" ? "Checking offer…" : selectionState === "selected" ? `Continue with ${kind === "hotel" ? "guest" : "participant"} details` : selectionState === "pending" ? "Provider response pending" : "Continue"}
       </button>
       {quote && <p role="status">Provider quote: {quote}</p>}
       {selectionState === "pending" && (
@@ -299,56 +362,173 @@ export default function CategorySelectButton({
         </button>
       )}
       {selectionState === "selected" && (initState === "idle" || editingDetails) && (
-        <div style={{ display: "grid", gap: "0.55rem" }}>
-          <strong>{kind === "hotel" ? "Guest details" : "Participant details"}</strong>
+        <CustomerFormScreen
+          open={customerFormOpen}
+          title={kind === "hotel" ? "Guest details" : "Participant details"}
+          service={reviewDetails.find((detail) => detail.startsWith(kind === "hotel" ? "Stay:" : "Activity:"))?.split(":").slice(1).join(":").trim() ?? "Selected service"}
+          summary={reviewDetails}
+          priceLabel={priceLabel}
+          unitPrice={unitPrice}
+          totalPrice={totalPrice}
+          quantityLabel={quantityLabel}
+          quantity={summaryQuantity}
+          onBack={closeCustomerForm}
+        >
+        <div className="customer-form-content">
+          {kind === "hotel" && (
+            <section className="customer-form-section stay-guest-stay-summary" aria-label="Selected stay details">
+              <h2>Stay details</h2>
+              <div>
+                {reviewDetails.filter((detail) => /^(Check-in|Check-out|Rooms|Guests):/.test(detail)).map((detail) => {
+                  const separator = detail.indexOf(":");
+                  return <p key={detail}><span>{detail.slice(0, separator)}</span><strong>{detail.slice(separator + 1).trim()}</strong></p>;
+                })}
+              </div>
+            </section>
+          )}
+          {kind === "experience" && (
+            <section className="customer-form-section experience-selection-summary" aria-label="Selected experience details">
+              <h2>Experience date &amp; participants</h2>
+              <div>
+                {reviewDetails.filter((detail) => /^(Date|Time|Participants):/.test(detail)).map((detail) => {
+                  const separator = detail.indexOf(":");
+                  return <p key={detail}><span>{detail.slice(0, separator)}</span><strong>{detail.slice(separator + 1).trim()}</strong></p>;
+                })}
+              </div>
+              <p className="experience-criteria-hint">Date and participant count are fixed for this provider quote. Return to results to change them.</p>
+            </section>
+          )}
+          <section className="customer-form-section">
+            <h2>{kind === "hotel" ? "Guest details" : "Participant details"}</h2>
           {names.map((name, index) => (
-            <label key={index}>
-              {kind === "hotel" ? `Guest ${index + 1}` : `Participant ${index + 1}`}
-              <input
-                aria-label={`${kind === "hotel" ? "Guest" : "Participant"} ${index + 1} name`}
-                value={name}
-                aria-invalid={Boolean(fieldErrors[`person-${index}`])}
-                onChange={(event) => {
-                  const next = names.map((entry, currentIndex) => currentIndex === index ? event.target.value : entry);
-                  setNames(next);
-                  clearFieldError(`person-${index}`);
-                  saveDraft(next, roomAssignments, email, phone);
-                }}
-              />
-              {fieldErrors[`person-${index}`] && <span className="field-error" role="alert">{fieldErrors[`person-${index}`]}</span>}
-              {kind === "hotel" && (
+            <fieldset key={index} className={`customer-person-card${kind === "hotel" ? " hotel-customer-person" : ""}`}>
+              <legend>{kind === "hotel" ? `Guest ${index + 1}` : `Participant ${index + 1}`}{index === 0 ? " · Lead" : ""}</legend>
+              {kind === "experience" && (
+                <div className="experience-participant-fields">
+                  <label className="customer-field">
+                    Full name
+                    <input
+                      autoComplete="name"
+                      placeholder="Full name"
+                      aria-label={`Participant ${index + 1} name`}
+                      value={name}
+                      aria-invalid={Boolean(fieldErrors[`person-${index}`])}
+                      onChange={(event) => {
+                        const next = names.map((entry, currentIndex) => currentIndex === index ? event.target.value : entry);
+                        setNames(next);
+                        clearFieldError(`person-${index}`);
+                        saveDraft(next, genders, roomAssignments, email, phone);
+                      }}
+                    />
+                    {fieldErrors[`person-${index}`] && <span className="field-error" role="alert">{fieldErrors[`person-${index}`]}</span>}
+                  </label>
+                  <label className="customer-field">
+                    Age <span className="customer-optional-label">(optional)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={120}
+                      inputMode="numeric"
+                      aria-label={`Participant ${index + 1} age (optional)`}
+                      value={ages[index] ?? ""}
+                      aria-invalid={Boolean(fieldErrors[`age-${index}`])}
+                      onChange={(event) => {
+                        const next = ages.map((entry, currentIndex) => currentIndex === index ? event.target.value : entry);
+                        setAges(next);
+                        clearFieldError(`age-${index}`);
+                        saveDraft(names, genders, roomAssignments, email, phone, next);
+                      }}
+                    />
+                    {fieldErrors[`age-${index}`] && <span className="field-error" role="alert">{fieldErrors[`age-${index}`]}</span>}
+                  </label>
+                </div>
+              )}
+              {kind !== "experience" && (
+              <label className="customer-field">
+                Full name
+                <input
+                  autoComplete="name"
+                  placeholder="Full name"
+                  aria-label={`${kind === "hotel" ? "Guest" : "Participant"} ${index + 1} name`}
+                  value={name}
+                  aria-invalid={Boolean(fieldErrors[`person-${index}`])}
+                  onChange={(event) => {
+                    const next = names.map((entry, currentIndex) => currentIndex === index ? event.target.value : entry);
+                    setNames(next);
+                    clearFieldError(`person-${index}`);
+                    saveDraft(next, genders, roomAssignments, email, phone);
+                  }}
+                />
+                {fieldErrors[`person-${index}`] && <span className="field-error" role="alert">{fieldErrors[`person-${index}`]}</span>}
+              </label>
+              )}
+              <label className="customer-field">
+                Gender <span className="customer-optional-label">(optional)</span>
                 <select
+                  className="customer-room-select"
+                  aria-label={`${kind === "hotel" ? "Guest" : "Participant"} ${index + 1} gender (optional)`}
+                  value={genders[index] ?? ""}
+                  onChange={(event) => {
+                    const next = genders.map((entry, currentIndex) =>
+                      currentIndex === index ? event.target.value as TravellerGender | "" : entry,
+                    );
+                    setGenders(next);
+                    saveDraft(names, next, roomAssignments, email, phone);
+                  }}
+                >
+                  <option value="">Prefer not to specify</option>
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                  <option value="non_binary">Non-binary</option>
+                  <option value="prefer_not_to_say">Prefer not to say</option>
+                </select>
+              </label>
+              {kind === "hotel" && (
+                <label className="customer-field">
+                  Room
+                  <select className="customer-room-select"
                   aria-label={`Guest ${index + 1} room`}
                   value={roomAssignments[index]}
                   onChange={(event) => {
                     const next = roomAssignments.map((entry, currentIndex) => currentIndex === index ? Number(event.target.value) : entry);
                     setRoomAssignments(next);
-                    saveDraft(names, next, email, phone);
+                    saveDraft(names, genders, next, email, phone);
                   }}
                 >
                   {Array.from({ length: roomCount }, (_, roomIndex) => (
                     <option key={roomIndex + 1} value={roomIndex + 1}>Room {roomIndex + 1}</option>
                   ))}
-                </select>
+                  </select>
+                </label>
               )}
-            </label>
+            </fieldset>
           ))}
-          <label>
-            Lead contact email
-            <input aria-label="Contact email" type="email" required value={email} aria-invalid={Boolean(fieldErrors.email)}
-              onChange={(event) => { setEmail(event.target.value); clearFieldError("email"); saveDraft(names, roomAssignments, event.target.value, phone); }} />
+          </section>
+          <section className="customer-form-section">
+            <h2>Contact details</h2>
+          <label className="customer-field">
+            Contact email
+            <input aria-label="Contact email" type="email" autoComplete="email" placeholder="you@example.com" required value={email} aria-invalid={Boolean(fieldErrors.email)}
+              onChange={(event) => { setEmail(event.target.value); clearFieldError("email"); saveDraft(names, genders, roomAssignments, event.target.value, phone); }} />
             {fieldErrors.email && <span className="field-error" role="alert">{fieldErrors.email}</span>}
           </label>
-          <label>
-            Lead contact phone
-            <input aria-label="Contact phone" pattern="^\+?[0-9][0-9 ()-]{5,30}[0-9]$" title="Enter a valid contact phone number." value={phone}
-              aria-invalid={Boolean(fieldErrors.phone)} onChange={(event) => { setPhone(event.target.value); clearFieldError("phone"); saveDraft(names, roomAssignments, email, event.target.value); }} />
+          <label className="customer-field">
+            Contact phone
+            <input aria-label="Contact phone" autoComplete="tel" inputMode="tel" placeholder="Phone number" pattern="^\+?[0-9][0-9 ()-]{5,30}[0-9]$" title="Enter a valid contact phone number." value={phone}
+              aria-invalid={Boolean(fieldErrors.phone)} onChange={(event) => { setPhone(event.target.value); clearFieldError("phone"); saveDraft(names, genders, roomAssignments, email, event.target.value); }} />
             {fieldErrors.phone && <span className="field-error" role="alert">{fieldErrors.phone}</span>}
           </label>
-          <button type="button" className="offer-primary-action" onClick={() => void initialize()}>
-            {editingDetails ? "Update and reinitialize" : "Continue"}
-          </button>
+          <p className="customer-contact-hint">Your booking details will be sent to this email.</p>
+          </section>
+          {error && <p role="alert" className="customer-form-error">{error}</p>}
+          <div className="customer-form-actions">
+            <button type="button" className="customer-back-button" onClick={closeCustomerForm}>Back</button>
+            <button type="button" className="offer-primary-action customer-submit" onClick={() => void initialize()}>
+              {editingDetails ? "Update details" : "Continue"}
+            </button>
+          </div>
         </div>
+        </CustomerFormScreen>
       )}
       {initState === "initializing" && <p role="status">Initializing with provider…</p>}
       {initState === "pending" && (
@@ -361,115 +541,152 @@ export default function CategorySelectButton({
         </div>
       )}
       {initState === "initialized" && !editingDetails && (
-        <div role="status">
-          <strong>Review your booking</strong>
-          <ul>{reviewDetails.map((detail) => <li key={detail}>{detail}</li>)}</ul>
-          <p>{kind === "hotel" ? "Guests" : "Participants"}: {names.map((name, index) => {
-            const room = kind === "hotel" ? roomAssignments[index] : undefined;
-            return room ? `${name || "Name unavailable"} (Room ${room})` : name || "Name unavailable";
-          }).join(", ")}</p>
-          {email && <p>Lead contact: {email}</p>}
-          {phone && <p>Contact phone: {phone}</p>}
-          <p>Provider order: {orderId || "received"}</p>
-          {finalQuote && <p>Final provider quote: {finalQuote}</p>}
-          {quoteBreakup.map((line, index) => (
-            <p key={`${line.title ?? "line"}-${index}`}>{line.title}: {line.price?.currency} {line.price?.value}</p>
-          ))}
-          {providerStatusText && <p role="status">{providerStatusText}</p>}
-          {orderId && (
-            <button type="button" onClick={() => void checkProviderStatus()} disabled={refreshing}>
-              {refreshing ? "Refreshing booking status…" : "Refresh booking status"}
-            </button>
-          )}
-          {priceChanged && <p>The provider changed the price. Explicit acceptance is required before any later confirmation.</p>}
-          {confirmState === "idle" && (
-            <button type="button" onClick={() => {
-              setEditingDetails(true);
-              setAcceptedFinalQuote(false);
-            }}>
-              Edit customer details
-            </button>
-          )}
-          {confirmState === "idle" && (
-            <div>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={acceptedFinalQuote}
-                  onChange={(event) => setAcceptedFinalQuote(event.target.checked)}
-                />
-                I explicitly accept the final quote of {finalQuote}.
-              </label>
-              <p>Simulated booking only. No real payment or payment details are collected.</p>
-              <button
-                type="button"
-                onClick={() => void confirm()}
-                disabled={!acceptedFinalQuote || !finalQuoteAmount || !finalQuoteCurrency}
-              >
-                Confirm simulated booking
-              </button>
-            </div>
-          )}
-          {confirmState === "confirming" && <p role="status">Confirming with provider…</p>}
-          {confirmState === "pending" && (
-            <div>
-              <p role="status">Provider confirmation is pending or unknown. Do not retry blindly.</p>
-            </div>
-          )}
-          {confirmState === "confirmed" && (
-            <div>
-              <strong>Booking confirmed</strong>
-              <p>Provider reference: {orderId || "received"}</p>
-              <p>{confirmedService || (kind === "hotel" ? "Hotel stay" : "Experience")}</p>
-              {confirmedSchedule && <p>{confirmedSchedule}</p>}
-              <p>Final price: {finalQuote}</p>
-              <p>Payment status: Not paid (simulated; no payment was collected).</p>
-              <p>Confirmation is provider-specific; other bookings are independent.</p>
-              <p>{cancellationPolicy || "Mock policy: cancel before the scheduled start; no fee; unpaid orders have no refund."}</p>
-              <p><a href="/bookings">View My Bookings</a></p>
-              <p><Link href="/trips">Add to trip</Link></p>
-              {cancelState === "cancelled" && (
-                <div role="status">
-                  <strong>Booking cancelled</strong>
-                  <p>Cancellation was recorded by the provider.</p>
-                  {cancellationReason && <p>Reason: {cancellationReason}</p>}
-                  <p>Refund: Not applicable; this simulated booking was unpaid.</p>
-                </div>
-              )}
-              {cancelState === "pending" && <p role="status">Cancellation is pending or unknown. Refresh booking status; do not retry.</p>}
-              {cancelState === "cancelling" && <p role="status">Requesting cancellation from the provider…</p>}
-              {cancelState === "rejected" && <p role="alert">{`Cancellation rejected: ${error || "provider policy"}`}</p>}
-              {cancelState === "idle" && (
-                <div style={{ display: "grid", gap: "0.5rem" }}>
-                  <label>
-                    Cancellation reason
-                    <input
-                      aria-label="Cancellation reason"
-                      value={cancellationReason}
-                      onChange={(event) => setCancellationReason(event.target.value)}
-                    />
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={confirmCancellation}
-                      onChange={(event) => setConfirmCancellation(event.target.checked)}
-                    />
-                    Cancel this whole provider booking.
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => void cancelBooking()}
-                    disabled={!confirmCancellation || cancellationReason.trim().length < 3}
-                  >
-                    Cancel booking
+        kind === "hotel" ? (
+          <div className="stay-review-backdrop">
+          <section ref={reviewDialogRef} className="stay-review" role="dialog" aria-modal="true" aria-labelledby="stay-review-title" tabIndex={-1}>
+            <ol className="stay-booking-progress" aria-label="Booking progress">
+              <li>1. Details</li>
+              <li aria-current="step">2. Review</li>
+              <li>3. Confirmed</li>
+            </ol>
+            <p className="stay-review-kicker">Almost there</p>
+            <h2 id="stay-review-title">Review your stay</h2>
+            <p className="stay-review-intro">Please check your reservation details before confirming.</p>
+            <div className="stay-review-grid">
+              <div className="stay-review-main">
+                <section className="stay-review-card">
+                  <h3>Reservation details</h3>
+                  {reviewDetails.filter((detail) => /^(Stay|Location|Check-in|Check-out|Rooms|Guests):/.test(detail)).map((detail) => {
+                    const separator = detail.indexOf(":");
+                    return <p key={detail}><span>{detail.slice(0, separator)}</span><strong>{detail.slice(separator + 1).trim()}</strong></p>;
+                  })}
+                  <p><span>Provider order</span><strong>{orderId || "Received"}</strong></p>
+                </section>
+                <section className="stay-review-card">
+                  <h3>Guest information</h3>
+                  <ul>{names.map((name, index) => (
+                    <li key={`${name}-${index}`}>
+                      <strong>{name || "Name unavailable"}</strong>
+                      <span>{roomAssignments[index] ? `Room ${roomAssignments[index]}` : "Lead guest"}{genders[index] ? ` · ${genders[index]}` : ""}</span>
+                    </li>
+                  ))}</ul>
+                  <p><span>Contact email</span><strong>{email || "Not provided"}</strong></p>
+                  <p><span>Contact phone</span><strong>{phone || "Not provided"}</strong></p>
+                </section>
+                <section className="stay-review-card">
+                  <h3>Cancellation policy</h3>
+                  <p className="stay-review-policy">{cancellationPolicy || "Review the provider cancellation policy before confirming."}</p>
+                </section>
+              </div>
+              <aside className="stay-review-price-card">
+                <h3>Price breakdown</h3>
+                {quoteBreakup.map((line, index) => (
+                  <p key={`${line.title ?? "line"}-${index}`}>
+                    <span>{line.title || "Stay charge"}</span>
+                    <strong>{line.price?.currency} {line.price?.value}</strong>
+                  </p>
+                ))}
+                {!quoteBreakup.length && <p><span>Provider quote</span><strong>{finalQuote}</strong></p>}
+                <div className="stay-review-total"><span>Total</span><strong>{finalQuote}</strong></div>
+                {priceChanged && <p className="stay-review-price-change" role="status">The provider updated the price from {quote} to {finalQuote}. Your acceptance is required before confirming.</p>}
+                <p className="stay-review-terms">Simulated booking only. No payment is collected and initialization does not reserve inventory.</p>
+                {providerStatusText && <p role="status" className="stay-review-status">{providerStatusText}</p>}
+                {orderId && <button className="stay-review-text-button" type="button" onClick={() => void checkProviderStatus()} disabled={refreshing}>
+                  {refreshing ? "Refreshing…" : "Refresh provider status"}
+                </button>}
+                <label className="stay-review-accept">
+                  <input type="checkbox" checked={acceptedFinalQuote} onChange={(event) => setAcceptedFinalQuote(event.target.checked)} />
+                  <span>I accept the final quote of <strong>{finalQuote}</strong>.</span>
+                </label>
+                <div className="stay-review-actions">
+                  <button type="button" onClick={() => { setEditingDetails(true); setCustomerFormOpen(true); setAcceptedFinalQuote(false); }}>Edit guest details</button>
+                  <button type="button" onClick={() => void confirm()} disabled={!acceptedFinalQuote || !finalQuoteAmount || !finalQuoteCurrency || confirmState !== "idle"}>
+                    {confirmState === "confirming" ? "Confirming…" : "Confirm stay"}
                   </button>
                 </div>
-              )}
+                {confirmState === "pending" && <p role="status" className="stay-review-status">Provider confirmation is pending or unknown. Check booking status before taking further action.</p>}
+                {confirmState === "failed" && <p role="alert" className="stay-review-status">{error || "The provider could not confirm this stay."}</p>}
+              </aside>
             </div>
-          )}
-          {confirmState !== "confirmed" && <p>Payment is simulated only. Initialization does not reserve inventory.</p>}
-        </div>
+          </section>
+          </div>
+        ) : (
+          <div className="stay-review-backdrop">
+            <section ref={reviewDialogRef} className="stay-review experience-review" role="dialog" aria-modal="true" aria-labelledby="experience-review-title" tabIndex={-1}>
+              <ol className="stay-booking-progress" aria-label="Booking progress">
+                <li>1. Details</li>
+                <li aria-current="step">2. Review</li>
+                <li>3. Confirmed</li>
+              </ol>
+              <p className="stay-review-kicker">Almost there</p>
+              <h2 id="experience-review-title">Review your booking</h2>
+              <p className="stay-review-intro">Check the experience details and participant information before confirming.</p>
+              <div className="stay-review-grid">
+                <div className="stay-review-main">
+                  <section className="stay-review-card">
+                    <h3>Selected experience</h3>
+                    {reviewDetails.filter((detail) => /^(Activity|Provider):/.test(detail)).map((detail) => {
+                      const separator = detail.indexOf(":");
+                      return <p key={detail}><span>{detail.slice(0, separator)}</span><strong>{detail.slice(separator + 1).trim()}</strong></p>;
+                    })}
+                    <p><span>Provider order</span><strong>{orderId || "Received"}</strong></p>
+                  </section>
+                  <section className="stay-review-card">
+                    <h3>Reservation details</h3>
+                    {reviewDetails.filter((detail) => /^(Date|Time|Meeting point|Participants):/.test(detail)).map((detail) => {
+                      const separator = detail.indexOf(":");
+                      return <p key={detail}><span>{detail.slice(0, separator)}</span><strong>{detail.slice(separator + 1).trim()}</strong></p>;
+                    })}
+                  </section>
+                  <section className="stay-review-card">
+                    <h3>Customer information</h3>
+                    <ul>{names.map((name, index) => (
+                      <li key={`${name}-${index}`}>
+                        <strong>{name || "Name unavailable"}{ages[index] ? ` · Age ${ages[index]}` : ""}</strong>
+                        <span>{index === 0 ? "Lead participant" : `Participant ${index + 1}`}{genders[index] ? ` · ${genders[index]}` : ""}</span>
+                      </li>
+                    ))}</ul>
+                    <p><span>Email</span><strong>{email || "Not provided"}</strong></p>
+                    <p><span>Phone</span><strong>{phone || "Not provided"}</strong></p>
+                  </section>
+                  <section className="stay-review-card">
+                    <h3>Cancellation policy</h3>
+                    <p className="stay-review-policy">{cancellationPolicy || reviewDetails.find((detail) => detail.startsWith("Cancellation policy:"))?.split(":").slice(1).join(":").trim() || "Review the provider cancellation policy before confirming."}</p>
+                  </section>
+                </div>
+                <aside className="stay-review-price-card">
+                  <h3>Price breakdown</h3>
+                  {quoteBreakup.map((line, index) => (
+                    <p key={`${line.title ?? "line"}-${index}`}>
+                      <span>{line.title || "Experience charge"}</span>
+                      <strong>{line.price?.currency} {line.price?.value}</strong>
+                    </p>
+                  ))}
+                  {!quoteBreakup.length && <p><span>Provider quote</span><strong>{finalQuote}</strong></p>}
+                  <div className="stay-review-total"><span>Total</span><strong>{finalQuote}</strong></div>
+                  {priceChanged && <p className="stay-review-price-change" role="status">The provider updated the price from {quote} to {finalQuote}. Your acceptance is required before confirming.</p>}
+                  <p className="stay-review-terms">Simulated booking only. No payment is collected. Availability is not reserved by initialization.</p>
+                  {providerStatusText && <p role="status" className="stay-review-status">{providerStatusText}</p>}
+                  {orderId && <button className="stay-review-text-button" type="button" onClick={() => void checkProviderStatus()} disabled={refreshing}>
+                    {refreshing ? "Refreshing…" : "Refresh provider status"}
+                  </button>}
+                  <label className="stay-review-accept">
+                    <input type="checkbox" checked={acceptedFinalQuote} onChange={(event) => setAcceptedFinalQuote(event.target.checked)} />
+                    <span>I accept the final quote of <strong>{finalQuote}</strong>.</span>
+                  </label>
+                  <div className="stay-review-actions">
+                    <button type="button" onClick={() => { setEditingDetails(true); setCustomerFormOpen(true); setAcceptedFinalQuote(false); }}>Edit participant details</button>
+                    <button type="button" onClick={() => void confirm()} disabled={!acceptedFinalQuote || !finalQuoteAmount || !finalQuoteCurrency || confirmState !== "idle"}>
+                      {confirmState === "confirming" ? "Confirming…" : "Confirm booking"}
+                    </button>
+                  </div>
+                  {confirmState === "pending" && <p role="status" className="stay-review-status">Provider confirmation is pending or unknown. Check booking status before taking further action.</p>}
+                  {confirmState === "failed" && <p role="alert" className="stay-review-status">{error || "The provider could not confirm this experience."}</p>}
+                </aside>
+              </div>
+            </section>
+          </div>
+        )
       )}
       {error && <p role="alert">{error}</p>}
     </div>

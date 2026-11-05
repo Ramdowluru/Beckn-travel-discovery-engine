@@ -12,11 +12,13 @@ import {
   type CreateTripInput,
   type UserTrip,
 } from "@/lib/api";
+import { displayDate } from "@/lib/trip-itinerary";
 
 interface TripManagementProps {
   initialTrips: UserTrip[];
   bookings: BookingRecord[];
   initialError?: string;
+  initialManagedTripId?: string;
 }
 
 const fieldStyle = {
@@ -49,10 +51,27 @@ function bookingLabel(booking: BookingRecord): string {
   return `${service} — ${provider} · ${booking.status.replaceAll("_", " ")}`;
 }
 
+function tripTotal(trip: UserTrip): string {
+  const prices = trip.bookings.flatMap(({ booking, status }) => {
+    if (status !== "CONFIRMED") return [];
+    const currency = booking?.quote?.price?.currency;
+    const value = Number(booking?.quote?.price?.value);
+    return currency && Number.isFinite(value) ? [{ currency, value }] : [];
+  });
+  if (!prices.length) return "No booking total";
+  const currencies = new Set(prices.map((price) => price.currency));
+  if (currencies.size !== 1) return "Multiple currencies";
+  const [currency] = currencies;
+  const total = prices.reduce((sum, price) => sum + price.value, 0);
+  const formatted = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(total);
+  return currency === "INR" ? `₹${formatted}` : `${currency} ${formatted}`;
+}
+
 export default function TripManagement({
   initialTrips,
   bookings,
   initialError,
+  initialManagedTripId,
 }: TripManagementProps) {
   const [trips, setTrips] = useState(initialTrips);
   const [loadError, setLoadError] = useState(initialError ?? "");
@@ -60,6 +79,7 @@ export default function TripManagement({
   const [successMessage, setSuccessMessage] = useState("");
   const [pendingAction, setPendingAction] = useState("");
   const [editingTripId, setEditingTripId] = useState<string | null>(null);
+  const [managingTripId, setManagingTripId] = useState<string | null>(initialManagedTripId ?? null);
   const mutationsPending = pendingAction !== "" && pendingAction !== "refresh";
 
   function replaceTrip(updated: UserTrip) {
@@ -181,19 +201,14 @@ export default function TripManagement({
   }
 
   return (
-    <section aria-labelledby="trips-heading" style={{ marginBottom: "2.5rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "1rem", flexWrap: "wrap" }}>
+    <section aria-labelledby="trips-heading" className="trip-management-section">
+      <div className="trip-management-heading">
         <div>
-          <h2
-            id="trips-heading"
-            style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "1.25rem", color: "var(--ink)", marginBottom: "0.35rem" }}
-          >
-            Trips
-          </h2>
-          <p style={{ fontFamily: "var(--font-body)", fontSize: "0.8rem", color: "var(--ink-soft)" }}>
-            Organize existing bookings. Adding or removing a reference does not change a booking.
-          </p>
+          <p className="trip-section-eyebrow">Itineraries</p>
+          <h1 id="trips-heading">Trips</h1>
+          <p>Trips group bookings you’ve already made into one itinerary.</p>
         </div>
+        <a className="trip-plan-link" href="#create-trip">Plan a new trip</a>
         {loadError && (
           <button type="button" onClick={refreshTrips} disabled={pendingAction === "refresh"} style={buttonStyle}>
             {pendingAction === "refresh" ? "Refreshing…" : "Retry loading trips"}
@@ -220,12 +235,10 @@ export default function TripManagement({
       <form
         onSubmit={handleCreate}
         id="create-trip"
-        style={{ marginTop: "1rem", padding: "1.25rem", backgroundColor: "var(--white)", border: "1px solid var(--border)" }}
+        className="trip-create-form"
       >
-        <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1rem", color: "var(--ink)", marginBottom: "0.9rem" }}>
-          Create a trip
-        </h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.75rem" }}>
+        <h3>Create a trip</h3>
+        <div className="trip-create-fields">
           <label style={labelStyle}>
             Title
             <input name="title" required maxLength={120} style={fieldStyle} />
@@ -249,43 +262,71 @@ export default function TripManagement({
       </form>
 
       {trips.length === 0 ? (
-        <p style={{ marginTop: "1rem", padding: "1.25rem", backgroundColor: "var(--white)", border: "1px solid var(--border)", color: "var(--ink-soft)", fontFamily: "var(--font-body)", fontSize: "0.85rem" }}>
+        <p className="trip-empty-state">
           {loadError ? "Trip list is unavailable until it can be loaded." : "No trips yet. Create one to organize your existing bookings."}
         </p>
       ) : (
-        <div style={{ display: "grid", gap: "0.85rem", marginTop: "1rem" }}>
+        <div className="trip-summary-list">
           {trips.map((trip) => {
             const memberIds = new Set(trip.bookings.map((entry) => entry.booking_id));
             const availableBookings = bookings.filter((booking) => !memberIds.has(booking.id));
             const editing = editingTripId === trip.id;
+            const managing = managingTripId === trip.id;
             const actionBusy = mutationsPending;
             return (
-              <article key={trip.id} style={{ padding: "1.25rem", backgroundColor: "var(--white)", border: "1px solid var(--border)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
+              <article id={`trip-${trip.id}`} key={trip.id} className="trip-summary-card">
+                <h3>{trip.title}</h3>
+                <p className="trip-summary-meta">{trip.destination} · {displayDate(trip.start_date)} – {displayDate(trip.end_date)}</p>
+                {trip.bookings.length > 0 ? (
+                  <ul className="trip-preview-bookings">
+                    {trip.bookings.slice(0, 3).map((reference) => (
+                      <li key={reference.booking_id}>
+                        {reference.booking?.service || `${reference.booking?.kind ?? "Booking"} booking`}
+                      </li>
+                    ))}
+                    {trip.bookings.length > 3 && <li>+ {trip.bookings.length - 3} more booking{trip.bookings.length - 3 === 1 ? "" : "s"}</li>}
+                  </ul>
+                ) : (
+                  <p className="trip-preview-empty">No bookings added yet.</p>
+                )}
+                <div className="trip-summary-footer">
+                  <strong>{tripTotal(trip)}</strong>
                   <div>
-                    <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.05rem", color: "var(--ink)" }}>{trip.title}</h3>
-                    <p style={{ marginTop: "0.25rem", fontFamily: "var(--font-body)", fontSize: "0.82rem", color: "var(--ink-soft)" }}>
-                      {trip.destination} · {trip.start_date} – {trip.end_date}
-                    </p>
-                  </div>
-                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                    <Link href={`/trips/${encodeURIComponent(trip.id)}/itinerary`} style={secondaryLinkStyle}>
+                    <Link href={`/trips/${encodeURIComponent(trip.id)}/itinerary`} className="trip-view-link">
                       View itinerary
                     </Link>
                     <button
                       type="button"
-                      disabled={mutationsPending}
+                      className="trip-manage-toggle"
+                      aria-expanded={managing}
+                      aria-controls={`trip-manage-${trip.id}`}
                       onClick={() => {
                         setFormError("");
-                        setEditingTripId(editing ? null : trip.id);
+                        setManagingTripId(managing ? null : trip.id);
+                        if (managing) setEditingTripId(null);
                       }}
-                      style={secondaryButtonStyle}
                     >
-                      {editing ? "Close editor" : "Edit trip"}
+                      {managing ? "Close" : "Manage trip"}
                     </button>
                   </div>
                 </div>
 
+                {managing && (
+                  <div id={`trip-manage-${trip.id}`} className="trip-manage-panel">
+                    <div className="trip-manage-panel-heading">
+                      <h4>Manage {trip.title}</h4>
+                      <button
+                        type="button"
+                        disabled={mutationsPending}
+                        onClick={() => {
+                          setFormError("");
+                          setEditingTripId(editing ? null : trip.id);
+                        }}
+                        style={secondaryButtonStyle}
+                      >
+                        {editing ? "Close editor" : "Edit trip"}
+                      </button>
+                    </div>
                 {editing && (
                   <form onSubmit={(event) => handleUpdate(event, trip)} style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--border)" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.75rem" }}>
@@ -300,10 +341,8 @@ export default function TripManagement({
                   </form>
                 )}
 
-                <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--border)" }}>
-                  <h4 style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "0.85rem", color: "var(--ink)", marginBottom: "0.6rem" }}>
-                    Bookings in this trip
-                  </h4>
+                <div className="trip-manage-bookings">
+                  <h5>Bookings in this trip</h5>
                   {trip.bookings.length === 0 ? (
                     <p style={{ fontFamily: "var(--font-body)", fontSize: "0.8rem", color: "var(--ink-muted)" }}>No booking references added.</p>
                   ) : (
@@ -353,6 +392,8 @@ export default function TripManagement({
                     </p>
                   )}
                 </div>
+                  </div>
+                )}
               </article>
             );
           })}
@@ -378,14 +419,4 @@ const secondaryButtonStyle = {
   fontFamily: "var(--font-body)",
   fontSize: "0.75rem",
   cursor: "pointer",
-};
-
-const secondaryLinkStyle = {
-  border: "1px solid var(--border)",
-  backgroundColor: "transparent",
-  color: "var(--ink)",
-  padding: "0.45rem 0.7rem",
-  fontFamily: "var(--font-body)",
-  fontSize: "0.75rem",
-  textDecoration: "none",
 };

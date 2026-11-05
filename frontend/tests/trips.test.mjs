@@ -9,7 +9,7 @@ const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const backendModulePath = pathToFileURL(resolve(frontendRoot, "lib/serverBackend.ts")).href;
 process.env.BACKEND_URL = "http://backend.test";
 
-async function loadTypeScriptModule(path, replacements = []) {
+async function transpileTypeScriptModule(path, replacements = []) {
   let source = await readFile(path, "utf8");
   for (const [pattern, value] of replacements) {
     source = source.replaceAll(pattern, value);
@@ -23,7 +23,11 @@ async function loadTypeScriptModule(path, replacements = []) {
   });
   const errors = diagnostics.filter((diagnostic) => diagnostic.category === typescript.DiagnosticCategory.Error);
   assert.deepEqual(errors, []);
-  return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
+  return `data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`;
+}
+
+async function loadTypeScriptModule(path, replacements = []) {
+  return import(await transpileTypeScriptModule(path, replacements));
 }
 
 async function loadRoute(path) {
@@ -224,7 +228,10 @@ test("trip browser helpers retain useful backend errors and HTTP status", async 
 });
 
 test("trip itinerary handles missing times, overnight dates, and activity-only overlaps", async () => {
-  const { buildTimeline } = await loadTypeScriptModule(resolve(frontendRoot, "lib/trip-itinerary.ts"));
+  const bookingDatesUrl = await transpileTypeScriptModule(resolve(frontendRoot, "lib/booking-dates.ts"));
+  const { buildTimeline } = await loadTypeScriptModule(resolve(frontendRoot, "lib/trip-itinerary.ts"), [
+    ['"./booking-dates"', JSON.stringify(bookingDatesUrl)],
+  ]);
   const trip = {
     id: "trip-1",
     title: "Test trip",
@@ -289,9 +296,14 @@ test("trip itinerary handles missing times, overnight dates, and activity-only o
 
   assert.equal(overnight.startDate, "2026-11-06");
   assert.equal(overnight.endDate, "2026-11-07");
-  assert.ok(overnight.schedule.some((line) => line.includes("22:00 – 04:15")));
+  assert.ok(overnight.schedule.some((line) =>
+    line.includes("6 Nov 2026")
+    && line.includes("10:00 pm IST")
+    && line.includes("7 Nov 2026")
+    && line.includes("4:15 am IST")
+  ));
   assert.equal(missingTime.startInstant, null);
-  assert.ok(missingTime.schedule.includes("6 Nov 2026"));
+  assert.ok(missingTime.schedule.some((line) => line.includes("6 Nov 2026")));
   assert.ok(!missingTime.schedule.some((line) => /\d{2}:\d{2}/.test(line)));
   assert.deepEqual(timedStarts, [...timedStarts].sort((left, right) => left - right));
   assert.ok(overnight.warnings.some((warning) => warning.includes("overlapping-activity")));

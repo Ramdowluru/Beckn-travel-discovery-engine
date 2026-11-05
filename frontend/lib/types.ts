@@ -8,8 +8,10 @@ export interface TransportOption {
   provider: string;
   type: string;
   departure: string;
+  departureDate?: string;
   departureCity: string;
   arrival: string;
+  arrivalDate?: string;
   arrivalCity: string;
   duration: string;
   stops: string;
@@ -23,6 +25,12 @@ export interface TransportOption {
   amenities: string[];
   cancellation: string;
   providerNote: string;
+  _beckn?: {
+    fulfillment?: {
+      start?: { time?: { timestamp?: string; range?: { start?: string } } };
+      end?: { time?: { timestamp?: string; range?: { start?: string } } };
+    };
+  };
 }
 
 export interface StayOption {

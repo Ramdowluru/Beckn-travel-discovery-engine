@@ -65,93 +65,64 @@ export default async function ExperienceDetailPage({ params, searchParams }: Pro
           </div>
         </div>
 
-        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "3rem 2rem 5rem" }}>
-
-          {/* ── Hero images ─────────────────────────────────────── */}
-          {exp.images.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: "2px", marginBottom: "2.5rem", height: "340px" }}>
-              {exp.images.slice(0, 2).map((img, i) => (
-                <div key={i} style={{ overflow: "hidden", backgroundColor: "var(--cream-dark)" }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={img} alt={exp!.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                </div>
-              ))}
-            </div>
-          )}
-
+        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "2rem 2rem 5rem" }}>
           {/* ── Two-column body ─────────────────────────────────── */}
-          <div className="detail-layout" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
+          <div className="detail-layout experience-detail-layout" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
 
             {/* Left */}
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.4rem" }}>
-                <span style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.75rem", color: "var(--ink-muted)" }}>
-                  Hosted by {exp.provider}
-                </span>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: "var(--orange)", fontWeight: 500 }}>★ {exp.rating}</span>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.6rem", color: "var(--ink-muted)", letterSpacing: "0.06em" }}>{exp.category.toUpperCase()}</span>
+              <div className="experience-detail-provider">
+                <span className="experience-result-category">{exp.category} experience</span>
+                <span>Hosted by {exp.provider}</span>
+                <span className="experience-result-rating">★ {exp.rating}</span>
               </div>
-              <h1 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "2rem", color: "var(--ink)", letterSpacing: "-0.03em", marginBottom: "0.25rem" }}>
+              <h1 className="experience-detail-title">
                 {exp.name}
               </h1>
-              <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.875rem", color: "var(--ink-soft)", marginBottom: "2rem" }}>
-                Duration: {exp.duration}
+              <p className="experience-detail-subtitle">
+                {exp.meetingPoint} · {exp.duration}
               </p>
 
-              {/* Description */}
-              <div style={{ marginBottom: "2rem" }}>
-                <p className="tag-neutral" style={{ marginBottom: "0.75rem" }}>About this experience</p>
-                <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.9rem", color: "var(--ink-soft)", lineHeight: 1.7 }}>
-                  {exp.description}
-                </p>
+              <div className="experience-detail-section">
+                <h2>About this experience</h2>
+                <p>{exp.description}</p>
               </div>
 
-              {/* What's included */}
-              <div style={{ marginBottom: "2rem" }}>
-                <p className="tag-neutral" style={{ marginBottom: "0.75rem" }}>What&apos;s included</p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+              <div className="experience-detail-section">
+                <h2>What&apos;s included</h2>
+                <ul className="experience-detail-includes">
                   {exp.includes.map((item) => (
-                    <span key={item} style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-soft)", backgroundColor: "var(--white)", border: "1px solid var(--border)", padding: "0.3rem 0.75rem" }}>
-                      {item}
-                    </span>
+                    <li key={item}><span aria-hidden="true">✓</span>{item}</li>
                   ))}
-                </div>
+                </ul>
               </div>
 
-              {/* Meeting point */}
-              <div style={{ backgroundColor: "var(--white)", border: "1px solid var(--border)", padding: "1rem 1.25rem", marginBottom: "1.5rem" }}>
-                <p className="tag-neutral" style={{ marginBottom: "0.4rem" }}>Meeting point</p>
-                <p style={{ fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.875rem", color: "var(--ink)" }}>{exp.meetingPoint}</p>
+              <div className="experience-detail-schedule">
+                <div><span>Experience date</span><strong>{exp.date}</strong></div>
+                <div><span>Time</span><strong>{exp.time}</strong></div>
+                <div><span>Duration</span><strong>{exp.duration}</strong></div>
+                <div><span>Meeting point</span><strong>{exp.meetingPoint}</strong></div>
               </div>
 
-              <div className="offer-facts-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "1px", border: "1px solid var(--border)", marginBottom: "1.5rem" }}>
-                <div style={{ backgroundColor: "var(--white)", padding: "1rem 1.25rem" }}>
-                  <p className="tag-neutral" style={{ marginBottom: "0.3rem" }}>Availability</p>
-                  <p style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>{exp.availability} places available</p>
-                </div>
-                <div style={{ backgroundColor: "var(--white)", padding: "1rem 1.25rem" }}>
-                  <p className="tag-neutral" style={{ marginBottom: "0.3rem" }}>Quantity</p>
-                  <p style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>{participants} {participants === 1 ? "participant" : "participants"}</p>
-                </div>
-              </div>
-
-              {/* Cancellation */}
-              <div style={{ backgroundColor: "var(--white)", border: "1px solid var(--border)", padding: "1rem 1.25rem" }}>
-                <p className="tag-neutral" style={{ marginBottom: "0.4rem" }}>Cancellation policy</p>
-                <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.85rem", color: "var(--ink-soft)" }}>{exp.cancellation}</p>
+              <div className="experience-detail-section experience-detail-cancellation">
+                <h2>Cancellation policy</h2>
+                <p>{exp.cancellation}</p>
               </div>
             </div>
 
             {/* Right: booking panel */}
             <aside>
-              <div style={{ border: "1px solid var(--border)", backgroundColor: "var(--white)", padding: "1.75rem" }}>
-                <p className="tag-neutral" style={{ marginBottom: "0.5rem" }}>Price per person</p>
-                <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "2.25rem", color: "var(--ink)", letterSpacing: "-0.03em", marginBottom: "0.25rem" }}>
+              <div className="experience-booking-card">
+                <p className="tag-neutral">Price per participant</p>
+                <p className="experience-booking-price">
                   {exp.price}
                 </p>
-                <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.75rem", color: "var(--ink-muted)", marginBottom: "1.75rem" }}>
-                  Simulated quote only · No payment or inventory reservation
-                </p>
+                <div className="experience-booking-total">
+                  <span>{participants} {participants === 1 ? "participant" : "participants"}</span>
+                  <strong>{exp.totalPrice}</strong>
+                </div>
+                <p className="experience-booking-date">{exp.date} · {exp.time}</p>
+                <p className="experience-booking-note">Availability and price are rechecked with the provider. Initialization does not reserve a place.</p>
 
                 <CategorySelectButton
                   kind="experience"
@@ -159,6 +130,10 @@ export default async function ExperienceDetailPage({ params, searchParams }: Pro
                   transactionId={transactionId}
                   quantity={participants}
                   peopleCount={participants}
+                  priceLabel="Price per person"
+                  unitPrice={exp.price}
+                  totalPrice={exp.totalPrice}
+                  quantityLabel={participants === 1 ? "participant" : "participants"}
                   reviewDetails={[
                     `Provider: ${exp.provider}`,
                     `Activity: ${exp.name}`,
@@ -167,6 +142,7 @@ export default async function ExperienceDetailPage({ params, searchParams }: Pro
                     `Meeting point: ${exp.meetingPoint}`,
                     `Participants: ${participants}`,
                     `Published price: ${exp.price}`,
+                    `Cancellation policy: ${exp.cancellation}`,
                   ]}
                 />
                 <Link

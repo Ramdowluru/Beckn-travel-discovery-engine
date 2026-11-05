@@ -1,7 +1,7 @@
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
-from common.booking_details import valid_lead_contact, valid_person_names
+from common.booking_details import valid_lead_contact, valid_person_genders, valid_person_names
 
 IST = timezone(timedelta(hours=5, minutes=30))
 EXTRA_FIELDS = ["bus_type", "train_number", "class", "flight_number", "cabin"]
@@ -284,7 +284,14 @@ def build_on_init(data: dict, request: dict) -> dict:
         and isinstance(entry.get("descriptor"), dict)
         and entry["descriptor"].get("code") == "NAME"
     ]
-    if not valid_person_names(names, quantity):
+    genders = [
+        entry.get("value")
+        for entry in travellers
+        if isinstance(entry, dict)
+        and isinstance(entry.get("descriptor"), dict)
+        and entry["descriptor"].get("code") == "GENDER"
+    ]
+    if not valid_person_names(names, quantity) or not valid_person_genders(genders, quantity):
         return {"context": context, "error": {"code": "30005", "message": "Traveller details do not match selected quantity."}}
     if not valid_lead_contact(billing):
         return {"context": context, "error": {"code": "30005", "message": "Contact details are incomplete."}}

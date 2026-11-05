@@ -4,6 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import type { TransportOption } from "@/lib/types";
 import TransportSelectButton from "@/components/TransportSelectButton";
+import { providerDateInIndia } from "@/lib/booking-dates";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -87,6 +88,22 @@ export default async function TransportDetailPage({ params, searchParams }: Prop
   })) {
     if (value) itineraryParams.set(key, value);
   }
+  const formatDate = (value: string | undefined) => value
+    ? new Date(`${value}T00:00:00Z`).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "UTC",
+      })
+    : "Date as selected";
+  const startTimestamp = opt._beckn?.fulfillment?.start?.time?.timestamp
+    || opt._beckn?.fulfillment?.start?.time?.range?.start;
+  const endTimestamp = opt._beckn?.fulfillment?.end?.time?.timestamp
+    || opt._beckn?.fulfillment?.end?.time?.range?.start;
+  const departureDateValue = opt.departureDate || (startTimestamp ? providerDateInIndia(startTimestamp) : "") || storedQuery?.date;
+  const arrivalDateValue = opt.arrivalDate || (endTimestamp ? providerDateInIndia(endTimestamp) : "");
+  const departureDate = formatDate(departureDateValue);
+  const arrivalDate = arrivalDateValue ? formatDate(arrivalDateValue) : "Date not supplied";
 
   return (
     <>
@@ -94,9 +111,9 @@ export default async function TransportDetailPage({ params, searchParams }: Prop
       <main style={{ flex: 1, backgroundColor: "var(--cream)" }}>
         {/* ── Breadcrumb bar ──────────────────────────────────── */}
         <div style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--white)" }}>
-          <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", height: "44px", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <div className="offer-breadcrumb-inner" style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", height: "44px", display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <Link href="/results?tab=travel" style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-soft)", textDecoration: "none" }}>
-              Travel results
+              Results
             </Link>
             <span style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}>→</span>
             <span style={{ fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.8rem", color: "var(--ink)" }}>
@@ -105,126 +122,112 @@ export default async function TransportDetailPage({ params, searchParams }: Prop
           </div>
         </div>
 
-        <div className="detail-layout" style={{ maxWidth: "1200px", margin: "0 auto", padding: "3rem 2rem 5rem", display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
+        <div className="detail-layout transport-detail-layout" style={{ maxWidth: "1200px", margin: "0 auto", padding: "3rem 2rem 5rem", display: "grid", gridTemplateColumns: "1fr 320px", gap: "3rem", alignItems: "start" }}>
 
           {/* ── Left ──────────────────────────────────────────── */}
           <div>
-            <div style={{ marginBottom: "2rem" }}>
+            <section className="offer-summary-card">
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-                <p className="tag-neutral" style={{ fontSize: "0.6rem" }}>{opt.type}</p>
+                <p className="tag" style={{ margin: 0 }}>{opt.type}</p>
               </div>
-              <h1 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "2rem", color: "var(--ink)", letterSpacing: "-0.03em", marginBottom: "0.25rem" }}>
+              <h1 className="offer-title" style={{ fontFamily: "var(--font-display)", fontWeight: 500, color: "var(--ink)", marginBottom: "0.25rem" }}>
                 {opt.provider}
               </h1>
-              <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.9rem", color: "var(--ink-soft)" }}>
-                {opt.departureCity} → {opt.arrivalCity}
+              <p className="offer-subtitle" style={{ fontFamily: "var(--font-body)", fontWeight: 300, color: "var(--ink-soft)" }}>
+                {opt.departureCity} → {opt.arrivalCity} · {opt.provider}
               </p>
-            </div>
 
-            {/* Route card */}
-            <div style={{ backgroundColor: "var(--white)", border: "1px solid var(--border)", padding: "1.5rem 2rem", marginBottom: "1.5rem" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: "1rem" }}>
-                <div>
-                  <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "2rem", color: "var(--ink)", letterSpacing: "-0.03em" }}>{opt.departure}</p>
-                  <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.825rem", color: "var(--ink-soft)" }}>{opt.departureCity}</p>
-                </div>
-                <div style={{ textAlign: "center" }}>
-                  <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--ink-muted)", marginBottom: "0.4rem" }}>{opt.duration} · {opt.stops}</p>
-                  <div style={{ height: "1px", backgroundColor: "var(--border)", position: "relative" }}>
-                    <div style={{ position: "absolute", right: 0, top: "-3px", width: "7px", height: "7px", backgroundColor: "var(--ink-soft)" }} />
-                  </div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "2rem", color: "var(--ink)", letterSpacing: "-0.03em" }}>{opt.arrival}</p>
-                  <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.825rem", color: "var(--ink-soft)" }}>{opt.arrivalCity}</p>
-                </div>
+            <div className="offer-route-grid">
+              <div className="offer-route-point">
+                <p className="eyebrow">Departure</p>
+                <p className="offer-route-time">{opt.departure}</p>
+                <p className="offer-route-caption">{opt.departureCity} · {departureDateValue ? `${departureDate} IST` : departureDate}</p>
+              </div>
+              <div className="offer-route-duration">
+                <p className="eyebrow">Duration</p>
+                <p>{opt.duration}{opt.stops && opt.stops !== "Non-stop" ? ` · ${opt.stops}` : ""}</p>
+              </div>
+              <div className="offer-route-point offer-route-arrival">
+                <p className="eyebrow">Arrival</p>
+                <p className="offer-route-time">{opt.arrival}</p>
+                <p className="offer-route-caption">{opt.arrivalCity} · {arrivalDateValue ? `${arrivalDate} IST` : arrivalDate}</p>
               </div>
             </div>
+            </section>
 
-            {/* Description */}
-            <div style={{ marginBottom: "2rem" }}>
-              <p className="tag-neutral" style={{ marginBottom: "0.75rem" }}>About this service</p>
-              <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.9rem", color: "var(--ink-soft)", lineHeight: 1.7 }}>
-                {opt.description}
-              </p>
-            </div>
+            <section className="offer-info-card">
+              <p className="tag-neutral">About this service</p>
+              <p className="offer-body-copy">{opt.description}</p>
+            </section>
 
-            <div className="offer-facts-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "1px", border: "1px solid var(--border)", marginBottom: "2rem" }}>
-              <div style={{ backgroundColor: "var(--white)", padding: "1rem 1.25rem" }}>
-                <p className="tag-neutral" style={{ marginBottom: "0.3rem" }}>Availability</p>
-                <p style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>Checked when you continue</p>
-              </div>
-              <div style={{ backgroundColor: "var(--white)", padding: "1rem 1.25rem" }}>
-                <p className="tag-neutral" style={{ marginBottom: "0.3rem" }}>Quantity</p>
-                <p style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>{opt.travellerCount} {opt.travellerCount === 1 ? "traveller" : "travellers"}</p>
-              </div>
-            </div>
+            <section className="offer-info-card">
+              <p className="tag-neutral">Availability</p>
+              <p className="offer-body-copy">Availability will be checked when you continue. Continuing does not reserve inventory.</p>
+            </section>
 
-            {/* Amenities */}
-            <div style={{ marginBottom: "2rem" }}>
-              <p className="tag-neutral" style={{ marginBottom: "0.75rem" }}>Included</p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                {opt.amenities.map((a) => (
-                  <span key={a} style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-soft)", backgroundColor: "var(--white)", border: "1px solid var(--border)", padding: "0.3rem 0.75rem" }}>
-                    {a}
-                  </span>
+            <section className="offer-info-card">
+              <p className="tag-neutral">Included</p>
+              <ul className="offer-inclusions">
+                {opt.amenities.map((amenity) => (
+                  <li key={amenity}><span aria-hidden="true">✓</span>{amenity}</li>
                 ))}
-              </div>
-            </div>
+              </ul>
+            </section>
 
-            {/* Cancellation */}
-            <div style={{ backgroundColor: "var(--white)", border: "1px solid var(--border)", padding: "1rem 1.25rem" }}>
-              <p className="tag-neutral" style={{ marginBottom: "0.4rem" }}>Cancellation policy</p>
-              <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.85rem", color: "var(--ink-soft)" }}>{opt.cancellation}</p>
-            </div>
+            <section className="offer-info-card">
+              <p className="tag-neutral">Cancellation policy</p>
+              <p className="offer-body-copy">{opt.cancellation}</p>
+            </section>
+
+            {/* Kept as provider-disclosed information, separate from the offer terms. */}
+            <section className="offer-info-card offer-provider-note">
+              <p className="tag-neutral">Provider information</p>
+              <p className="offer-body-copy">{opt.providerNote}</p>
+            </section>
           </div>
 
           {/* ── Right: booking panel ──────────────────────────── */}
           <aside>
-            <div style={{ border: "1px solid var(--border)", backgroundColor: "var(--white)", padding: "1.75rem" }}>
-              <p className="tag-neutral" style={{ marginBottom: "0.5rem" }}>Price per person</p>
-              <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "2.25rem", color: "var(--ink)", letterSpacing: "-0.03em", marginBottom: "0.25rem" }}>
-                {opt.currency} {opt.unitPrice.toLocaleString("en-IN", { maximumFractionDigits: 2 })} per person
-              </p>
-              <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.8rem", color: "var(--ink-muted)", marginBottom: "1.75rem" }}>
-                {opt.currency} {opt.totalPrice.toLocaleString("en-IN", { maximumFractionDigits: 2 })} total for {opt.travellerCount} {opt.travellerCount === 1 ? "traveller" : "travellers"}
-              </p>
-              <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.75rem", color: "var(--ink-muted)", marginBottom: "1.75rem" }}>
-                Simulated booking only · No payment is collected
-              </p>
+            <div className="offer-price-panel">
+              <p className="tag-neutral">Price per person</p>
+              <p className="offer-price">{opt.currency} {opt.unitPrice.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</p>
+              <div className="offer-price-rows">
+                <div><span>Travellers</span><strong>{opt.travellerCount}</strong></div>
+                <div><span>Availability</span><strong>Checked when you continue</strong></div>
+                <div className="offer-total-row"><span>Estimated total</span><strong>{opt.currency} {opt.totalPrice.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</strong></div>
+              </div>
+              <p className="offer-simulation-note">Simulated booking only · No payment is collected</p>
 
               <TransportSelectButton
                 offerId={decodedOfferId}
                 transactionId={transactionId}
                 quantity={opt.travellerCount}
+                currency={opt.currency}
+                unitPrice={opt.unitPrice.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                totalPrice={opt.totalPrice.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                 reviewDetails={[
                   `Provider: ${opt.provider}`,
                   `Service: ${opt.type}`,
                   `Route: ${opt.departureCity} → ${opt.arrivalCity}`,
-                  `Date: ${storedQuery?.date ?? "As selected"}`,
-                  `Time: ${opt.departure} – ${opt.arrival}`,
+                  `Departure: ${departureDateValue ? `${departureDate} · ` : "Date not supplied · "}${opt.departure} IST`,
+                  `Arrival: ${arrivalDateValue ? `${arrivalDate} · ` : "Date not supplied · "}${opt.arrival} IST`,
                   `Passengers: ${opt.travellerCount}`,
                   `Published fare: ${opt.currency} ${opt.unitPrice} per passenger`,
                 ]}
               />
               <Link
                 href={`/itinerary?${itineraryParams.toString()}`}
-                style={{ display: "block", width: "100%", backgroundColor: "transparent", color: "var(--ink)", fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.875rem", letterSpacing: "0.04em", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", marginBottom: "0.75rem", border: "1px solid var(--border)" }}
+                className="offer-secondary-action"
               >
                 Save itinerary instead
               </Link>
               <Link
                 href={`/results?${resultsParams.toString()}`}
-                style={{ display: "block", width: "100%", backgroundColor: "transparent", color: "var(--ink)", fontFamily: "var(--font-body)", fontWeight: 400, fontSize: "0.875rem", textDecoration: "none", textAlign: "center", padding: "0.9rem 0", border: "1px solid var(--border)" }}
+                className="offer-secondary-action"
               >
                 Back to results
               </Link>
 
-              <div style={{ borderTop: "1px solid var(--border)", marginTop: "1.25rem", paddingTop: "1.25rem" }}>
-                <p style={{ fontFamily: "var(--font-body)", fontWeight: 300, fontSize: "0.72rem", color: "var(--ink-muted)", lineHeight: 1.6 }}>
-                  {opt.providerNote}
-                </p>
-              </div>
             </div>
           </aside>
         </div>

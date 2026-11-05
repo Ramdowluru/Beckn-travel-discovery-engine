@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { isValidEmail } from "@/lib/auth";
 import { ApiError, signInRequest } from "@/lib/api";
+import { safeInternalReturnPath } from "@/lib/return-path";
 
 export default function SignInForm() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function SignInForm() {
   const [loading,  setLoading]  = useState(false);
   const [showPass, setShowPass] = useState(false);
   const signupSuccess = searchParams.get("signup") === "success";
+  const returnTo = safeInternalReturnPath(searchParams.get("returnTo"));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,7 +50,7 @@ export default function SignInForm() {
     }
 
     setLoading(false);
-    router.push("/home");
+    router.push(returnTo ?? "/home");
   }
 
   const labelStyle: React.CSSProperties = {
@@ -215,7 +217,7 @@ export default function SignInForm() {
       {/* ── Continue as guest ─────────────────────────────────── */}
       <button
         type="button"
-        onClick={() => router.push("/home")}
+        onClick={() => router.push(returnTo ?? "/home")}
         style={{
           width: "100%",
           backgroundColor: "transparent",

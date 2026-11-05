@@ -259,7 +259,10 @@ class CategoryBookingApiTests(IsolatedAsyncioTestCase):
             quote={"price": {"currency": "INR", "value": "5600"}},
             quote_expires_at="2026-12-10T00:10:00Z",
             details={
-                "people": [{"name": "Guest One"}, {"name": "Guest Two"}],
+                "people": [
+                    {"name": "Guest One", "gender": "female"},
+                    {"name": "Guest Two", "gender": "non_binary"},
+                ],
                 "room_assignments": [1, 1],
                 "contact_email": "guest@example.org",
                 "contact_phone": "+10000000000",
@@ -272,3 +275,30 @@ class CategoryBookingApiTests(IsolatedAsyncioTestCase):
         self.assertEqual(values["FULFILLMENT_ID"], "hotel-room-stay")
         self.assertEqual(values["CHECK_IN"], "2026-12-10")
         self.assertEqual(values["CHECK_OUT"], "2026-12-12")
+        guests = next(tag for tag in tags if tag["descriptor"]["code"] == "TDE_GUESTS")
+        self.assertIn({"descriptor": {"code": "GENDER"}, "value": "female"}, guests["list"])
+        self.assertIn({"descriptor": {"code": "GENDER"}, "value": "non_binary"}, guests["list"])
+
+    def test_experience_init_includes_optional_participant_age(self):
+        payload = build_category_init(
+            kind="experience",
+            transaction_id=str(uuid4()),
+            message_id=str(uuid4()),
+            provider={"id": "experience-bpp", "uri": "http://trusted-experience"},
+            item={"id": "walk", "provider_id": "experience-provider"},
+            fulfillment={"id": "walk-slot"},
+            quantity=1,
+            quote={"price": {"currency": "INR", "value": "800"}},
+            quote_expires_at="2026-12-10T00:10:00Z",
+            details={
+                "people": [{"name": "Participant", "gender": "female", "age": 21}],
+                "contact_email": "guest@example.org",
+                "contact_phone": "+10000000000",
+            },
+            criteria={"destination": "Hyderabad", "date": "2026-12-10", "participants": 1},
+        )
+        participants = next(
+            tag for tag in payload["message"]["order"]["tags"]
+            if tag["descriptor"]["code"] == "TDE_PARTICIPANTS"
+        )
+        self.assertIn({"descriptor": {"code": "AGE"}, "value": "21"}, participants["list"])

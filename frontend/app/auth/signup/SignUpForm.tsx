@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { isValidEmail } from "@/lib/auth";
 import { ApiError, signUpRequest } from "@/lib/api";
+import { safeInternalReturnPath } from "@/lib/return-path";
 
-export default function SignUpForm() {
+export default function SignUpForm({ returnTo }: { returnTo: string | null }) {
   const router = useRouter();
+  const safeReturnTo = safeInternalReturnPath(returnTo);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,7 +30,9 @@ export default function SignUpForm() {
     setLoading(true);
     try {
       await signUpRequest(name, email, password);
-      router.push("/auth/signin?signup=success");
+      const signinParams = new URLSearchParams({ signup: "success" });
+      if (safeReturnTo) signinParams.set("returnTo", safeReturnTo);
+      router.push(`/auth/signin?${signinParams.toString()}`);
     } catch (requestError) {
       if (requestError instanceof ApiError && requestError.status === 409) {
         setError("An account already exists for this email.");

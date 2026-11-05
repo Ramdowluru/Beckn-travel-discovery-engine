@@ -133,8 +133,10 @@ def _normalize_item(
         "provider": provider_name,
         "type": mode,
         "departure": departure,
+        "departureDate": _display_date(departure_timestamp),
         "departureCity": departure_city,
         "arrival": arrival,
+        "arrivalDate": _display_date(arrival_timestamp),
         "arrivalCity": arrival_city,
         "duration": duration,
         "stops": (
@@ -213,6 +215,12 @@ def _display_time(value: datetime | None) -> str:
     if value is None:
         return ""
     return value.astimezone(timezone(timedelta(hours=5, minutes=30))).strftime("%H:%M")
+
+
+def _display_date(value: datetime | None) -> str:
+    if value is None:
+        return ""
+    return value.astimezone(timezone(timedelta(hours=5, minutes=30))).strftime("%Y-%m-%d")
 
 
 def _duration_value(

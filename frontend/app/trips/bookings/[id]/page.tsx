@@ -2,8 +2,9 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import BookingManagement from "@/components/BookingManagement";
-import { serverApiFetch } from "@/lib/serverApi";
+import { ServerApiError, serverApiFetch } from "@/lib/serverApi";
 import type { BookingRecord } from "@/lib/api";
+import { formatBookingDate, formatProviderDateTime, transportSchedule } from "@/lib/booking-dates";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -37,79 +38,139 @@ function fulfillmentStatus(booking: BookingRecord): string {
   return states.length ? [...new Set(states)].join(", ") : "";
 }
 
+function dateTime(booking: BookingRecord): string {
+  if (booking.kind === "transport") return transportSchedule(booking);
+  const rawDate = booking.display.date || booking.display.checkIn || booking.display.departure || "";
+  const date = formatBookingDate(rawDate);
+  const time = booking.display.time || "";
+  if (booking.kind === "hotel") return date;
+  const timestamp = booking.order.fulfillments?.[0]?.start?.time?.timestamp;
+  return formatProviderDateTime(timestamp || "") || [date, time ? `${time} IST` : ""].filter(Boolean).join(", ");
+}
+
+function paymentLabel(booking: BookingRecord): string {
+  const paymentStatus = booking.order.payments?.[0]?.status;
+  return paymentStatus ? paymentStatus.replaceAll(/[_-]/g, " ").toLowerCase() : "Not paid — no payment was collected";
+}
+
 export default async function BookingDetailPage({ params }: Props) {
   const { id } = await params;
   let booking: BookingRecord | null = null;
+  let loadError: "not-found" | "service" | null = null;
   try {
     booking = await serverApiFetch<BookingRecord>(`/api/bookings/${encodeURIComponent(id)}`);
-  } catch {
-    booking = null;
+  } catch (error) {
+    loadError = error instanceof ServerApiError && [401, 404].includes(error.status)
+      ? "not-found"
+      : "service";
   }
   const cancelled = booking?.status === "CANCELLED";
   const confirmed = booking?.status === "CONFIRMED" && !cancelled;
   const quote = booking?.quote?.price;
   const names = booking ? customerNames(booking) : [];
   const roomAssignments = booking?.customer_details.room_assignments ?? [];
+  const bookedFor = booking?.kind === "hotel"
+    ? `${booking.quantity ?? 1} room${booking?.quantity === 1 ? "" : "s"}`
+    : `${booking?.quantity ?? 1} ${booking?.kind === "experience" ? "participant" : "traveller"}${booking?.quantity === 1 ? "" : "s"}`;
 
   return (
     <>
       <Navbar />
       <main style={{ flex: 1, backgroundColor: "var(--cream)" }}>
-        <div className="booking-detail-shell" style={{ maxWidth: "900px", margin: "0 auto", padding: "3.5rem 2rem 5rem" }}>
-          <Link href="/bookings" style={{ fontFamily: "var(--font-body)", fontSize: "0.8rem", color: "var(--ink-soft)" }}>
-            ← My bookings
-          </Link>
+        <div className="booking-detail-shell">
+          <Link href="/bookings" className="booking-back-link">← My Bookings</Link>
           {!booking ? (
-            <section style={{ marginTop: "2rem", padding: "2rem", background: "var(--white)", border: "1px solid var(--border)" }}>
-              <h1 style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>Booking unavailable</h1>
-              <p style={{ marginTop: "0.5rem", color: "var(--ink-soft)" }}>This booking was not found or is not available to this account.</p>
+            <section className="booking-info-panel booking-unavailable">
+              <h1>{loadError === "service" ? "Booking status temporarily unavailable" : "Booking unavailable"}</h1>
+              <p>{loadError === "service"
+                ? "We couldn’t load the persisted booking status. Refresh this page or return to My Bookings; no booking action was resubmitted."
+                : "This booking was not found or is not available to this account."}</p>
+              {loadError === "service" && <a href={`/trips/bookings/${encodeURIComponent(id)}`}>Refresh status</a>}
+              <Link href="/bookings">Return to My Bookings</Link>
             </section>
           ) : (
-            <article className="booking-detail-card" style={{ marginTop: "2rem", padding: "2rem", background: "var(--white)", border: "1px solid var(--border)" }}>
-              <p className="tag-neutral">{booking.kind} booking · {customerStatus(booking)}</p>
-              <h1 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "2rem", color: "var(--ink)", marginTop: "0.4rem" }}>
-                {booking.service || "Provider booking"}
-              </h1>
-              <div style={{ display: "grid", gap: "0.65rem", marginTop: "1.25rem", color: "var(--ink-soft)", fontFamily: "var(--font-body)" }}>
-                <p><strong>Provider:</strong> {booking.provider_name || booking.provider_id}</p>
-                <p><strong>Provider reference:</strong> {booking.provider_order_id || "Not received yet"}</p>
-                <p><strong>Location / route:</strong> {bookingLocation(booking) || "Not specified"}</p>
-                {booking.display.type && <p><strong>Service type:</strong> {booking.display.type}</p>}
-                {booking.display.date && <p><strong>Date:</strong> {booking.display.date}</p>}
-                {booking.display.time && <p><strong>Time:</strong> {booking.display.time}</p>}
-                {booking.display.departure && <p><strong>Departure:</strong> {booking.display.departure}</p>}
-                {booking.display.arrival && <p><strong>Arrival:</strong> {booking.display.arrival}</p>}
-                {booking.display.checkIn && <p><strong>Check-in:</strong> {booking.display.checkIn}</p>}
-                {booking.display.checkOut && <p><strong>Check-out:</strong> {booking.display.checkOut}</p>}
-                <p><strong>Quantity:</strong> {booking.quantity ?? "—"}</p>
-                <p><strong>Customers:</strong> {names.length ? names.map((name, index) => {
-                  const room = roomAssignments[index];
-                  return room ? `${name} (Room ${room})` : name;
-                }).join(", ") : "Details unavailable"}</p>
-                {booking.customer_details.contact_email && <p><strong>Lead contact:</strong> {booking.customer_details.contact_email}</p>}
-                {booking.customer_details.contact_phone && <p><strong>Contact phone:</strong> {booking.customer_details.contact_phone}</p>}
-                <p><strong>Final price:</strong> {quote?.currency} {quote?.value}</p>
-                {booking.quote?.breakup?.map((line, index) => (
-                  <p key={`${line.title ?? "line"}-${index}`}>
-                    {line.title}: {line.price?.currency} {line.price?.value}
-                  </p>
-                ))}
-                <p><strong>Simulated payment status:</strong> Not paid; no payment was collected.</p>
-                {fulfillmentStatus(booking) && <p><strong>Provider fulfillment status:</strong> {fulfillmentStatus(booking)}</p>}
-              </div>
-              {booking.status === "INITIALIZED" && <p role="status" style={{ marginTop: "1rem" }}>Initialized only. This does not confirm the booking or reserve inventory.</p>}
-              {booking.status === "PENDING_UNKNOWN" && <p role="status" style={{ marginTop: "1rem" }}>Provider outcome is pending or unknown; use status refresh to reconcile safely.</p>}
-              {booking.status === "REJECTED" && <p role="alert" style={{ marginTop: "1rem" }}>The provider rejected the latest booking action. No successful booking is shown.</p>}
-              {cancelled && <p role="status" style={{ marginTop: "1rem" }}>Booking cancelled. This mock booking was unpaid; refund is not applicable.</p>}
+            <article className="booking-detail-card">
+              <header className="booking-detail-heading">
+                <span className="booking-kind-label">{booking.kind}</span>
+                <h1>{booking.service || "Provider booking"}</h1>
+                <p>{booking.provider_name || booking.provider_id} · Ref {booking.provider_order_id || "pending"}</p>
+                <span className={`booking-status status-${booking.status === "CONFIRMED" ? "confirmed" : booking.status === "CANCELLED" ? "cancelled" : booking.status === "REJECTED" ? "rejected" : "pending"}`}>
+                  {customerStatus(booking)}
+                </span>
+              </header>
+
+              <section className="booking-info-panel" aria-label="Reservation summary">
+                <h2>Reservation summary</h2>
+                <dl className="booking-info-rows">
+                  {booking.kind === "transport" ? (
+                    <>
+                      <div><dt>Route</dt><dd>{bookingLocation(booking) || "Not specified"}</dd></div>
+                      <div><dt>Departure</dt><dd>{dateTime(booking) || "Not specified"}</dd></div>
+                      {booking.display.arrival && <div><dt>Arrival</dt><dd>{transportSchedule(booking).split(" – ")[1] || "Not specified"}</dd></div>}
+                    </>
+                  ) : booking.kind === "hotel" ? (
+                    <>
+                      <div><dt>Check-in</dt><dd>{booking.display.checkIn ? formatBookingDate(booking.display.checkIn) : "Not specified"}</dd></div>
+                      <div><dt>Check-out</dt><dd>{booking.display.checkOut ? formatBookingDate(booking.display.checkOut) : "Not specified"}</dd></div>
+                      {bookingLocation(booking) && <div><dt>Location</dt><dd>{bookingLocation(booking)}</dd></div>}
+                    </>
+                  ) : (
+                    <>
+                      <div><dt>Date &amp; time</dt><dd>{dateTime(booking) || "Not specified"}</dd></div>
+                      {bookingLocation(booking) && <div><dt>Location</dt><dd>{bookingLocation(booking)}</dd></div>}
+                    </>
+                  )}
+                  <div><dt>Booked for</dt><dd>{bookedFor}</dd></div>
+                  <div><dt>Status</dt><dd>{customerStatus(booking)}</dd></div>
+                  <div><dt>Payment</dt><dd>{paymentLabel(booking)}</dd></div>
+                  {fulfillmentStatus(booking) && <div><dt>Provider status</dt><dd>{fulfillmentStatus(booking)}</dd></div>}
+                  <div className="booking-total-row"><dt>Total</dt><dd>{quote?.currency} {quote?.value}</dd></div>
+                </dl>
+                {booking.quote?.breakup && booking.quote.breakup.length > 0 && (
+                  <details className="booking-price-breakdown">
+                    <summary>View price breakdown</summary>
+                    <dl className="booking-info-rows">
+                      {booking.quote.breakup.map((line, index) => (
+                        <div key={`${line.title ?? "line"}-${index}`}>
+                          <dt>{line.title || "Price item"}</dt>
+                          <dd>{line.price?.currency} {line.price?.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </details>
+                )}
+              </section>
+
+              <section className="booking-info-panel" aria-label="Customer details">
+                <h2>Customer details</h2>
+                <dl className="booking-info-rows">
+                  {names.length ? names.map((name, index) => {
+                    const room = roomAssignments[index];
+                    return (
+                      <div key={`${name}-${index}`}>
+                        <dt>{booking.kind === "experience" ? `Participant ${index + 1}` : booking.kind === "hotel" ? `Guest ${index + 1}` : `Traveller ${index + 1}`}</dt>
+                        <dd>{name}{room ? ` · Room ${room}` : ""}</dd>
+                      </div>
+                    );
+                  }) : <div><dt>Guests</dt><dd>Details unavailable</dd></div>}
+                  {booking.customer_details.contact_email && <div><dt>Email</dt><dd>{booking.customer_details.contact_email}</dd></div>}
+                  {booking.customer_details.contact_phone && <div><dt>Phone</dt><dd>{booking.customer_details.contact_phone}</dd></div>}
+                </dl>
+              </section>
+
+              <section className="booking-info-panel" aria-label="Cancellation policy">
+                <h2>Cancellation policy</h2>
+                <p className="booking-policy-text">{booking.cancellation_policy || "Please contact the provider for cancellation terms."}</p>
+              </section>
+
+              {booking.status === "INITIALIZED" && <p role="status" className="booking-state-note">Initialized only. This does not confirm the booking or reserve inventory.</p>}
+              {booking.status === "PENDING_UNKNOWN" && <p role="status" className="booking-state-note">Provider outcome is pending or unknown; refresh status to reconcile safely.</p>}
+              {booking.status === "REJECTED" && <p role="alert" className="booking-state-note">The provider rejected the latest booking action. No successful booking is shown.</p>}
+              {cancelled && <p role="status" className="booking-state-note">Booking cancelled. This simulated booking was unpaid; a refund is not applicable.</p>}
               {confirmed && (
-                <a
-                  href={`/api/bookings/${encodeURIComponent(booking.id)}/ticket`}
-                  style={{ display: "inline-block", marginTop: "1.25rem", padding: "0.7rem 1rem", background: "var(--ink)", color: "var(--white)", textDecoration: "none", fontFamily: "var(--font-body)" }}
-                >
-                  Download mock ticket / voucher
-                </a>
+                <a className="booking-download-link" href={`/api/bookings/${encodeURIComponent(booking.id)}/ticket`}>↓ &nbsp;Download Mock {booking.kind === "transport" ? "Ticket" : "Voucher"}</a>
               )}
-              {confirmed && <p style={{ marginTop: "0.65rem", fontSize: "0.78rem", color: "var(--orange)" }}>Academic prototype — not valid for travel.</p>}
+              {confirmed && <p className="booking-prototype-note">Academic prototype — not valid for travel.</p>}
               <BookingManagement booking={booking} />
             </article>
           )}
