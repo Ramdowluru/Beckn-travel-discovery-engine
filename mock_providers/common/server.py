@@ -12,12 +12,20 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from pymongo.errors import PyMongoError
 
 from common.beckn_converter import build_on_init, build_on_search, build_on_select
 from common.cancellation import build_on_cancel
 from common.confirmation import build_on_confirm
 from common.inventory import with_current_inventory
-from common.order_store import save_initialized_order
+from common.order_store import mongo_storage_enabled, save_initialized_order
+from common.mongo_order_store import (
+    MongoStorageConfigurationError,
+    MongoTransactionsUnsupported,
+    close_mongo_provider_stores,
+    get_mongo_provider_store,
+)
 from common.status import build_on_status
 from mock_hotel.hotel_converter import (
     build_hotel_on_init,
@@ -41,9 +49,31 @@ from protocol.signing import Identity, signed_post
 
 logging.basicConfig(level=logging.INFO)
 
+
+def _storage_error_callback(request: dict, provider: dict, action: str) -> dict:
+    return {
+        "context": {
+            **request["context"],
+            "action": "on_" + action,
+            "bpp_id": provider["bpp_id"],
+            "bpp_uri": provider["bpp_uri"],
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        },
+        "error": {"code": "30005", "message": "Provider storage is unavailable; the action was not completed."},
+    }
+
+
+_STORAGE_ERRORS = (PyMongoError, MongoStorageConfigurationError, MongoTransactionsUnsupported)
+
+
 def create_app(provider_dir: Path) -> FastAPI:
     load_dotenv(provider_dir / ".env")
     data = json.loads((provider_dir / "data.json").read_text(encoding="utf-8"))
+    if provider_dir.name == "mock_bus" and mongo_storage_enabled(data["provider"]["bpp_id"]):
+        store = get_mongo_provider_store()
+        store.verify_transactions()
+        data = store.load_catalog(data["provider"]["bpp_id"])
+        store.ensure_indexes()
     name = data["provider"]["name"]
     delay = float(os.getenv("DELAY_SECONDS", "0.5"))
     fail_rate = float(os.getenv("FAIL_RATE", "0"))
@@ -56,8 +86,12 @@ def create_app(provider_dir: Path) -> FastAPI:
         prepare_order_validation()
         app.state.http_client = httpx.AsyncClient(timeout=5, trust_env=False)
         app.state.beckn_identity = Identity.load(data["provider"]["bpp_id"])
-        yield
-        await app.state.http_client.aclose()
+        try:
+            yield
+        finally:
+            await app.state.http_client.aclose()
+            if provider_dir.name == "mock_bus" and mongo_storage_enabled(data["provider"]["bpp_id"]):
+                close_mongo_provider_stores()
 
     app = FastAPI(title=name, lifespan=lifespan)
 
@@ -68,8 +102,13 @@ def create_app(provider_dir: Path) -> FastAPI:
             print(f"[{name}] simulated failure, no reply sent")
             return
 
-        live_data = with_current_inventory(data, data["provider"]["bpp_id"], "transport", request)
-        on_search = build_on_search(live_data, request)
+        try:
+            live_data = with_current_inventory(data, data["provider"]["bpp_id"], "transport", request)
+            on_search = build_on_search(live_data, request)
+        except _STORAGE_ERRORS as error:
+            logger.error("search storage failure transaction_id=%s category=%s",
+                         request["context"]["transaction_id"], type(error).__name__)
+            on_search = _storage_error_callback(request, data["provider"], "search")
         validate_message(on_search, "on_search")
         url = f"{request['context']['bap_uri']}/api/on_search"
         transaction_id = request.get("context", {}).get("transaction_id")
@@ -94,8 +133,13 @@ def create_app(provider_dir: Path) -> FastAPI:
 
     async def select_reply(request: dict) -> None:
         await asyncio.sleep(delay)
-        live_data = with_current_inventory(data, data["provider"]["bpp_id"], "transport", request)
-        callback = build_on_select(live_data, request)
+        try:
+            live_data = with_current_inventory(data, data["provider"]["bpp_id"], "transport", request)
+            callback = build_on_select(live_data, request)
+        except _STORAGE_ERRORS as error:
+            logger.error("select storage failure transaction_id=%s category=%s",
+                         request["context"]["transaction_id"], type(error).__name__)
+            callback = _storage_error_callback(request, data["provider"], "select")
         validate_message(callback, "on_select")
         try:
             response = await signed_post(
@@ -121,8 +165,13 @@ def create_app(provider_dir: Path) -> FastAPI:
 
     async def init_reply(request: dict) -> None:
         await asyncio.sleep(delay)
-        live_data = with_current_inventory(data, data["provider"]["bpp_id"], "transport", request)
-        callback = build_on_init(live_data, request)
+        try:
+            live_data = with_current_inventory(data, data["provider"]["bpp_id"], "transport", request)
+            callback = build_on_init(live_data, request)
+        except _STORAGE_ERRORS as error:
+            logger.error("init storage failure transaction_id=%s category=%s",
+                         request["context"]["transaction_id"], type(error).__name__)
+            callback = _storage_error_callback(request, data["provider"], "init")
         if not callback.get("error"):
             try:
                 save_initialized_order(
@@ -132,15 +181,13 @@ def create_app(provider_dir: Path) -> FastAPI:
                     callback["message"]["order"],
                     request["context"]["bap_id"],
                 )
-            except sqlite3.Error:
+            except (sqlite3.Error, *_STORAGE_ERRORS) as error:
                 logger.error(
-                    "provider order persistence failed transaction_id=%s",
+                    "provider order persistence failed transaction_id=%s category=%s",
                     request["context"]["transaction_id"],
+                    type(error).__name__,
                 )
-                callback = {
-                    "context": callback["context"],
-                    "error": {"code": "30005", "message": "Provider could not persist the initialized order."},
-                }
+                callback = _storage_error_callback(request, data["provider"], "init")
         validate_message(callback, "on_init")
         try:
             response = await signed_post(
@@ -155,8 +202,13 @@ def create_app(provider_dir: Path) -> FastAPI:
 
     async def confirm_reply(request: dict) -> None:
         await asyncio.sleep(delay)
-        live_data = with_current_inventory(data, data["provider"]["bpp_id"], "transport", request)
-        callback = build_on_confirm(live_data, request, "transport")
+        try:
+            live_data = with_current_inventory(data, data["provider"]["bpp_id"], "transport", request)
+            callback = build_on_confirm(live_data, request, "transport")
+        except _STORAGE_ERRORS as error:
+            logger.error("confirm storage failure transaction_id=%s category=%s",
+                         request["context"]["transaction_id"], type(error).__name__)
+            callback = _storage_error_callback(request, data["provider"], "confirm")
         validate_message(callback, "on_confirm")
         try:
             response = await signed_post(
@@ -175,7 +227,12 @@ def create_app(provider_dir: Path) -> FastAPI:
 
     async def status_reply(request: dict) -> None:
         await asyncio.sleep(delay)
-        callback = build_on_status(data, request)
+        try:
+            callback = build_on_status(data, request)
+        except _STORAGE_ERRORS as error:
+            logger.error("status storage failure transaction_id=%s category=%s",
+                         request["context"]["transaction_id"], type(error).__name__)
+            callback = _storage_error_callback(request, data["provider"], "status")
         validate_message(callback, "on_status")
         try:
             response = await signed_post(
@@ -194,7 +251,12 @@ def create_app(provider_dir: Path) -> FastAPI:
 
     async def cancel_reply(request: dict) -> None:
         await asyncio.sleep(delay)
-        callback = build_on_cancel(data, request, "transport")
+        try:
+            callback = build_on_cancel(data, request, "transport")
+        except _STORAGE_ERRORS as error:
+            logger.error("cancel storage failure transaction_id=%s category=%s",
+                         request["context"]["transaction_id"], type(error).__name__)
+            callback = _storage_error_callback(request, data["provider"], "cancel")
         validate_message(callback, "on_cancel")
         try:
             response = await signed_post(

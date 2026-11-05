@@ -5,6 +5,20 @@ import sqlite3
 from contextlib import closing
 from typing import Any
 
+from common.mongo_order_store import BUS_BPP_ID, get_mongo_provider_store
+
+
+def mongo_storage_enabled(provider_id: str) -> bool:
+    if provider_id != BUS_BPP_ID:
+        return False
+    backend = os.getenv("MOCK_BUS_STORAGE_BACKEND", "sqlite").strip().lower()
+    if backend not in {"sqlite", "mongodb"}:
+        raise RuntimeError("MOCK_BUS_STORAGE_BACKEND must be sqlite or mongodb.")
+    return backend == "mongodb"
+
+
+def _mongo_store(provider_id: str):
+    return get_mongo_provider_store() if mongo_storage_enabled(provider_id) else None
 
 def _database_path(provider_id: str) -> Path:
     configured = os.environ.get("MOCK_PROVIDER_STATE_DIR")
@@ -66,6 +80,10 @@ def save_initialized_order(
     order: dict[str, Any],
     bap_id: str = "",
 ) -> None:
+    store = _mongo_store(provider_id)
+    if store is not None:
+        store.save_initialized_order(provider_id, transaction_id, message_id, order, bap_id)
+        return
     with closing(_connect(provider_id)) as database:
         database.execute(
             """INSERT INTO provider_orders
@@ -95,6 +113,9 @@ def save_initialized_order(
 
 
 def get_order(provider_id: str, order_id: str) -> dict[str, Any] | None:
+    store = _mongo_store(provider_id)
+    if store is not None:
+        return store.get_order(provider_id, order_id)
     path = _database_path(provider_id)
     if not path.exists():
         return None
@@ -107,6 +128,9 @@ def get_order(provider_id: str, order_id: str) -> dict[str, Any] | None:
 
 
 def get_initialized_order(provider_id: str, order_id: str) -> dict[str, Any] | None:
+    store = _mongo_store(provider_id)
+    if store is not None:
+        return store.get_initialized_order(provider_id, order_id)
     path = _database_path(provider_id)
     if not path.exists():
         return None
@@ -119,6 +143,9 @@ def get_initialized_order(provider_id: str, order_id: str) -> dict[str, Any] | N
 
 
 def get_order_owner(provider_id: str, order_id: str) -> tuple[str, str, str] | None:
+    store = _mongo_store(provider_id)
+    if store is not None:
+        return store.get_order_owner(provider_id, order_id)
     path = _database_path(provider_id)
     if not path.exists():
         return None
@@ -132,6 +159,9 @@ def get_order_owner(provider_id: str, order_id: str) -> tuple[str, str, str] | N
 
 
 def get_inventory_available(provider_id: str, resource_key: str, initial_capacity: int) -> int:
+    store = _mongo_store(provider_id)
+    if store is not None:
+        return store.get_inventory_available(provider_id, resource_key, initial_capacity)
     with closing(_connect(provider_id)) as database:
         database.execute(
             "INSERT INTO inventory(resource_key, available) VALUES (?, ?) ON CONFLICT(resource_key) DO NOTHING",
@@ -155,7 +185,18 @@ def confirm_provider_order(
     order: dict[str, Any],
     requirements: list[tuple[str, int, int]],
 ) -> tuple[str, dict[str, Any] | None]:
-    """Confirm and deduct all required inventory in one durable SQLite transaction."""
+    """Confirm and deduct all required inventory in one durable transaction."""
+    store = _mongo_store(provider_id)
+    if store is not None:
+        return store.confirm_provider_order(
+            provider_id=provider_id,
+            order_id=order_id,
+            transaction_id=transaction_id,
+            bap_id=bap_id,
+            message_id=message_id,
+            order=order,
+            requirements=requirements,
+        )
     database = _connect(provider_id)
     try:
         database.execute("BEGIN IMMEDIATE")
@@ -242,7 +283,17 @@ def cancel_provider_order(
     message_id: str,
     cancelled_order: dict[str, Any],
 ) -> tuple[str, dict[str, Any] | None]:
-    """Persist cancellation and restore the original confirmation allocation atomically."""
+    """Persist cancellation and restore the original allocation atomically."""
+    store = _mongo_store(provider_id)
+    if store is not None:
+        return store.cancel_provider_order(
+            provider_id=provider_id,
+            order_id=order_id,
+            transaction_id=transaction_id,
+            bap_id=bap_id,
+            message_id=message_id,
+            cancelled_order=cancelled_order,
+        )
     database = _connect(provider_id)
     try:
         database.execute("BEGIN IMMEDIATE")

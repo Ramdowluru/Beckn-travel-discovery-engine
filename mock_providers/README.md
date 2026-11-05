@@ -82,3 +82,9 @@ are similarly scoped to their date/time slot, and transport to service and
 departure date. Runtime state is stored in each provider's local SQLite
 database under `.local/providers`; restarts retain confirmations and balances.
 Confirmed mock orders remain unpaid; no payment is collected.
+
+BusProvider's Mongo adapter is implemented but remains opt-in; SQLite is still
+the default. See [MONGO_PROVIDER_STORAGE.md](./MONGO_PROVIDER_STORAGE.md) for the
+read-only migration dry-run, isolated test setup, and approval/rollback
+requirements. Do not select Mongo storage until the import and cutover are
+separately approved.

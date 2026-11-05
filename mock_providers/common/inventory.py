@@ -84,6 +84,7 @@ def with_current_inventory(
 
     if kind == "transport":
         for service in result.get("services", []):
+            service["_initial_seats_available"] = int(service["seats_available"])
             key = inventory_key(kind, service["service_id"], start)
             service["seats_available"] = get_inventory_available(
                 provider_id, key, int(service["seats_available"])
@@ -146,7 +147,7 @@ def confirmation_requirements(
         return [(
             inventory_key(kind, service["service_id"], service_date),
             quantity,
-            int(service["seats_available"]),
+            int(service.get("_initial_seats_available", service["seats_available"])),
         )]
 
     if kind == "hotel":
