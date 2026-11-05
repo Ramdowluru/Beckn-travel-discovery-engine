@@ -100,6 +100,11 @@ def build_on_cancel(data: dict[str, Any], request: dict[str, Any], kind: str) ->
             context,
             "Provider cannot safely restore this order because its original inventory allocation is unavailable.",
         )
+    if result == "UNSAFE_HISTORICAL":
+        return _error(
+            context,
+            "Provider cannot safely cancel this historical order because its original inventory allocation is unavailable.",
+        )
     if result != "CANCELLED" or saved is None:
         return _error(context, "Provider order could not be cancelled.")
     return {"context": context, "message": {"order": saved}}

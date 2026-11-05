@@ -5,15 +5,26 @@ import sqlite3
 from contextlib import closing
 from typing import Any
 
-from common.mongo_order_store import BUS_BPP_ID, get_mongo_provider_store
+from common.mongo_order_store import PROVIDER_IDENTITIES, get_mongo_provider_store
+
+TRAIN_BPP_ID = "mock-train.example.in"
+_MONGO_PROVIDER_SETTINGS = {
+    bpp_id: f"MOCK_{provider_id.split('-')[1].upper()}_STORAGE_BACKEND"
+    for bpp_id, provider_id in PROVIDER_IDENTITIES.items()
+}
+_MONGO_PROVIDER_SETTINGS.update({
+    "mock-hotel": "MOCK_HOTEL_STORAGE_BACKEND",
+    "mock-experience": "MOCK_EXPERIENCE_STORAGE_BACKEND",
+})
 
 
 def mongo_storage_enabled(provider_id: str) -> bool:
-    if provider_id != BUS_BPP_ID:
+    setting = _MONGO_PROVIDER_SETTINGS.get(provider_id)
+    if setting is None:
         return False
-    backend = os.getenv("MOCK_BUS_STORAGE_BACKEND", "sqlite").strip().lower()
+    backend = os.getenv(setting, "sqlite").strip().lower()
     if backend not in {"sqlite", "mongodb"}:
-        raise RuntimeError("MOCK_BUS_STORAGE_BACKEND must be sqlite or mongodb.")
+        raise RuntimeError(f"{setting} must be sqlite or mongodb.")
     return backend == "mongodb"
 
 

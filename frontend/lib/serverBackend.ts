@@ -201,10 +201,11 @@ export async function forwardTripRequest(
 export async function forwardBookingRequest(
   request: Request,
   path: string,
+  method: "GET" | "DELETE" = "GET",
 ): Promise<Response> {
   try {
     const response = await fetch(`${backendUrl}${path}`, {
-      method: "GET",
+      method,
       headers: forwardedHeaders(request),
       cache: "no-store",
       signal: AbortSignal.timeout(10_000),

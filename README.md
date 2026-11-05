@@ -56,9 +56,43 @@ The services use this local topology:
 | Flight provider | `http://localhost:5003` |
 | Hotel provider | `http://localhost:5004` |
 
+BusProvider starts with MongoDB storage using the private
+`PROVIDER_MONGO_URL` and `PROVIDER_DB_NAME` settings from
+`mock_providers/mock_bus/.env`. These settings are scoped to the BusProvider
+process. TrainProvider likewise starts with MongoDB using the private settings
+from `mock_providers/mock_train/.env`. FlightProvider, HotelProvider and
+ExperienceProvider also start with MongoDB using their own private `.env`
+settings. The launcher requires both MongoDB settings for every provider and
+does not fall back to SQLite.
+
+After an approved cutover, close all seven service windows and rerun
+`.\start-dev.cmd` (or `.\start-dev.ps1`) to load the provider settings. Do not
+start a second copy while the existing ports are occupied.
+
 To stop development, close the seven service terminal windows. The launcher
 never terminates an existing process when a required port is occupied; it
 reports the owning PID and stops instead.
+
+The deterministic 25-city seed is dry-run by default and uses the execution
+date in Asia/Kolkata. It preserves existing provider IDs, bookings and
+inventory, skips identical records, and aborts on conflicts:
+
+```powershell
+$env:PYTHONPATH = "mock_providers"
+backend\venv\Scripts\python.exe mock_providers\scripts\provider_dataset_seed.py --provider bus
+backend\venv\Scripts\python.exe mock_providers\scripts\provider_dataset_seed.py --provider train
+backend\venv\Scripts\python.exe mock_providers\scripts\provider_dataset_seed.py --provider flight
+backend\venv\Scripts\python.exe mock_providers\scripts\provider_dataset_seed.py --provider hotel
+backend\venv\Scripts\python.exe mock_providers\scripts\provider_dataset_seed.py --provider experience
+```
+
+After reviewing each dry-run, the manual additive apply command is the same
+with `--apply`. The command reads `PROVIDER_MONGO_URL` and
+`PROVIDER_DB_NAME` privately from that provider's `.env`; it never accepts
+credentials on the command line. Inventory is written in bounded batches;
+existing balances, including booked/cancelled experience slots, are never
+reset. The inventory uniqueness contract includes the optional experience
+`slot` field.
 
 For a non-starting validation of the launcher, run:
 

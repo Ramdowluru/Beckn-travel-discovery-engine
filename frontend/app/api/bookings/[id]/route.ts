@@ -10,3 +10,14 @@ export async function GET(request: Request, { params }: RouteContext) {
   response.headers.set("Cache-Control", "no-store");
   return response;
 }
+
+export async function DELETE(request: Request, { params }: RouteContext) {
+  const { id } = await params;
+  const response = await forwardBookingRequest(
+    request,
+    `/api/bookings/${encodeURIComponent(id)}`,
+    "DELETE",
+  );
+  response.headers.set("Cache-Control", "no-store");
+  return response;
+}

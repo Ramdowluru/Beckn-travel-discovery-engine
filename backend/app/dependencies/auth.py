@@ -1,19 +1,16 @@
 from fastapi import HTTPException, Request, status
+import jwt
 
 from app.core.database import get_db
-from app.core.security import session_token
-from app.repositories.sessions import (
-    SessionExpiredError,
-    SessionNotFoundError,
-    SessionRepository,
-    SessionRevokedError,
-)
+from app.core.security import access_token
+from app.core.jwt_utils import verify_access_token
 from app.repositories.users import UserRepository
 from app.core.config import settings
 
 
 async def get_current_user(request: Request) -> dict:
-    token = session_token(request)
+    """Extract and validate JWT access token, return user document."""
+    token = access_token(request)
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -21,17 +18,36 @@ async def get_current_user(request: Request) -> dict:
         )
 
     try:
-        session = await SessionRepository(
-            get_db(),
-            settings.session_lifetime_seconds,
-        ).get(token=token)
-    except (SessionNotFoundError, SessionExpiredError, SessionRevokedError) as error:
+        payload = verify_access_token(token)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token has expired.",
+        )
+    except jwt.InvalidSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication token.",
+        )
+    except jwt.InvalidAlgorithmError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication token.",
+        )
+    except jwt.DecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication token.",
+        )
+
+    user_id = payload.get("sub")
+    if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication is required.",
-        ) from error
+        )
 
-    user = await UserRepository(get_db()).get_by_id(session["userId"])
+    user = await UserRepository(get_db()).get_by_id(user_id)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -1,7 +1,11 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { serverApiFetch } from "@/lib/serverApi";
+import BookingCard from "@/components/BookingCard";
+import { getBookingsRequest } from "@/lib/api";
 import type { BookingRecord } from "@/lib/api";
 import { formatBookingDate, transportSchedule } from "@/lib/booking-dates";
 
@@ -68,21 +72,47 @@ function kindIcon(kind: BookingRecord["kind"]): string {
   return "♧";
 }
 
-export default async function BookingsPage({ searchParams }: Props) {
-  const params = await searchParams;
-  const activeKind = bookingKinds.some((filter) => filter.value === params.kind) ? params.kind! : "all";
+export default function BookingsPage({ searchParams }: Props) {
+  const [bookings, setBookings] = useState<BookingRecord[]>([]);
+  const [loadError, setLoadError] = useState("");
+  const [activeKind, setActiveKind] = useState<string>("all");
+  const [isLoading, setIsLoading] = useState(true);
 
-  let bookings: BookingRecord[] = [];
-  let loadError = "";
-  try {
-    bookings = await serverApiFetch<BookingRecord[]>("/api/bookings");
-  } catch (error) {
-    loadError = error instanceof Error ? error.message : "Bookings are temporarily unavailable.";
-  }
+  // Load search params
+  useEffect(() => {
+    searchParams.then((params) => {
+      setActiveKind(
+        bookingKinds.some((filter) => filter.value === params.kind) ? params.kind! : "all"
+      );
+    });
+  }, [searchParams]);
+
+  // Load bookings
+  useEffect(() => {
+    const loadBookings = async () => {
+      try {
+        setIsLoading(true);
+        const data = await getBookingsRequest();
+        setBookings(data);
+        setLoadError("");
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : "Bookings are temporarily unavailable.");
+        setBookings([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadBookings();
+  }, []);
 
   const filteredBookings = activeKind === "all"
     ? bookings
     : bookings.filter((booking) => booking.kind === activeKind);
+
+  const handleRemoved = () => {
+    // Refresh page to remove the hidden booking from the list
+    window.location.reload();
+  };
 
   return (
     <>
@@ -113,27 +143,18 @@ export default async function BookingsPage({ searchParams }: Props) {
 
           {loadError ? (
             <p role="alert" className="booking-empty">Bookings are temporarily unavailable: {loadError}</p>
+          ) : isLoading ? (
+            <p className="booking-empty">Loading your bookings...</p>
           ) : filteredBookings.length === 0 ? (
             <p className="booking-empty">{bookings.length ? "No bookings in this category yet." : "Your confirmed bookings will appear here."}</p>
           ) : (
             <div className="booking-list">
               {filteredBookings.map((booking) => (
-                <article key={booking.id} className="booking-list-card">
-                  <span className="booking-kind-icon" aria-hidden="true">{kindIcon(booking.kind)}</span>
-                  <div className="booking-list-info">
-                    <h2>{booking.service || (booking.kind === "hotel" ? "Stay booking" : booking.kind === "experience" ? "Experience booking" : "Travel booking")}</h2>
-                    <span className={`booking-status status-${bookingStatus(booking.status)}`}>{customerStatus(booking.status)}</span>
-                    <p className="booking-card-meta">
-                      {bookingLocation(booking)}{bookingLocation(booking) && scheduledAt(booking) ? " · " : ""}{scheduledAt(booking)}
-                    </p>
-                    <p className="booking-card-meta">
-                      {booking.kind === "hotel" ? `${booking.quantity ?? 1} room${booking.quantity === 1 ? "" : "s"}` : `${booking.quantity ?? 1} ${booking.kind === "experience" ? "participant" : "traveller"}${booking.quantity === 1 ? "" : "s"}`}
-                      {booking.id ? ` · Ref ${booking.id.slice(0, 8).toUpperCase()}` : ""}
-                    </p>
-                  </div>
-                  <strong className="booking-card-price">{formattedQuote(booking)}</strong>
-                  <Link className="booking-card-link" href={`/trips/bookings/${encodeURIComponent(booking.id)}`}>View Booking</Link>
-                </article>
+                <BookingCard
+                  key={booking.id}
+                  booking={booking}
+                  onRemoved={handleRemoved}
+                />
               ))}
             </div>
           )}

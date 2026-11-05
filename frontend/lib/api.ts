@@ -158,17 +158,37 @@ export async function ensureCsrfToken(): Promise<void> {
   }
 }
 
+async function refreshAccessToken(): Promise<void> {
+  try {
+    await fetch("/api/auth/refresh", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": getCsrfToken() || "",
+      },
+    });
+  } catch {
+    // Silently fail - next request will get 401
+  }
+}
+
+function getCsrfToken(): string | null {
+  if (typeof document === "undefined") return null;
+  return (
+    document.cookie
+      .split("; ")
+      .find((cookie) => cookie.startsWith("tde_csrf="))
+      ?.slice("tde_csrf=".length) ?? null
+  );
+}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const method = (init?.method ?? "GET").toUpperCase();
   if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
     await ensureCsrfToken();
   }
-  const csrfToken = typeof document === "undefined"
-    ? null
-    : document.cookie
-        .split("; ")
-        .find((cookie) => cookie.startsWith("tde_csrf="))
-        ?.slice("tde_csrf=".length) ?? null;
+  const csrfToken = getCsrfToken();
   const response = await fetch(path, {
     ...init,
     credentials: "same-origin",
@@ -178,6 +198,41 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
       ...init?.headers,
     },
   });
+
+  // If 401, try to refresh and retry once
+  if (response.status === 401 && path !== "/api/auth/refresh") {
+    await refreshAccessToken();
+    const retryResponse = await fetch(path, {
+      ...init,
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        ...(csrfToken ? { "X-CSRF-Token": decodeURIComponent(csrfToken) } : {}),
+        ...init?.headers,
+      },
+    });
+    if (retryResponse.ok) {
+      return retryResponse.json() as Promise<T>;
+    }
+    // Fall through to error handling below
+    if (!retryResponse.ok) {
+      let message = "Something went wrong. Please try again.";
+      try {
+        const body = await retryResponse.json() as {
+          detail?: string | { msg?: string }[];
+        };
+        if (typeof body.detail === "string") {
+          message = body.detail;
+        } else if (Array.isArray(body.detail)) {
+          message = body.detail.map((item) => item.msg || "Invalid input.").join(" ");
+        }
+      } catch {
+        /* Use the generic message when the server response is not JSON. */
+      }
+      throw new ApiError(message, retryResponse.status);
+    }
+  }
+
   if (!response.ok) {
     let message = "Something went wrong. Please try again.";
     try {

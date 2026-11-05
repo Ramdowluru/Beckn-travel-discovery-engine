@@ -3,6 +3,7 @@ from pymongo.asynchronous.database import AsyncDatabase
 
 from app.core.config import settings
 from app.repositories.sessions import SessionRepository
+from app.repositories.refresh_tokens import RefreshTokenRepository
 from app.repositories.itineraries import ItineraryRepository
 from app.repositories.transport_snapshots import TransportSnapshotRepository
 from app.repositories.transport_selections import TransportSelectionRepository
@@ -35,6 +36,10 @@ async def initialize_indexes() -> None:
     await SessionRepository(
         database,
         settings.session_lifetime_seconds,
+    ).ensure_indexes()
+    await RefreshTokenRepository(
+        database,
+        settings.jwt_refresh_token_expire_days,
     ).ensure_indexes()
     await ItineraryRepository(database).ensure_indexes()
     await TransportSelectionRepository(database).ensure_indexes()
