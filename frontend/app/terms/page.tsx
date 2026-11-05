@@ -1,0 +1,5 @@
+import ContentPage from "@/components/ContentPage";
+
+export default function TermsPage() {
+  return <ContentPage eyebrow="Legal" title="Terms of service" description="These terms describe the academic Beckn booking prototype." sections={[{ heading: "Simulated booking only", body: "Search, selection, initialization, confirmation, status and cancellation use independent mock providers. No real reservation, payment, charge or refund is made. An initialized order does not reserve inventory." }, { heading: "Catalog information", body: "Listings, prices, availability and cancellation terms are mock data and should not be treated as live offers or commercial provider policies." }, { heading: "Use of this demo", body: "Use the service for evaluation and demonstration purposes only. Downloaded mock tickets and vouchers are not valid for travel or admission." }]} actions={[{ label: "Privacy policy", href: "/privacy" }, { label: "Back home", href: "/home", primary: true }]} />;
+}

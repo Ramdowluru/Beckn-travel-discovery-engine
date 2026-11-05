@@ -1,0 +1,224 @@
+{
+  "provider": {
+    "id": "mock-experience",
+    "name": "LocalTrails Experiences",
+    "type": "EXPERIENCE",
+    "category": "experience",
+    "bpp_id": "mock-experience.example.in",
+    "bpp_uri": "http://localhost:5005"
+  },
+  "experiences": [
+    {
+      "experience_id": "EXP-001",
+      "name": "Old City Heritage Walk",
+      "category": "WALKING_TOUR",
+      "description": "Guided walk through Charminar, Laad Bazaar and hidden lanes.",
+      "city": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "duration_minutes": 180,
+      "price": {
+        "amount": 600,
+        "currency": "INR"
+      },
+      "slots_remaining": 14,
+      "highlights": [
+        "charminar",
+        "bazaar",
+        "history"
+      ],
+      "images": [
+        "https://picsum.photos/seed/exp001-1/800/600",
+        "https://picsum.photos/seed/exp001-2/800/600"
+      ]
+    },
+    {
+      "experience_id": "EXP-002",
+      "name": "Hyderabadi Biryani Food Trail",
+      "category": "FOOD",
+      "description": "Taste biryani, haleem and Irani chai at five iconic spots.",
+      "city": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "duration_minutes": 150,
+      "price": {
+        "amount": 1200,
+        "currency": "INR"
+      },
+      "slots_remaining": 8,
+      "highlights": [
+        "biryani",
+        "street food",
+        "chai"
+      ],
+      "images": [
+        "https://picsum.photos/seed/exp002-1/800/600",
+        "https://picsum.photos/seed/exp002-2/800/600"
+      ]
+    },
+    {
+      "experience_id": "EXP-003",
+      "name": "Bengaluru Craft Brewery Tour",
+      "category": "FOOD",
+      "description": "Visit three craft breweries with tasting flights.",
+      "city": {
+        "code": "BLR",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "gps": "12.9716,77.5946"
+      },
+      "duration_minutes": 210,
+      "price": {
+        "amount": 1800,
+        "currency": "INR"
+      },
+      "slots_remaining": 10,
+      "highlights": [
+        "brewery",
+        "tasting"
+      ],
+      "images": [
+        "https://picsum.photos/seed/exp003-1/800/600",
+        "https://picsum.photos/seed/exp003-2/800/600"
+      ]
+    },
+    {
+      "experience_id": "EXP-004",
+      "name": "Nandi Hills Sunrise Trip",
+      "category": "ADVENTURE",
+      "description": "Early-morning drive and sunrise viewing at Nandi Hills.",
+      "city": {
+        "code": "BLR",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "gps": "12.9716,77.5946"
+      },
+      "duration_minutes": 300,
+      "price": {
+        "amount": 1500,
+        "currency": "INR"
+      },
+      "slots_remaining": 0,
+      "highlights": [
+        "sunrise",
+        "hills"
+      ],
+      "images": [
+        "https://picsum.photos/seed/exp004-1/800/600",
+        "https://picsum.photos/seed/exp004-2/800/600"
+      ]
+    },
+    {
+      "experience_id": "EXP-005",
+      "name": "Dolphin Spotting Boat Ride",
+      "category": "WATER",
+      "description": "Boat ride from Sinquerim with dolphin spotting.",
+      "city": {
+        "code": "GOI",
+        "city": "Goa",
+        "state": "Goa",
+        "gps": "15.4909,73.8278"
+      },
+      "duration_minutes": 120,
+      "price": {
+        "amount": 900,
+        "currency": "INR"
+      },
+      "slots_remaining": 20,
+      "highlights": [
+        "dolphins",
+        "boat"
+      ],
+      "images": [
+        "https://picsum.photos/seed/exp005-1/800/600",
+        "https://picsum.photos/seed/exp005-2/800/600"
+      ]
+    },
+    {
+      "experience_id": "EXP-006",
+      "name": "Old Goa Churches and Spice Farm Day",
+      "category": "SIGHTSEEING",
+      "description": "Basilica of Bom Jesus, Se Cathedral and a spice plantation lunch.",
+      "city": {
+        "code": "GOI",
+        "city": "Goa",
+        "state": "Goa",
+        "gps": "15.4909,73.8278"
+      },
+      "duration_minutes": 360,
+      "price": {
+        "amount": 2200,
+        "currency": "INR"
+      },
+      "slots_remaining": 12,
+      "highlights": [
+        "churches",
+        "spice farm",
+        "lunch"
+      ],
+      "images": [
+        "https://picsum.photos/seed/exp006-1/800/600",
+        "https://picsum.photos/seed/exp006-2/800/600"
+      ]
+    },
+    {
+      "experience_id": "EXP-007",
+      "name": "Araku Valley Day Trip",
+      "category": "SIGHTSEEING",
+      "description": "Scenic drive to Araku with coffee plantation visit and tribal museum.",
+      "city": {
+        "code": "VSKP",
+        "city": "Visakhapatnam",
+        "state": "Andhra Pradesh",
+        "gps": "17.6868,83.2185"
+      },
+      "duration_minutes": 600,
+      "price": {
+        "amount": 2400,
+        "currency": "INR"
+      },
+      "slots_remaining": 16,
+      "highlights": [
+        "coffee",
+        "valley",
+        "museum"
+      ],
+      "images": [
+        "https://picsum.photos/seed/exp007-1/800/600",
+        "https://picsum.photos/seed/exp007-2/800/600"
+      ]
+    },
+    {
+      "experience_id": "EXP-008",
+      "name": "Ramakrishna Beach Kayaking",
+      "category": "WATER",
+      "description": "Guided morning kayaking session on the Vizag coast.",
+      "city": {
+        "code": "VSKP",
+        "city": "Visakhapatnam",
+        "state": "Andhra Pradesh",
+        "gps": "17.6868,83.2185"
+      },
+      "duration_minutes": 90,
+      "price": {
+        "amount": 700,
+        "currency": "INR"
+      },
+      "slots_remaining": 6,
+      "highlights": [
+        "kayak",
+        "beach"
+      ],
+      "images": [
+        "https://picsum.photos/seed/exp008-1/800/600",
+        "https://picsum.photos/seed/exp008-2/800/600"
+      ]
+    }
+  ]
+}

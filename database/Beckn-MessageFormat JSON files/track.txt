@@ -1,0 +1,23 @@
+{
+  "context": {
+    "domain": "TRV",
+    "action": "track"
+  },
+  "message": {
+    "order": {
+      "id": "order-001"
+    }
+  }
+}
+
+structure:
+
+/track
+│
+├── context
+│   ├── domain
+│   └── action
+│
+└── message
+    └── order
+        └── id

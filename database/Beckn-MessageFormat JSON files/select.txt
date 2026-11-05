@@ -1,0 +1,39 @@
+{
+  "context": {
+    "domain": "TRV",
+    "action": "select"
+  },
+  "message": {
+    "order": {
+      "provider": {
+        "id": "provider-001"
+      },
+      "items": [
+        {
+          "id": "service-001",
+          "quantity": {
+            "selected": {
+              "count": 1
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+
+Structure:
+
+/on_search
+    │
+    │ Multiple options
+    ▼
+User selects one
+    │
+    ▼
+/select
+    │
+    ├── provider.id
+    ├── item.id
+    └── quantity

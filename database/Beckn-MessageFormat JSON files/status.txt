@@ -1,0 +1,25 @@
+{
+  "context": {
+    "domain": "TRV",
+    "action": "status"
+  },
+  "message": {
+    "order": {
+      "id": "order-001"
+    }
+  }
+}
+
+
+
+Structure:
+
+/status
+│
+├── context
+│   ├── domain
+│   └── action
+│
+└── message
+    └── order
+        └── id

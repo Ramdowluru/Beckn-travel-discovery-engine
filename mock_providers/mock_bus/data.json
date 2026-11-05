@@ -1,0 +1,262 @@
+{
+  "provider": {
+    "id": "mock-bus",
+    "name": "Coastal Express Travels",
+    "type": "BUS",
+    "category": "transport",
+    "bpp_id": "mock-bus.example.in",
+    "bpp_uri": "http://127.0.0.1:5001"
+  },
+  "services": [
+    {
+      "service_id": "BUS-001",
+      "name": "Coastal Express Ordinary",
+      "mode": "BUS",
+      "bus_type": "Non-AC Seater",
+      "from": {
+        "code": "VJA",
+        "city": "Vijayawada",
+        "state": "Andhra Pradesh",
+        "gps": "16.5062,80.6480"
+      },
+      "to": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "departure_time": "06:00",
+      "duration_minutes": 420,
+      "price": {
+        "amount": 450,
+        "currency": "INR"
+      },
+      "seats_available": 28
+    },
+    {
+      "service_id": "BUS-002",
+      "name": "Coastal Express AC Seater",
+      "mode": "BUS",
+      "bus_type": "AC Seater",
+      "from": {
+        "code": "VJA",
+        "city": "Vijayawada",
+        "state": "Andhra Pradesh",
+        "gps": "16.5062,80.6480"
+      },
+      "to": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "departure_time": "09:30",
+      "duration_minutes": 360,
+      "price": {
+        "amount": 700,
+        "currency": "INR"
+      },
+      "seats_available": 14
+    },
+    {
+      "service_id": "BUS-003",
+      "name": "Coastal Night Sleeper",
+      "mode": "BUS",
+      "bus_type": "AC Sleeper",
+      "from": {
+        "code": "VJA",
+        "city": "Vijayawada",
+        "state": "Andhra Pradesh",
+        "gps": "16.5062,80.6480"
+      },
+      "to": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "departure_time": "22:00",
+      "duration_minutes": 375,
+      "price": {
+        "amount": 950,
+        "currency": "INR"
+      },
+      "seats_available": 9
+    },
+    {
+      "service_id": "BUS-004",
+      "name": "Coastal Premium Multi-Axle",
+      "mode": "BUS",
+      "bus_type": "Volvo Multi-Axle AC",
+      "from": {
+        "code": "VJA",
+        "city": "Vijayawada",
+        "state": "Andhra Pradesh",
+        "gps": "16.5062,80.6480"
+      },
+      "to": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "departure_time": "23:15",
+      "duration_minutes": 340,
+      "price": {
+        "amount": 1150,
+        "currency": "INR"
+      },
+      "seats_available": 0
+    },
+    {
+      "service_id": "BUS-005",
+      "name": "Deccan Link Seater",
+      "mode": "BUS",
+      "bus_type": "AC Seater",
+      "from": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "to": {
+        "code": "BLR",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "gps": "12.9716,77.5946"
+      },
+      "departure_time": "19:00",
+      "duration_minutes": 690,
+      "price": {
+        "amount": 1100,
+        "currency": "INR"
+      },
+      "seats_available": 18
+    },
+    {
+      "service_id": "BUS-006",
+      "name": "Deccan Link Sleeper",
+      "mode": "BUS",
+      "bus_type": "AC Sleeper",
+      "from": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "to": {
+        "code": "BLR",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "gps": "12.9716,77.5946"
+      },
+      "departure_time": "21:30",
+      "duration_minutes": 660,
+      "price": {
+        "amount": 1450,
+        "currency": "INR"
+      },
+      "seats_available": 11
+    },
+    {
+      "service_id": "BUS-007",
+      "name": "Deccan Budget Sleeper",
+      "mode": "BUS",
+      "bus_type": "Non-AC Sleeper",
+      "from": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "to": {
+        "code": "BLR",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "gps": "12.9716,77.5946"
+      },
+      "departure_time": "20:00",
+      "duration_minutes": 780,
+      "price": {
+        "amount": 850,
+        "currency": "INR"
+      },
+      "seats_available": 22
+    },
+    {
+      "service_id": "BUS-008",
+      "name": "Bay Route Express",
+      "mode": "BUS",
+      "bus_type": "AC Seater",
+      "from": {
+        "code": "VSKP",
+        "city": "Visakhapatnam",
+        "state": "Andhra Pradesh",
+        "gps": "17.6868,83.2185"
+      },
+      "to": {
+        "code": "VJA",
+        "city": "Vijayawada",
+        "state": "Andhra Pradesh",
+        "gps": "16.5062,80.6480"
+      },
+      "departure_time": "07:15",
+      "duration_minutes": 480,
+      "price": {
+        "amount": 650,
+        "currency": "INR"
+      },
+      "seats_available": 20
+    },
+    {
+      "service_id": "BUS-009",
+      "name": "Bay Route Ordinary",
+      "mode": "BUS",
+      "bus_type": "Non-AC Seater",
+      "from": {
+        "code": "VSKP",
+        "city": "Visakhapatnam",
+        "state": "Andhra Pradesh",
+        "gps": "17.6868,83.2185"
+      },
+      "to": {
+        "code": "VJA",
+        "city": "Vijayawada",
+        "state": "Andhra Pradesh",
+        "gps": "16.5062,80.6480"
+      },
+      "departure_time": "05:30",
+      "duration_minutes": 570,
+      "price": {
+        "amount": 420,
+        "currency": "INR"
+      },
+      "seats_available": 31
+    },
+    {
+      "service_id": "BUS-010",
+      "name": "Bay Route Night Sleeper",
+      "mode": "BUS",
+      "bus_type": "AC Sleeper",
+      "from": {
+        "code": "VSKP",
+        "city": "Visakhapatnam",
+        "state": "Andhra Pradesh",
+        "gps": "17.6868,83.2185"
+      },
+      "to": {
+        "code": "VJA",
+        "city": "Vijayawada",
+        "state": "Andhra Pradesh",
+        "gps": "16.5062,80.6480"
+      },
+      "departure_time": "22:45",
+      "duration_minutes": 465,
+      "price": {
+        "amount": 900,
+        "currency": "INR"
+      },
+      "seats_available": 7
+    }
+  ]
+}

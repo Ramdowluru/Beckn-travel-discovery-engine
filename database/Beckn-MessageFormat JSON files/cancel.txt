@@ -1,0 +1,30 @@
+{
+  "context": {
+    "domain": "TRV",
+    "action": "cancel"
+  },
+  "message": {
+    "order": {
+      "id": "order-001"
+    },
+    "cancellation_reason": {
+      "code": "USER_REQUEST"
+    }
+  }
+}
+
+
+Structure:
+
+/cancel
+│
+├── context
+│   ├── domain
+│   └── action
+│
+└── message
+    ├── order
+    │   └── id
+    │
+    └── cancellation_reason
+        └── code

@@ -1,0 +1,36 @@
+{
+  "context": {
+    "domain": "TRV",
+    "action": "on_support"
+  },
+  "message": {
+    "support": {
+      "order_id": "order-001",
+      "ticket": {
+        "id": "SUP-20260930-001",
+        "status": "OPEN"
+      },
+      "issue": {
+        "code": "BOOKING_ISSUE"
+      }
+    }
+  }
+}
+
+
+/on_support
+│
+├── context
+│   ├── domain
+│   └── action
+│
+└── message
+    └── support
+        ├── order_id
+        │
+        ├── ticket
+        │   ├── id
+        │   └── status
+        │
+        └── issue
+            └── code

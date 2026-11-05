@@ -1,0 +1,220 @@
+{
+  "provider": {
+    "id": "mock-flight",
+    "name": "SkyBharat Air",
+    "type": "FLIGHT",
+    "category": "transport",
+    "bpp_id": "mock-flight.example.in",
+    "bpp_uri": "http://localhost:5003"
+  },
+  "services": [
+    {
+      "service_id": "FLT-001",
+      "name": "SkyBharat SB101",
+      "flight_number": "SB101",
+      "mode": "FLIGHT",
+      "cabin": "Economy",
+      "from": {
+        "code": "VJA",
+        "city": "Vijayawada",
+        "state": "Andhra Pradesh",
+        "gps": "16.5062,80.6480"
+      },
+      "to": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "departure_time": "07:20",
+      "duration_minutes": 55,
+      "price": {
+        "amount": 3200,
+        "currency": "INR"
+      },
+      "seats_available": 24
+    },
+    {
+      "service_id": "FLT-002",
+      "name": "SkyBharat SB103",
+      "flight_number": "SB103",
+      "mode": "FLIGHT",
+      "cabin": "Economy",
+      "from": {
+        "code": "VJA",
+        "city": "Vijayawada",
+        "state": "Andhra Pradesh",
+        "gps": "16.5062,80.6480"
+      },
+      "to": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "departure_time": "18:45",
+      "duration_minutes": 55,
+      "price": {
+        "amount": 4100,
+        "currency": "INR"
+      },
+      "seats_available": 9
+    },
+    {
+      "service_id": "FLT-003",
+      "name": "SkyBharat SB201",
+      "flight_number": "SB201",
+      "mode": "FLIGHT",
+      "cabin": "Economy",
+      "from": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "to": {
+        "code": "BLR",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "gps": "12.9716,77.5946"
+      },
+      "departure_time": "06:30",
+      "duration_minutes": 85,
+      "price": {
+        "amount": 3600,
+        "currency": "INR"
+      },
+      "seats_available": 31
+    },
+    {
+      "service_id": "FLT-004",
+      "name": "SkyBharat SB205",
+      "flight_number": "SB205",
+      "mode": "FLIGHT",
+      "cabin": "Economy",
+      "from": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "to": {
+        "code": "BLR",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "gps": "12.9716,77.5946"
+      },
+      "departure_time": "13:15",
+      "duration_minutes": 85,
+      "price": {
+        "amount": 4700,
+        "currency": "INR"
+      },
+      "seats_available": 18
+    },
+    {
+      "service_id": "FLT-005",
+      "name": "SkyBharat SB209",
+      "flight_number": "SB209",
+      "mode": "FLIGHT",
+      "cabin": "Economy",
+      "from": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "to": {
+        "code": "BLR",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "gps": "12.9716,77.5946"
+      },
+      "departure_time": "20:50",
+      "duration_minutes": 85,
+      "price": {
+        "amount": 5400,
+        "currency": "INR"
+      },
+      "seats_available": 4
+    },
+    {
+      "service_id": "FLT-006",
+      "name": "SkyBharat SB301",
+      "flight_number": "SB301",
+      "mode": "FLIGHT",
+      "cabin": "Economy",
+      "from": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "to": {
+        "code": "GOI",
+        "city": "Goa",
+        "state": "Goa",
+        "gps": "15.4909,73.8278"
+      },
+      "departure_time": "08:10",
+      "duration_minutes": 80,
+      "price": {
+        "amount": 4200,
+        "currency": "INR"
+      },
+      "seats_available": 22
+    },
+    {
+      "service_id": "FLT-007",
+      "name": "SkyBharat SB305",
+      "flight_number": "SB305",
+      "mode": "FLIGHT",
+      "cabin": "Economy",
+      "from": {
+        "code": "HYD",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "gps": "17.3850,78.4867"
+      },
+      "to": {
+        "code": "GOI",
+        "city": "Goa",
+        "state": "Goa",
+        "gps": "15.4909,73.8278"
+      },
+      "departure_time": "17:35",
+      "duration_minutes": 80,
+      "price": {
+        "amount": 5200,
+        "currency": "INR"
+      },
+      "seats_available": 0
+    },
+    {
+      "service_id": "FLT-008",
+      "name": "SkyBharat SB401",
+      "flight_number": "SB401",
+      "mode": "FLIGHT",
+      "cabin": "Economy",
+      "from": {
+        "code": "BLR",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "gps": "12.9716,77.5946"
+      },
+      "to": {
+        "code": "GOI",
+        "city": "Goa",
+        "state": "Goa",
+        "gps": "15.4909,73.8278"
+      },
+      "departure_time": "11:00",
+      "duration_minutes": 65,
+      "price": {
+        "amount": 3900,
+        "currency": "INR"
+      },
+      "seats_available": 16
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+{
+  "context": {
+    "domain": "TRV",
+    "action": "on_search"
+  },
+  "message": {
+    "catalog": {
+      "descriptor": {
+        "name": "Travel Search Results"
+      },
+      "providers": [
+        {
+          "id": "provider-001",
+          "descriptor": {
+            "name": "Example Travel Provider"
+          },
+          "locations": [
+            {
+              "id": "location-001",
+              "descriptor": {
+                "name": "Visakhapatnam"
+              }
+            },
+            {
+              "id": "location-002",
+              "descriptor": {
+                "name": "Hyderabad"
+              }
+            }
+          ],
+          "items": [
+            {
+              "id": "service-001",
+              "descriptor": {
+                "name": "Visakhapatnam - Hyderabad Express"
+              },
+              "category_id": "TRAIN",
+              "fulfillment": {
+                "type": "ROUTE",
+                "start": {
+                  "location": {
+                    "descriptor": {
+                      "name": "Visakhapatnam"
+                    }
+                  },
+                  "time": {
+                    "timestamp": "2026-09-30T06:00:00Z"
+                  }
+                },
+                "end": {
+                  "location": {
+                    "descriptor": {
+                      "name": "Hyderabad"
+                    }
+                  },
+                  "time": {
+                    "timestamp": "2026-09-30T14:00:00Z"
+                  }
+                }
+              },
+              "price": {
+                "currency": "INR",
+                "value": "850.00"
+              },
+              "quantity": {
+                "available": {
+                  "count": 25
+                }
+              },
+              "tags": [
+                {
+                  "descriptor": {
+                    "code": "SERVICE_TYPE"
+                  },
+                  "list": [
+                    {
+                      "descriptor": {
+                        "code": "TYPE"
+                      },
+                      "value": "TRAIN"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+
+
+
+
+
+Structure : 
+
+/on_search
+│
+├── context
+│   ├── domain
+│   └── action
+│
+└── message
+    └── catalog
+        ├── descriptor
+        │
+        └── providers[]
+            │
+            ├── id
+            ├── descriptor
+            ├── locations[]
+            │
+            └── items[]
+                ├── id
+                ├── descriptor
+                ├── category_id
+                ├── fulfillment
+                │   ├── start
+                │   └── end
+                ├── price
+                ├── quantity
+                └── tags[]

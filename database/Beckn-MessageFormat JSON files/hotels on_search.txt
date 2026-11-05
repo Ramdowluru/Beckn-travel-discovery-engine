@@ -1,0 +1,57 @@
+{
+  "context": {
+    "domain": "TRV",
+    "action": "on_search",
+    "version": "1.1.0",
+    "bap_id": "travel-bap",
+    "bpp_id": "hotel-bpp",
+    "transaction_id": "txn-hotel-001",
+    "message_id": "msg-hotel-001"
+  },
+  "message": {
+    "catalog": {
+      "providers": [
+        {
+          "id": "HOTEL-PROVIDER-001",
+          "descriptor": {
+            "name": "Hyderabad Grand Hotel"
+          },
+          "items": [
+            {
+              "id": "HOTEL-HYD-001",
+              "descriptor": {
+                "name": "Hyderabad Grand Hotel",
+                "short_desc": "Premium hotel in Hyderabad"
+              },
+              "category_id": "hotel",
+              "location_id": "LOC-HYD-001",
+              "rating": 4.2,
+              "images": [],
+              "tags": {
+                "amenities": [
+                  "WiFi",
+                  "Breakfast",
+                  "Parking"
+                ]
+              },
+              "rooms": [
+                {
+                  "room_id": "DELUXE-01",
+                  "name": "Deluxe Room",
+                  "capacity": 2,
+                  "price": {
+                    "amount": 3500,
+                    "currency": "INR",
+                    "per": "night"
+                  },
+                  "availability": 5
+                }
+              ],
+              "status": "active"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

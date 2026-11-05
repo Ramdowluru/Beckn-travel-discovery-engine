@@ -1,0 +1,5 @@
+import ContentPage from "@/components/ContentPage";
+
+export default function PrivacyPage() {
+  return <ContentPage eyebrow="Legal" title="Privacy policy" description="This academic prototype stores account and simulated booking data to support saved itineraries and booking management." sections={[{ heading: "Account and booking data", body: "The backend stores your account, authenticated session, saved itineraries, and customer details you submit for a mock booking. Booking details are visible only to the authenticated account that created them." }, { heading: "Mock providers", body: "Customer details needed to initialize an order are sent to the selected local mock provider. No real payment, card data or commercial booking API is used." }, { heading: "Your control", body: "Sign out to end the current session. This prototype does not provide a self-service account or booking-data deletion workflow." }]} actions={[{ label: "Terms of service", href: "/terms" }, { label: "Back home", href: "/home", primary: true }]} />;
+}

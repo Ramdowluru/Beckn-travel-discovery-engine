@@ -1,0 +1,243 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="1960" viewBox="0 0 1520 1960" font-family="'DM Sans','Segoe UI',Helvetica,Arial,sans-serif">
+  <!-- ════════════════════════════════════════════════════════════
+       TDE — Database ER Diagram (MongoDB, SRS §12)
+       Palette: ink #1A1A18 · forest #1C2B25 · cream #F2EDE4
+                orange #C84B2F · border #D4CEC4
+       ════════════════════════════════════════════════════════════ -->
+  <defs>
+    <marker id="crow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="14" markerHeight="14" orient="auto-start-reverse">
+      <path d="M0 6 L11 0 M0 6 L11 6 M0 6 L11 12" stroke="#1A1A18" stroke-width="1.4" fill="none"/>
+    </marker>
+    <marker id="one" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" orient="auto-start-reverse">
+      <path d="M2 1 L11 6 L2 11" stroke="#1A1A18" stroke-width="1.4" fill="none"/>
+    </marker>
+  </defs>
+
+  <rect width="1520" height="1960" fill="#F2EDE4"/>
+
+  <text x="760" y="64" text-anchor="middle" font-family="Playfair Display, Georgia, serif" font-size="34" font-weight="700" fill="#1A1A18" letter-spacing="-0.5">Travel Discovery Engine — Database Schema</text>
+  <text x="760" y="94" text-anchor="middle" font-size="14.5" font-weight="300" fill="#5C5C58">MongoDB collections · Beckn transaction lifecycle · SRS §12 + §13</text>
+  <line x1="610" y1="112" x2="910" y2="112" stroke="#C84B2F" stroke-width="2"/>
+
+  <!-- ══════════════ USERS (top left) ══════════════ -->
+  <g>
+    <rect x="80" y="150" width="400" height="300" fill="#1C2B25" stroke="#1A1A18" stroke-width="1.5"/>
+    <rect x="80" y="150" width="400" height="42" fill="#243A31"/>
+    <text x="100" y="178" font-size="16" font-weight="700" fill="#F2EDE4">users</text>
+    <text x="460" y="178" text-anchor="end" font-size="10.5" fill="#9DB5A9" font-style="italic">traveler / admin</text>
+    <g font-size="12.5" fill="#F2EDE4">
+      <text x="100" y="216" font-weight="600">🔑 _id</text>
+      <text x="100" y="240">name · email 🔒unique · phone</text>
+      <text x="100" y="264">passwordHash (bcrypt)</text>
+      <text x="100" y="288">role: traveler | admin</text>
+      <text x="100" y="312">auth: { method, lastLoginAt }</text>
+      <text x="100" y="336">preferences: { homeCity,</text>
+      <text x="100" y="356">   preferredModes[], currency }</text>
+      <text x="100" y="384">createdAt / updatedAt</text>
+    </g>
+    <text x="460" y="432" text-anchor="end" font-size="10.5" fill="#9A9A94" font-style="italic">auth via API gateway (Module 5)</text>
+  </g>
+
+  <!-- ══════════════ ORDERS (top right) ══════════════ -->
+  <g>
+    <rect x="1040" y="150" width="400" height="330" fill="#1C2B25" stroke="#1A1A18" stroke-width="1.5"/>
+    <rect x="1040" y="150" width="400" height="42" fill="#243A31"/>
+    <text x="1060" y="178" font-size="16" font-weight="700" fill="#F2EDE4">orders</text>
+    <text x="1420" y="178" text-anchor="end" font-size="10.5" fill="#9DB5A9" font-style="italic">Beckn state machine</text>
+    <g font-size="12.5" fill="#F2EDE4">
+      <text x="1060" y="216" font-weight="600">🔑 _id · orderId 🔒unique</text>
+      <text x="1060" y="240">🔗 userRef → users._id</text>
+      <text x="1060" y="264">transactionId · bppId · bppUri</text>
+      <text x="1060" y="288">status: created → selected →</text>
+      <text x="1060" y="308" fill="#F2A78E">   initiated → confirmed →</text>
+      <text x="1060" y="328" fill="#F2A78E">   cancelled | completed</text>
+      <text x="1060" y="352">items[]: { catalogId, descriptor,</text>
+      <text x="1060" y="372">   price, quantity, timing } 📸</text>
+      <text x="1060" y="396">fulfillments[] · quote · payment</text>
+      <text x="1060" y="420">cancellation · providerReference</text>
+      <text x="1060" y="444">timeline[] (audit) · timestamps</text>
+    </g>
+  </g>
+
+  <!-- ══════════════ CATALOGS (center) ══════════════ -->
+  <g>
+    <rect x="560" y="530" width="420" height="440" fill="#FFFFFF" stroke="#1A1A18" stroke-width="2"/>
+    <rect x="560" y="530" width="420" height="42" fill="#E8E0D4"/>
+    <text x="580" y="558" font-size="16" font-weight="700" fill="#1A1A18">catalogs</text>
+    <text x="960" y="558" text-anchor="end" font-size="10.5" fill="#5C5C58" font-style="italic">Beckn items (on_search)</text>
+    <g font-size="12.5" fill="#1A1A18">
+      <text x="580" y="596" font-weight="600">🔑 _id · catalogId 🔒unique</text>
+      <text x="580" y="620" font-weight="600">🔗 providerRef → providers._id</text>
+      <text x="580" y="644">category: transport |</text>
+      <text x="580" y="664">   accommodation | experience</text>
+      <text x="580" y="688">descriptor: { name, shortDesc,</text>
+      <text x="580" y="708">   longDesc, images[] }</text>
+      <text x="580" y="732" font-weight="600">price: { value, currency, type }</text>
+      <text x="580" y="756">availability: { status,</text>
+      <text x="580" y="776">   seats | rooms | slots }</text>
+      <text x="580" y="800">timing: { departure/arrival,</text>
+      <text x="580" y="820">   checkIn/Out, startTime }</text>
+      <text x="580" y="844">rating: { average, count }</text>
+      <text x="580" y="868" font-weight="600">📍 location (GeoJSON · 2dsphere)</text>
+      <text x="580" y="892">item: transportItem |</text>
+      <text x="580" y="912">   accommodationItem |</text>
+      <text x="580" y="932">   experienceItem (discriminator)</text>
+      <text x="580" y="956">tags[] · ttl.seconds · timestamps</text>
+    </g>
+  </g>
+
+  <!-- ══════════════ PROVIDERS (bottom left) ══════════════ -->
+  <g>
+    <rect x="80" y="620" width="400" height="280" fill="#FFFFFF" stroke="#1A1A18" stroke-width="2"/>
+    <rect x="80" y="620" width="400" height="42" fill="#E8E0D4"/>
+    <text x="100" y="648" font-size="16" font-weight="700" fill="#1A1A18">providers</text>
+    <text x="460" y="648" text-anchor="end" font-size="10.5" fill="#5C5C58" font-style="italic">BPP adapter registry (§12)</text>
+    <g font-size="12.5" fill="#1A1A18">
+      <text x="100" y="686" font-weight="600">🔑 _id · providerId 🔒unique</text>
+      <text x="100" y="710">name · category</text>
+      <text x="100" y="734">adapterEndpoint (required)</text>
+      <text x="100" y="758">status: active | inactive</text>
+      <text x="100" y="782">rating · descriptor {…}</text>
+      <text x="100" y="806" font-weight="600">📍 locations[] (GeoJSON 2dsphere)</text>
+      <text x="100" y="830">ttl.seconds (Beckn catalog TTL)</text>
+      <text x="100" y="856">createdAt / updatedAt</text>
+    </g>
+    <text x="460" y="884" text-anchor="end" font-size="10.5" fill="#9A9A94" font-style="italic">GIS proximity queries — FR-11</text>
+  </g>
+
+  <!-- ══════════════ USER JOURNEYS (bottom center-left) ══════════════ -->
+  <g>
+    <rect x="560" y="1050" width="420" height="250" fill="#FFFFFF" stroke="#1A1A18" stroke-width="2"/>
+    <rect x="560" y="1050" width="420" height="42" fill="#E8E0D4"/>
+    <text x="580" y="1078" font-size="16" font-weight="700" fill="#1A1A18">userJourneys</text>
+    <text x="960" y="1078" text-anchor="end" font-size="10.5" fill="#5C5C58" font-style="italic">completion-rate KPI</text>
+    <g font-size="12.5" fill="#1A1A18">
+      <text x="580" y="1116" font-weight="600">🔑 _id · journeyId 🔒unique</text>
+      <text x="580" y="1140">🔗 userRef → users._id (nullable)</text>
+      <text x="580" y="1164">sessionId · searchCriteria</text>
+      <text x="580" y="1188">   { origin, destination, date,</text>
+      <text x="580" y="1208">   travellers, filtersUsed[], category }</text>
+      <text x="580" y="1232" font-weight="600">stepsCompleted[]: search →</text>
+      <text x="580" y="1252" font-weight="600" fill="#C84B2F">   view_results → select → init → confirm</text>
+      <text x="580" y="1276">outcome: completed | abandoned</text>
+      <text x="580" y="1276"></text>
+      <text x="580" y="1300">searchLatencyMs (⏱ &lt; 3 s KPI)</text>
+    </g>
+  </g>
+
+  <!-- ══════════════ PROVIDER CALLBACKS (bottom right) ══════════════ -->
+  <g>
+    <rect x="1040" y="1050" width="400" height="250" fill="#FFFFFF" stroke="#1A1A18" stroke-width="2" stroke-dasharray="8 5"/>
+    <rect x="1040" y="1050" width="400" height="42" fill="#E8E0D4"/>
+    <text x="1060" y="1078" font-size="16" font-weight="700" fill="#1A1A18">providerCallbacks</text>
+    <text x="1420" y="1078" text-anchor="end" font-size="10.5" fill="#5C5C58" font-style="italic">ops monitoring · capped</text>
+    <g font-size="12.5" fill="#1A1A18">
+      <text x="1060" y="1116" font-weight="600">🔑 _id</text>
+      <text x="1060" y="1140">action: search | select | init |</text>
+      <text x="1060" y="1160">   confirm | status | track | cancel</text>
+      <text x="1060" y="1184">bppId · transactionId (indexed)</text>
+      <text x="1060" y="1208" font-weight="600">status: received | late | failed</text>
+      <text x="1060" y="1232">latencyMs · payload (raw)</text>
+      <text x="1060" y="1256">receivedAt (⏳ TTL 30 days)</text>
+      <text x="1060" y="1290" font-style="italic" fill="#5C5C58">SRS §8: "log failed or late</text>
+      <text x="1060" y="1308" font-style="italic" fill="#5C5C58">provider callbacks for monitoring"</text>
+    </g>
+  </g>
+
+  <!-- ══════════════ ORDERS.items snapshot inset ══════════════ -->
+  <g>
+    <rect x="1040" y="560" width="400" height="0" fill="none"/>
+  </g>
+
+  <!-- ══════════════ RELATIONSHIPS ══════════════ -->
+  <!-- users 1—* orders (top edge) -->
+  <path d="M 480 260 H 560 V 240 H 1040" fill="none" stroke="#1A1A18" stroke-width="2" marker-start="url(#one)" marker-end="url(#crow)"/>
+  <text x="760" y="232" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1A1A18">places 1 : *</text>
+
+  <!-- users 1—* userJourneys -->
+  <path d="M 480 380 H 520 V 1120 H 560" fill="none" stroke="#1A1A18" stroke-width="2" marker-start="url(#one)" marker-end="url(#crow)"/>
+  <text x="510" y="760" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1A1A18" transform="rotate(-90 510 760)">traces 1 : *</text>
+
+  <!-- providers 1—* catalogs -->
+  <path d="M 480 760 H 560" fill="none" stroke="#1A1A18" stroke-width="2" marker-start="url(#one)" marker-end="url(#crow)"/>
+  <text x="520" y="748" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1A1A18">lists 1 : *</text>
+
+  <!-- catalogs 1—* orders.items (denormalized) -->
+  <path d="M 980 700 H 1010 V 430 H 1240 V 480" fill="none" stroke="#C84B2F" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#crow)"/>
+  <text x="1120" y="420" text-anchor="middle" font-size="12" font-weight="600" fill="#C84B2F">snapshot frozen at confirm (denormalized — not a live FK)</text>
+
+  <!-- providers 1—* providerCallbacks -->
+  <path d="M 480 860 H 520 V 980 H 1000 V 1120 H 1040" fill="none" stroke="#9A9A94" stroke-width="1.8" marker-start="url(#one)" marker-end="url(#crow)"/>
+  <text x="762" y="968" text-anchor="middle" font-size="12" font-weight="600" fill="#9A9A94">responds via 1 : *</text>
+
+  <!-- ══════════════ Redis side panel ══════════════ -->
+  <g>
+    <rect x="80" y="1050" width="400" height="250" fill="#1C2B25" stroke="#1A1A18" stroke-width="1.5" stroke-dasharray="8 5"/>
+    <rect x="80" y="1050" width="400" height="42" fill="#243A31"/>
+    <text x="100" y="1078" font-size="16" font-weight="700" fill="#F2EDE4">Redis (cache — no schema)</text>
+    <text x="460" y="1078" text-anchor="end" font-size="10.5" fill="#9DB5A9" font-style="italic">safe to lose</text>
+    <g font-size="12.5" fill="#F2EDE4">
+      <text x="100" y="1116" font-family="'JetBrains Mono',monospace" font-size="12">search:{hash}</text>
+      <text x="240" y="1116" font-size="11" fill="#9DB5A9">TTL 60–300s · on_search aggregate</text>
+      <text x="100" y="1146" font-family="'JetBrains Mono',monospace" font-size="12">quote:{txnId}</text>
+      <text x="240" y="1146" font-size="11" fill="#9DB5A9">TTL 300s · on_select quote</text>
+      <text x="100" y="1176" font-family="'JetBrains Mono',monospace" font-size="12">order:status:{id}</text>
+      <text x="240" y="1176" font-size="11" fill="#9DB5A9">TTL 30s · on_status snapshot</text>
+      <text x="100" y="1216" font-size="11.5" font-style="italic" fill="#9DB5A9">Geospatial query results ·</text>
+      <text x="100" y="1236" font-size="11.5" font-style="italic" fill="#9DB5A9">callback/timeout counters ·</text>
+      <text x="100" y="1256" font-size="11.5" font-style="italic" fill="#9DB5A9">never a source of truth</text>
+    </g>
+  </g>
+
+  <!-- ══════════════ Beckn lifecycle strip ══════════════ -->
+  <rect x="80" y="1420" width="1360" height="110" fill="#FFFFFF" stroke="#1A1A18" stroke-width="1.5"/>
+  <text x="110" y="1452" font-size="12" font-weight="700" letter-spacing="2.5" fill="#C84B2F">BECKN TRANSACTION LIFECYCLE — HOW SCHEMAS ARE TOUCHED</text>
+  <g font-size="12.5" font-weight="600" fill="#1A1A18" text-anchor="middle">
+    <rect x="110" y="1470" width="170" height="40" fill="#F2EDE4" stroke="#D4CEC4"/><text x="195" y="1495">search</text>
+    <rect x="320" y="1470" width="170" height="40" fill="#F2EDE4" stroke="#D4CEC4"/><text x="405" y="1495">select</text>
+    <rect x="530" y="1470" width="170" height="40" fill="#F2EDE4" stroke="#D4CEC4"/><text x="615" y="1495">init</text>
+    <rect x="740" y="1470" width="170" height="40" fill="#F2EDE4" stroke="#D4CEC4"/><text x="825" y="1495">confirm</text>
+    <rect x="950" y="1470" width="170" height="40" fill="#F2EDE4" stroke="#D4CEC4"/><text x="1035" y="1495">status / track</text>
+    <rect x="1160" y="1470" width="170" height="40" fill="#F2EDE4" stroke="#D4CEC4"/><text x="1245" y="1495">cancel</text>
+  </g>
+  <g stroke="#9A9A94" stroke-width="1.5" fill="none">
+    <line x1="280" y1="1490" x2="316" y2="1490" marker-end="url(#one)"/>
+    <line x1="490" y1="1490" x2="526" y2="1490" marker-end="url(#one)"/>
+    <line x1="700" y1="1490" x2="736" y2="1490" marker-end="url(#one)"/>
+    <line x1="910" y1="1490" x2="946" y2="1490" marker-end="url(#one)"/>
+    <line x1="1120" y1="1490" x2="1156" y2="1490" marker-end="url(#one)"/>
+  </g>
+  <g font-size="11" fill="#5C5C58" text-anchor="middle">
+    <text x="195" y="1524">read catalogs + cache</text>
+    <text x="405" y="1524">order: selected</text>
+    <text x="615" y="1524">order: initiated</text>
+    <text x="825" y="1524">order: confirmed 📸</text>
+    <text x="1035" y="1524">read + timeline</text>
+    <text x="1245" y="1524">cancelled + refund</text>
+  </g>
+
+  <!-- ══════════════ Indexes panel ══════════════ -->
+  <rect x="80" y="1560" width="1360" height="200" fill="#FFFFFF" stroke="#1A1A18" stroke-width="1.5"/>
+  <text x="110" y="1592" font-size="12" font-weight="700" letter-spacing="2.5" fill="#C84B2F">KEY INDEXES</text>
+  <g font-size="12" fill="#1A1A18">
+    <text x="110" y="1622" font-family="'JetBrains Mono',monospace" font-size="11.5">users.email 🔒 · providers.providerId 🔒 · providers.locations (2dsphere)</text>
+    <text x="110" y="1650" font-family="'JetBrains Mono',monospace" font-size="11.5">catalogs.catalogId 🔒 · catalogs {category, price.value} · {item.origin.city, item.destination.city, timing.departureTime}</text>
+    <text x="110" y="1678" font-family="'JetBrains Mono',monospace" font-size="11.5">catalogs.location (2dsphere) · catalogs.tags · orders.orderId 🔒 · orders {userRef, createdAt↓} · orders.transactionId</text>
+    <text x="110" y="1706" font-family="'JetBrains Mono',monospace" font-size="11.5">userJourneys.sessionId · {userRef, createdAt↓} · providerCallbacks {bppId, receivedAt↓} TTL 30d</text>
+  </g>
+  <g font-size="11" fill="#5C5C58">
+    <text x="110" y="1738">Purpose: route+date transport search (FR-1) · price sort/filter (FR-5) · GIS proximity (FR-11) · order tracking (FR-9/10) · KPI analytics (§3)</text>
+  </g>
+
+  <!-- legend -->
+  <g font-size="11" fill="#5C5C58">
+    <rect x="110" y="1830" width="15" height="15" fill="#1C2B25" stroke="#1A1A18"/><text x="134" y="1842">persistent core (MongoDB — collections)</text>
+    <rect x="420" y="1830" width="15" height="15" fill="#FFFFFF" stroke="#1A1A18"/><text x="444" y="1842">reference data</text>
+    <line x1="620" y1="1837" x2="665" y2="1837" stroke="#1A1A18" stroke-width="2" marker-start="url(#one)" marker-end="url(#crow)"/><text x="675" y="1842">1 : * relationship</text>
+    <line x1="810" y1="1837" x2="855" y2="1837" stroke="#C84B2F" stroke-width="2" stroke-dasharray="7 5"/><text x="865" y="1842">denormalized snapshot</text>
+    <rect x="1050" y="1830" width="15" height="15" fill="#FFFFFF" stroke="#1A1A18" stroke-dasharray="4 3"/><text x="1074" y="1842">ops / logging (TTL)</text>
+    <text x="110" y="1880" font-style="italic" fill="#9A9A94">🔑 primary key · 🔗 foreign-key ref · 🔒 unique index · 📸 frozen at confirm · ⏱/⏳ KPI / TTL</text>
+  </g>
+
+  <text x="760" y="1930" text-anchor="middle" font-size="11" font-style="italic" fill="#9A9A94">Beckn-Based Travel Discovery Engine · DE 5 · data layer (SRS Module 4) — generated with Codebuff</text>
+</svg>

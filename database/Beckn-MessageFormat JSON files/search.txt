@@ -1,0 +1,53 @@
+{
+  "context": {
+    "domain": "TRV",
+    "action": "search"
+  },
+  "message": {
+    "intent": {
+      "fulfillment": {
+        "stops": [
+          {
+            "type": "START",
+            "location": {
+              "descriptor": {
+                "name": "Visakhapatnam"
+              }
+            }
+          },
+          {
+            "type": "END",
+            "location": {
+              "descriptor": {
+                "name": "Hyderabad"
+              }
+            }
+          }
+        ],
+        "start": {
+          "time": {
+            "range": {
+              "start": "2026-09-30T00:00:00Z",
+              "end": "2026-09-30T23:59:59Z"
+            }
+          }
+        }
+      },
+      "tags": [
+        {
+          "descriptor": {
+            "code": "NUM_TRAVELERS"
+          },
+          "list": [
+            {
+              "descriptor": {
+                "code": "COUNT"
+              },
+              "value": "1"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
