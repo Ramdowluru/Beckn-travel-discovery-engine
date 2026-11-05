@@ -23,6 +23,21 @@ class TransportSelectionRepositoryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, claimed)
         repository._collection.find_one_and_update.assert_awaited_once()
 
+    async def test_hide_booking_is_owner_scoped_and_requires_confirmed_cancellation(self):
+        repository = self._repository()
+        user_id = ObjectId()
+        repository._collection.find_one_and_update.return_value = {"selectionId": "selection-1"}
+
+        result = await repository.hide_booking("selection-1", user_id)
+
+        self.assertEqual(result["selectionId"], "selection-1")
+        query = repository._collection.find_one_and_update.await_args.args[0]
+        self.assertEqual(query["selectionId"], "selection-1")
+        self.assertEqual(query["userId"], user_id)
+        self.assertEqual(query["confirmState"], "CONFIRMED")
+        self.assertEqual(query["cancelState"], "CANCELLED")
+        self.assertEqual(query["hidden"], {"$ne": True})
+
     async def test_update_result_can_compare_state_atomically(self):
         repository = self._repository()
 

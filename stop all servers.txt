@@ -1,13 +1,11 @@
-$ports = 3000,5001,5002,5003,8000,9000
+$ports = 3000,5001,5002,5003,5004,5005,8000,9000
 $pids = Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue |
-    Where-Object { $ports -contains $_.LocalPort } |
-    Select-Object -ExpandProperty OwningProcess -Unique
+  Where-Object { $ports -contains $_.LocalPort } |
+  Select-Object -ExpandProperty OwningProcess -Unique
 
 if ($pids) {
-    Get-Process -Id $pids -ErrorAction SilentlyContinue |
-        Select-Object Id, ProcessName
-    Stop-Process -Id $pids -Force
-    Write-Host "Stopped services using ports: $($ports -join ', ')"
+  Stop-Process -Id $pids -Force
+  Write-Host "Stopped all TDE services."
 } else {
-    Write-Host "No TDE services are listening on the expected ports."
+  Write-Host "No TDE services are listening."
 }

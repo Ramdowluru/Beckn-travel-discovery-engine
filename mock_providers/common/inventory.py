@@ -90,8 +90,42 @@ def with_current_inventory(
                 provider_id, key, int(service["seats_available"])
             )
     elif kind == "hotel":
+        intent = request.get("message", {}).get("intent", {})
+        fulfillment = intent.get("fulfillment", {})
+        destination = (
+            fulfillment.get("location", {}).get("descriptor", {}).get("name", "")
+            if isinstance(fulfillment, dict)
+            else ""
+        )
+        tags = {
+            tag.get("descriptor", {}).get("code"): tag
+            for tag in intent.get("tags", [])
+            if isinstance(tag, dict)
+        }
+        rooms = int(next(
+            (
+                entry.get("value", "1")
+                for entry in tags.get("ROOMS", {}).get("list", [])
+                if isinstance(entry, dict)
+                and entry.get("descriptor", {}).get("code") == "COUNT"
+            ),
+            "1",
+        ))
+        guests = int(next(
+            (
+                entry.get("value", "1")
+                for entry in tags.get("GUESTS", {}).get("list", [])
+                if isinstance(entry, dict)
+                and entry.get("descriptor", {}).get("code") == "COUNT"
+            ),
+            "1",
+        ))
         for hotel in result.get("hotels", []):
+            if destination and hotel.get("city", {}).get("city", "").lower() != destination.lower():
+                continue
             for room in hotel.get("rooms", []):
+                if room.get("availability", 0) < rooms or room.get("capacity", 0) * rooms < guests:
+                    continue
                 initial = int(room["availability"])
                 occupied = []
                 if end is not None:

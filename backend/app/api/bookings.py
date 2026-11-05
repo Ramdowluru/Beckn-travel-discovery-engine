@@ -134,7 +134,7 @@ async def list_bookings(user: dict[str, Any] = Depends(get_current_user)) -> lis
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Booking records are temporarily unavailable.",
         ) from error
-    return [serialize_booking(attempt) for attempt in attempts if attempt.get("initState")]
+    return [serialize_booking(attempt) for attempt in attempts if attempt.get("initState") and not attempt.get("hidden")]
 
 
 @router.get("/{booking_id}")
@@ -208,3 +208,26 @@ async def download_mock_ticket(
         media_type="text/plain; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="mock-{document_label}-{booking_id}.txt"'},
     )
+
+
+@router.delete("/{booking_id}")
+async def hide_booking(
+    booking_id: str,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, str]:
+    """Hide a cancelled booking from My Bookings (soft delete)."""
+    try:
+        attempt = await TransportSelectionRepository(get_db()).hide_booking(booking_id, user["_id"])
+    except PyMongoError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Booking records are temporarily unavailable.",
+        ) from error
+    
+    if attempt is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Booking not found or is not cancelled.",
+        )
+    
+    return {"message": "Booking removed from My Bookings"}

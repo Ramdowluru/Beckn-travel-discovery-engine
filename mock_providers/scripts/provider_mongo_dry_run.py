@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only BusProvider catalog/SQLite migration preflight."""
+"""Read-only provider catalog/SQLite migration preflight."""
 
 import argparse
 from collections import Counter
@@ -14,6 +14,31 @@ from typing import Any
 
 
 EXPECTED_BPP_ID = "mock-bus.example.in"
+
+
+def _catalog_services(catalog: dict[str, Any]) -> list[dict[str, Any]]:
+    if isinstance(catalog.get("services"), list):
+        return catalog["services"]
+    services: list[dict[str, Any]] = []
+    for hotel in catalog.get("hotels", []):
+        for room in hotel.get("rooms", []):
+            services.append({
+                **room,
+                "service_id": f"{catalog['provider']['bpp_id']}:{hotel['hotel_id']}:{room['room_id']}",
+                "name": room.get("name"),
+                "price": room.get("price"),
+                "seats_available": room.get("availability"),
+                "_catalog_kind": "hotel",
+                "_inventory_id": f"{hotel['hotel_id']}:{room['room_id']}",
+            })
+    for experience in catalog.get("experiences", []):
+        services.append({
+            **experience,
+            "service_id": experience["experience_id"],
+            "seats_available": experience.get("slots_remaining"),
+            "_catalog_kind": "experience",
+        })
+    return services
 
 
 def _sha256(path: Path) -> str:
@@ -44,7 +69,11 @@ def _read_sqlite(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]
         connection.close()
 
 
-def audit(catalog_path: Path, sqlite_path: Path) -> dict[str, Any]:
+def audit(
+    catalog_path: Path,
+    sqlite_path: Path,
+    expected_bpp_id: str | None = None,
+) -> dict[str, Any]:
     catalog_bytes = catalog_path.read_bytes()
     catalog = json.loads(catalog_bytes)
     orders, inventory, _ = _read_sqlite(sqlite_path)
@@ -52,10 +81,11 @@ def audit(catalog_path: Path, sqlite_path: Path) -> dict[str, Any]:
     conflicts: list[str] = []
 
     provider = catalog.get("provider", {})
-    if provider.get("bpp_id") != EXPECTED_BPP_ID:
+    expected_bpp_id = expected_bpp_id or provider.get("bpp_id") or EXPECTED_BPP_ID
+    if provider.get("bpp_id") != expected_bpp_id:
         conflicts.append("catalog_bpp_id_mismatch")
     provider_id = provider.get("id")
-    services = catalog.get("services")
+    services = _catalog_services(catalog)
     if not isinstance(services, list) or not services:
         conflicts.append("catalog_services_missing")
         services = []
@@ -82,15 +112,22 @@ def audit(catalog_path: Path, sqlite_path: Path) -> dict[str, Any]:
     for record in inventory:
         key = record["resource_key"]
         parts = key.split(":")
-        if (
-            len(parts) != 3
-            or parts[0] != "transport"
-            or parts[1] not in service_ids
-        ):
+        inventory_service_id = ":".join(parts[1:-1]) if parts[0] == "hotel" else parts[1]
+        hotel_service_ids = {
+            service.get("_inventory_id")
+            for service in services
+            if service.get("_catalog_kind") == "hotel"
+        }
+        if len(parts) < 3 or (
+            parts[1] not in service_ids
+            and inventory_service_id not in hotel_service_ids
+        ) or parts[0] not in {
+            "transport", "hotel", "experience"
+        }:
             conflicts.append("inventory_key_not_in_catalog")
             continue
         try:
-            date.fromisoformat(parts[2])
+            date.fromisoformat(parts[2] if parts[0] != "hotel" else parts[-1])
             if not isinstance(record["available"], int) or record["available"] < 0:
                 raise ValueError
         except (TypeError, ValueError):
@@ -169,7 +206,7 @@ def audit(catalog_path: Path, sqlite_path: Path) -> dict[str, Any]:
         },
         "catalog": {
             "provider_id": provider_id if provider_id == "mock-bus" else "present",
-            "bpp_id_matches": provider.get("bpp_id") == EXPECTED_BPP_ID,
+            "bpp_id_matches": provider.get("bpp_id") == expected_bpp_id,
             "service_count": len(service_ids),
         },
         "sqlite": {
@@ -198,9 +235,10 @@ def main() -> int:
     )
     parser.add_argument("--catalog", type=Path, required=True, help="BusProvider data.json")
     parser.add_argument("--sqlite", type=Path, required=True, help="BusProvider SQLite database")
+    parser.add_argument("--provider-bpp-id", help="Expected provider BPP ID")
     args = parser.parse_args()
     try:
-        result = audit(args.catalog, args.sqlite)
+        result = audit(args.catalog, args.sqlite, args.provider_bpp_id)
     except (OSError, sqlite3.Error, json.JSONDecodeError, ValueError) as error:
         print(json.dumps({
             "mode": "read-only dry-run",

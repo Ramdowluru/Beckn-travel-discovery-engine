@@ -34,6 +34,18 @@ class BookingApiTests(unittest.TestCase):
             self.assertEqual(raised.exception.status_code, 404)
             repository.get_for_user.assert_awaited_once_with("local-booking-id", user_id)
 
+    def test_hide_booking_requires_confirmed_cancelled_owned_booking(self):
+        async def scenario():
+            user_id = ObjectId()
+            repository = type("Repository", (), {})()
+            repository.hide_booking = AsyncMock(return_value={"selectionId": "cancelled-id"})
+            with patch.object(bookings, "get_db", return_value=object()), patch.object(
+                bookings, "TransportSelectionRepository", return_value=repository
+            ):
+                result = await bookings.hide_booking("cancelled-id", {"_id": user_id})
+            self.assertEqual(result["message"], "Booking removed from My Bookings")
+            repository.hide_booking.assert_awaited_once_with("cancelled-id", user_id)
+
         asyncio.run(scenario())
 
     def test_experience_booking_uses_search_destination_when_display_location_is_null(self):

@@ -17,6 +17,13 @@ from pymongo.errors import DuplicateKeyError
 
 BUS_BPP_ID = "mock-bus.example.in"
 BUS_PROVIDER_ID = "mock-bus"
+PROVIDER_IDENTITIES = {
+    BUS_BPP_ID: "mock-bus",
+    "mock-train.example.in": "mock-train",
+    "mock-flight.example.in": "mock-flight",
+    "mock-hotel.example.in": "mock-hotel",
+    "mock-experience.example.in": "mock-experience",
+}
 _CLIENT_LOCK = RLock()
 _CLIENTS: dict[tuple[str, str], "MongoProviderStore"] = {}
 
@@ -53,14 +60,14 @@ def service_to_mongo_document(provider_bpp_id: str, service: dict[str, Any]) -> 
     service_id = service.get("service_id")
     price = service.get("price")
     if not isinstance(service_id, str) or not service_id or not isinstance(price, dict):
-        raise MongoStorageConfigurationError("Bus service identity or price is invalid.")
+        raise MongoStorageConfigurationError("Provider service identity or price is invalid.")
     try:
         amount = _decimal(price["amount"])
         if not amount.is_finite() or amount < 0:
             raise ValueError
         mongo_amount = Decimal128(amount)
     except (KeyError, InvalidOperation, TypeError, ValueError) as error:
-        raise MongoStorageConfigurationError("Bus service price cannot be represented as Decimal128.") from error
+        raise MongoStorageConfigurationError("Provider service price cannot be represented as Decimal128.") from error
     document = deepcopy(service)
     document["price"]["amount"] = mongo_amount
     return {
@@ -94,7 +101,13 @@ def _configuration() -> tuple[str, str]:
 
 
 class MongoProviderStore:
-    def __init__(self, uri: str, database_name: str):
+    def __init__(
+        self,
+        uri: str,
+        database_name: str,
+        provider_bpp_id: str = BUS_BPP_ID,
+        provider_id: str = BUS_PROVIDER_ID,
+    ):
         self._client = MongoClient(
             uri,
             serverSelectionTimeoutMS=5000,
@@ -109,6 +122,8 @@ class MongoProviderStore:
         self.orders = self.database["provider_orders"]
         self.actions = self.database["provider_actions"]
         self.warnings = self.database["provider_migration_warnings"]
+        self.provider_bpp_id = provider_bpp_id
+        self.provider_id = provider_id
         self._transactions_verified = False
 
     def close(self) -> None:
@@ -144,10 +159,24 @@ class MongoProviderStore:
             ],
             name="bus_service_route",
         )
+        inventory_index_name = "provider_inventory_identity_unique"
+        existing_indexes = {
+            index["name"]: index
+            for index in self.inventory.list_indexes()
+        }
+        existing_inventory_index = existing_indexes.get(inventory_index_name)
+        expected_inventory_key = [
+            ("providerBppId", ASCENDING),
+            ("serviceId", ASCENDING),
+            ("serviceDate", ASCENDING),
+            ("slot", ASCENDING),
+        ]
+        if existing_inventory_index is not None and list(existing_inventory_index["key"].items()) != expected_inventory_key:
+            self.inventory.drop_index(inventory_index_name)
         self.inventory.create_index(
-            [("providerBppId", ASCENDING), ("serviceId", ASCENDING), ("serviceDate", ASCENDING)],
+            expected_inventory_key,
             unique=True,
-            name="provider_inventory_identity_unique",
+            name=inventory_index_name,
         )
         self.orders.create_index(
             [("providerBppId", ASCENDING), ("transactionId", ASCENDING), ("initMessageId", ASCENDING)],
@@ -193,7 +222,7 @@ class MongoProviderStore:
                 "migrationId": migration_id,
                 "recordLabel": label,
                 "issue": issue,
-                "providerBppId": BUS_BPP_ID,
+                "providerBppId": self.provider_bpp_id,
                 "providerOrderId": order_id,
                 "sourceHash": source_hash,
                 "historicalUnsafe": True,
@@ -217,8 +246,8 @@ class MongoProviderStore:
                 raise MongoStorageConfigurationError("Migration warning conflicts with an existing record.")
 
     def load_catalog(self, provider_bpp_id: str) -> dict[str, Any]:
-        if provider_bpp_id != BUS_BPP_ID:
-            raise MongoStorageConfigurationError("Mongo storage is only configured for BusProvider.")
+        if provider_bpp_id != self.provider_bpp_id:
+            raise MongoStorageConfigurationError("Mongo storage provider identity does not match.")
         provider_doc = self.providers.find_one({"_id": provider_bpp_id})
         if provider_doc is None:
             raise MongoStorageConfigurationError("BusProvider catalog is unavailable in Mongo storage.")
@@ -226,7 +255,7 @@ class MongoProviderStore:
         if (
             not isinstance(provider, dict)
             or provider.get("bpp_id") != provider_bpp_id
-            or provider.get("id") != BUS_PROVIDER_ID
+            or provider.get("id") != self.provider_id
         ):
             raise MongoStorageConfigurationError("BusProvider catalog identity is invalid.")
 
@@ -650,13 +679,14 @@ def _owns(record: dict[str, Any] | None, transaction_id: str, bap_id: str) -> bo
 
 def _parse_inventory_key(resource_key: str) -> tuple[str, str]:
     parts = resource_key.split(":")
-    if len(parts) != 3 or parts[0] != "transport":
-        raise ValueError("Bus inventory key must use transport:<service_id>:<date>.")
+    if len(parts) < 3 or parts[0] not in {"transport", "hotel", "experience"}:
+        raise ValueError("Provider inventory key has an unsupported category.")
+    date_part = parts[-1] if parts[0] == "hotel" else parts[2]
     try:
-        service_date = date.fromisoformat(parts[2]).isoformat()
+        service_date = date.fromisoformat(date_part).isoformat()
     except ValueError as error:
-        raise ValueError("Bus inventory key has an invalid service date.") from error
-    return parts[1], service_date
+        raise ValueError("Provider inventory key has an invalid service date.") from error
+    return ":".join(parts[1:-1] if parts[0] == "hotel" else parts[1:2]), service_date
 
 
 def _validate_requirements(requirements: list[tuple[str, int, int]]) -> None:
@@ -697,11 +727,13 @@ def _validate_allocation(allocation: dict[str, Any]) -> None:
 
 def get_mongo_provider_store() -> MongoProviderStore:
     uri, database_name = _configuration()
-    key = (uri, database_name)
+    provider_bpp_id = os.getenv("MOCK_PROVIDER_BPP_ID", BUS_BPP_ID)
+    provider_id = os.getenv("MOCK_PROVIDER_ID", BUS_PROVIDER_ID)
+    key = (uri, database_name, provider_bpp_id, provider_id)
     with _CLIENT_LOCK:
         store = _CLIENTS.get(key)
         if store is None:
-            store = MongoProviderStore(uri, database_name)
+            store = MongoProviderStore(uri, database_name, provider_bpp_id, provider_id)
             _CLIENTS[key] = store
         return store
 

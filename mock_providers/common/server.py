@@ -69,7 +69,9 @@ _STORAGE_ERRORS = (PyMongoError, MongoStorageConfigurationError, MongoTransactio
 def create_app(provider_dir: Path) -> FastAPI:
     load_dotenv(provider_dir / ".env")
     data = json.loads((provider_dir / "data.json").read_text(encoding="utf-8"))
-    if provider_dir.name == "mock_bus" and mongo_storage_enabled(data["provider"]["bpp_id"]):
+    if mongo_storage_enabled(data["provider"]["bpp_id"]):
+        os.environ["MOCK_PROVIDER_BPP_ID"] = data["provider"]["bpp_id"]
+        os.environ["MOCK_PROVIDER_ID"] = data["provider"]["id"]
         store = get_mongo_provider_store()
         store.verify_transactions()
         data = store.load_catalog(data["provider"]["bpp_id"])
@@ -90,7 +92,7 @@ def create_app(provider_dir: Path) -> FastAPI:
             yield
         finally:
             await app.state.http_client.aclose()
-            if provider_dir.name == "mock_bus" and mongo_storage_enabled(data["provider"]["bpp_id"]):
+            if mongo_storage_enabled(data["provider"]["bpp_id"]):
                 close_mongo_provider_stores()
 
     app = FastAPI(title=name, lifespan=lifespan)
@@ -403,6 +405,15 @@ def create_app(provider_dir: Path) -> FastAPI:
 def create_hotel_app(provider_dir: Path) -> FastAPI:
     load_dotenv(provider_dir / ".env")
     data = json.loads((provider_dir / "data.json").read_text(encoding="utf-8"))
+    if mongo_storage_enabled(data["provider"]["bpp_id"]):
+        os.environ["MOCK_PROVIDER_BPP_ID"] = data["provider"]["bpp_id"]
+        os.environ["MOCK_PROVIDER_ID"] = data["provider"]["id"]
+        store = get_mongo_provider_store()
+        store.verify_transactions()
+        # Keep the nested hotel catalog required by the converter; Mongo remains
+        # authoritative for inventory and orders through with_current_inventory.
+        store.load_catalog(data["provider"]["bpp_id"])
+        store.ensure_indexes()
     name = data["provider"]["name"]
     delay = float(os.getenv("DELAY_SECONDS", "0.5"))
     fail_rate = float(os.getenv("FAIL_RATE", "0"))
@@ -445,8 +456,12 @@ def create_hotel_app(provider_dir: Path) -> FastAPI:
                 response.status_code,
                 (time.monotonic() - started_at) * 1000,
             )
-        except httpx.RequestError as error:
-            logger.warning("hotel callback failed transaction_id=%s error=%s", transaction_id, error)
+        except (httpx.RequestError, ProtocolError) as error:
+            logger.warning(
+                "hotel callback failed transaction_id=%s reason=%s",
+                transaction_id,
+                type(error).__name__,
+            )
 
     @app.post("/search")
     async def search(request: Request):

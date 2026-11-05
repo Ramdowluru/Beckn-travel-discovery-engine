@@ -646,3 +646,17 @@ class TransportSelectionRepository:
             {"$set": fields},
             return_document=ReturnDocument.AFTER,
         )
+
+    async def hide_booking(self, selection_id: str, user_id: ObjectId) -> dict[str, Any] | None:
+        """Hide a cancelled booking from My Bookings (mark as hidden, don't delete)."""
+        return await self._collection.find_one_and_update(
+            {
+                "selectionId": selection_id,
+                "userId": user_id,
+                "confirmState": "CONFIRMED",
+                "cancelState": "CANCELLED",
+                "hidden": {"$ne": True},
+            },
+            {"$set": {"hidden": True, "hiddenAt": datetime.now(timezone.utc), "updatedAt": datetime.now(timezone.utc)}},
+            return_document=ReturnDocument.AFTER,
+        )
